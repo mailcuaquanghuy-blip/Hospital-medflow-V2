@@ -33,16 +33,13 @@ import {
   collection, 
   onSnapshot, 
   doc, 
-  setDoc, 
-  updateDoc,
-  deleteDoc,
   query,
   where,
   getDocs,
   getDoc,
-  getDocFromServer,
-  writeBatch
+  getDocFromServer
 } from "firebase/firestore";
+import { setDoc, updateDoc, deleteDoc, writeBatch } from './utils/dbService';
 
 
 export type MainTab = 'PATIENT_RECORDS' | 'SCHEDULING' | 'GENERAL_TIMELINE' | 'DAILY_REPORT' | 'DEPT_MANAGER' | 'ACCOUNT_MANAGER' | 'ACCOUNT_BACKUP';
@@ -114,6 +111,132 @@ const App: React.FC = () => {
     return subscribeQuotaExceeded((exceeded) => {
       setIsQuotaExceeded(exceeded);
     });
+  }, []);
+
+  useEffect(() => {
+    const handleDbChange = (e: Event) => {
+      const { collectionName, docId, data, action } = (e as CustomEvent).detail;
+      console.log(`[db-change event received] ${collectionName}/${docId} action: ${action}`, data);
+      
+      switch (collectionName) {
+        case 'users':
+          setUsers(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
+        case 'appointments':
+          setAppointments(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
+        case 'machineShifts':
+        case 'machine_shifts':
+          setMachineShifts(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
+        case 'templates':
+          setTemplates(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
+        case 'patients':
+          setPatients(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [data, ...prev];
+          });
+          break;
+        case 'staff':
+          setStaff(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
+        case 'attendance':
+          setAttendanceRecords(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
+        case 'procedures':
+          setProcedures(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
+        case 'backups':
+          setBackups(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = data;
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('db-change', handleDbChange);
+    return () => {
+      window.removeEventListener('db-change', handleDbChange);
+    };
   }, []);
 
   useEffect(() => {

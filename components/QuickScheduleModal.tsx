@@ -3,7 +3,8 @@ import { X, Clock, Zap, Check, ChevronDown, Sparkles, AlertCircle, RefreshCw, Us
 import { Button } from './Button';
 import { Patient, Appointment, Procedure, Staff, AttendanceRecord, AppointmentStatus, Department, AttendanceStatus } from '../types';
 import { timeStringToMinutes, minutesToTimeString, checkConflict } from '../utils/timeUtils';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
+import { setDoc } from '../utils/dbService';
 import { db } from '../firebase';
 
 interface QuickScheduleModalProps {

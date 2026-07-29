@@ -13,7 +13,8 @@ import { QuickScheduleModal } from './QuickScheduleModal';
 import { DateInput } from './DateInput';
 import { DEPARTMENTS, OFFICE_SHIFTS } from '../constants';
 import { db } from '../firebase';
-import { doc, setDoc, deleteDoc, collection } from 'firebase/firestore';
+import { doc, collection } from 'firebase/firestore';
+import { setDoc, deleteDoc } from '../utils/dbService';
 
 type SortField = 'NAME' | 'ROOM_BED' | 'ADMISSION';
 type SortDirection = 'ASC' | 'DESC';

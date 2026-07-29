@@ -10,7 +10,8 @@ import { DEPARTMENTS } from '../constants';
 import { Appointment, Procedure, Staff } from '../types';
 import { downloadCSV, parseCSV } from '../utils/csvUtils';
 import { db } from '../firebase';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
+import { setDoc } from '../utils/dbService';
 
 type SortField = 'NAME' | 'ROOM' | 'BED' | 'ADMISSION';
 type SortDirection = 'ASC' | 'DESC';
