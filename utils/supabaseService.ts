@@ -37,18 +37,27 @@ export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | nu
 
 export async function saveSupabaseItem(tableName: string, id: string, itemData: any): Promise<boolean> {
   try {
-    const payload = {
+    // Try the standard format with { id, data } first
+    const { error: standardError } = await supabase.from(tableName).upsert({ id, data: itemData });
+    if (!standardError) {
+      return true;
+    }
+
+    // Fallback 1: Try with updated_at column
+    const { error: updatedAtError } = await supabase.from(tableName).upsert({
       id,
       data: itemData,
       updated_at: new Date().toISOString()
-    };
-    const { error } = await supabase.from(tableName).upsert(payload);
-    if (error) {
-      const { error: flatErr } = await supabase.from(tableName).upsert({ id, ...itemData });
-      if (flatErr) {
-        console.error(`Supabase save error for ${tableName}:`, flatErr.message);
-        return false;
-      }
+    });
+    if (!updatedAtError) {
+      return true;
+    }
+
+    // Fallback 2: Try flat format
+    const { error: flatErr } = await supabase.from(tableName).upsert({ id, ...itemData });
+    if (flatErr) {
+      console.error(`Supabase save error for ${tableName}:`, flatErr.message);
+      return false;
     }
     return true;
   } catch (err) {
