@@ -5,6 +5,7 @@ import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN,
 
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
+import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem } from './utils/supabaseService';
 import { Timeline } from './components/Timeline';
 import { DailyReport } from './components/DailyReport';
 import { Dashboard } from './components/Dashboard';
@@ -175,73 +176,17 @@ const App: React.FC = () => {
 
     const seedData = async () => {
       try {
-        // Check patients collection & auto-seed any missing mock patients
-        const q = query(collection(db, "patients"));
-        const snapshot = await getDocs(q);
-        const existingPatientIds = new Set(snapshot.docs.map(d => d.id));
-        const missingPatients = MOCK_PATIENTS.filter(p => !existingPatientIds.has(p.id));
-        if (missingPatients.length > 0) {
-          console.log(`Seeding ${missingPatients.length} missing mock patients to Firestore...`);
-          await Promise.all(missingPatients.map(p => setDoc(doc(db, "patients", p.id), p)));
-        }
-
         // Check if procedures collection has been seeded
         const configDoc = await getDoc(doc(db, "system_config", "procedures_seeded"));
         const pQ = query(collection(db, "procedures"));
         const pSnapshot = await getDocs(pQ);
         
         if (!configDoc.exists() && pSnapshot.empty) {
-          console.log("Seeding mock procedures to Firestore in parallel...");
+          console.log("Seeding initial procedures to Firestore...");
           const promises = MOCK_PROCEDURES.map(p => setDoc(doc(db, "procedures", p.id), p));
           await Promise.all(promises);
           await setDoc(doc(db, "system_config", "procedures_seeded"), { seeded: true, at: new Date().toISOString() });
-        } else {
-          // Auto-patch/migrate existing procedures to add missing mock procedures
-          const currentProcIds = new Set(pSnapshot.docs.map(doc => doc.id));
-          const missingProcs = MOCK_PROCEDURES.filter(p => !currentProcIds.has(p.id));
-          if (missingProcs.length > 0) {
-            console.log(`Patching ${missingProcs.length} missing procedures...`);
-            await Promise.all(missingProcs.map(p => setDoc(doc(db, "procedures", p.id), p)));
-          }
         }
-
-        // Check staff collection & auto-seed any missing staff
-        const sQ = query(collection(db, "staff"));
-        const sSnapshot = await getDocs(sQ);
-        const existingStaff = sSnapshot.docs.map(d => ({id: d.id, ...d.data()} as Staff));
-        const existingStaffIds = new Set(existingStaff.map(d => d.id));
-        const missingStaff = MOCK_STAFF.filter(s => !existingStaffIds.has(s.id));
-        if (missingStaff.length > 0) {
-          console.log(`Seeding ${missingStaff.length} missing staff members...`);
-          await Promise.all(missingStaff.map(s => setDoc(doc(db, "staff", s.id), s)));
-        }
-
-          // Migration: "bs uyên" -> "Cầm Thị Uyên"
-          const targetStaff = existingStaff.find(s => s.name === "Cầm Thị Uyên");
-          const sourceStaff = existingStaff.find(s => s.name.toLowerCase().includes("uyên") && s.name !== "Cầm Thị Uyên");
-          
-          if (targetStaff && sourceStaff) {
-            console.log(`Migrating appointments from ${sourceStaff.name} (id: ${sourceStaff.id}) to ${targetStaff.name} (id: ${targetStaff.id})`);
-            
-            const aQ = query(collection(db, "appointments"), where("staffId", "==", sourceStaff.id));
-            const aSnapshot = await getDocs(aQ);
-            const p1 = aSnapshot.docs.map(aDoc => updateDoc(doc(db, "appointments", aDoc.id), { staffId: targetStaff.id }));
-            
-            const aQ1 = query(collection(db, "appointments"), where("assistant1Id", "==", sourceStaff.id));
-            const aSnapshot1 = await getDocs(aQ1);
-            const p2 = aSnapshot1.docs.map(aDoc => updateDoc(doc(db, "appointments", aDoc.id), { assistant1Id: targetStaff.id }));
-
-            const aQ2 = query(collection(db, "appointments"), where("assistant2Id", "==", sourceStaff.id));
-            const aSnapshot2 = await getDocs(aQ2);
-            const p3 = aSnapshot2.docs.map(aDoc => updateDoc(doc(db, "appointments", aDoc.id), { assistant2Id: targetStaff.id }));
-            
-            await Promise.all([...p1, ...p2, ...p3]);
-            await deleteDoc(doc(db, "staff", sourceStaff.id));
-            console.log(`Deleted ${sourceStaff.name}`);
-          } else if (!targetStaff && sourceStaff && sourceStaff.name.toLowerCase().match(/^bs\.?\s?uyên$/)) {
-             // If only "bs uyên" exists, rename it
-             await updateDoc(doc(db, "staff", sourceStaff.id), { name: "Cầm Thị Uyên" });
-          }
 
         // Check if users collection is empty or missing default admin
         const uQ = query(collection(db, "users"));
@@ -301,6 +246,36 @@ const App: React.FC = () => {
 
     seedData().then(() => seedTemplates()).catch(console.error);
   }, [isFirebaseReady, isAuthReady]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    if (isSupabaseConfigured()) {
+      console.log("Supabase configured. Loading data from Supabase project 'Chia thu thuat Son La'...");
+      const loadSupabaseData = async () => {
+        try {
+          const [pats, appts, stf, procs, att, shifts, tpls] = await Promise.all([
+            fetchSupabaseTable<Patient>('patients'),
+            fetchSupabaseTable<Appointment>('appointments'),
+            fetchSupabaseTable<Staff>('staff'),
+            fetchSupabaseTable<Procedure>('procedures'),
+            fetchSupabaseTable<AttendanceRecord>('attendance'),
+            fetchSupabaseTable<MachineShift>('machine_shifts'),
+            fetchSupabaseTable<AppointmentTemplate>('templates')
+          ]);
+          if (pats) setPatients(pats);
+          if (appts) setAppointments(appts);
+          if (stf) setStaff(stf);
+          if (procs) setProcedures(procs);
+          if (att) setAttendanceRecords(att);
+          if (shifts) setMachineShifts(shifts);
+          if (tpls) setTemplates(tpls);
+        } catch (err) {
+          console.warn("Failed to fetch Supabase data:", err);
+        }
+      };
+      loadSupabaseData();
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (!db || !isAuthReady || !auth.currentUser) return;

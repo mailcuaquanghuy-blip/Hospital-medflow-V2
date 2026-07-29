@@ -4,7 +4,7 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 import { createClient } from "@supabase/supabase-js";
 import firebaseConfig from '../firebase-applet-config.json' assert { type: 'json' };
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://jtfzhraqhkouwgrhnxxe.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://chavuvjjrimdeomjexej.supabase.co";
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || "";
 
 const app = initializeApp(firebaseConfig);
