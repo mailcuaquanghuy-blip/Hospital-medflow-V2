@@ -895,11 +895,38 @@ const App: React.FC = () => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const dateRange: string[] = [];
+    let dateRange: string[] = [];
     let current = new Date(start);
     while (current <= end) {
       dateRange.push(current.toISOString().split('T')[0]);
       current.setDate(current.getDate() + 1);
+    }
+
+    // Lọc bỏ ngày nghỉ toàn khoa khỏi dateRange
+    const targetDeptId = currentDept?.id || sourceAppts[0]?.deptId;
+    const holidayDates: string[] = [];
+    if (targetDeptId) {
+      dateRange = dateRange.filter(targetDate => {
+        const isDeptHoliday = attendanceRecords.some(r => 
+          r.staffId === `holiday_dept_${targetDeptId}` && 
+          r.date === targetDate && 
+          r.status === AttendanceStatus.OFF_FULL
+        );
+        if (isDeptHoliday) {
+          holidayDates.push(targetDate);
+        }
+        return !isDeptHoliday;
+      });
+    }
+
+    const actualTargetDates = dateRange.filter(d => d !== sourceDate);
+    if (actualTargetDates.length === 0) {
+      if (holidayDates.length > 0) {
+        alert(`Không thể sao chép. Tất cả các ngày trong khoảng từ ngày ${new Date(startDate).toLocaleDateString('vi-VN')} đến ngày ${new Date(endDate).toLocaleDateString('vi-VN')} đều là ngày nghỉ toàn khoa.`);
+      } else {
+        alert("Không có ngày nào khả dụng để sao chép.");
+      }
+      return;
     }
 
     // Kiểm tra bệnh nhân đã ra viện từ hôm trước của ngày đích chưa
@@ -1080,7 +1107,12 @@ const App: React.FC = () => {
     if (newAppts.length > 0) {
       const apptPromises = newAppts.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
       await Promise.all(apptPromises);
-      alert(`Đã sao chép thành công.`);
+      
+      let msg = `Đã sao chép thành công.`;
+      if (holidayDates.length > 0) {
+        msg += `\nLưu ý: Hệ thống đã tự động bỏ qua các ngày nghỉ toàn khoa: ${holidayDates.map(d => new Date(d).toLocaleDateString('vi-VN')).join(', ')}.`;
+      }
+      alert(msg);
     }
   };
 
