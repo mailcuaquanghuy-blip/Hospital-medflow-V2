@@ -392,7 +392,13 @@ const App: React.FC = () => {
           if (procs) setProcedures(procs);
           if (att) setAttendanceRecords(att);
           if (shifts) setMachineShifts(shifts);
-          if (tpls) setTemplates(tpls);
+          if (tpls) {
+            const sanitizedTpls = tpls.map(t => ({
+              ...t,
+              procedures: t.procedures || []
+            }));
+            setTemplates(sanitizedTpls);
+          }
           if (usrs && usrs.length > 0) setUsers(usrs);
 
           setLoadedCollections({
@@ -456,7 +462,13 @@ const App: React.FC = () => {
     if (isSupabaseConfigured()) return;
     if (!db || !currentUser || !isAuthReady) return;
     const unsub = onSnapshot(collection(db, "templates"), (snapshot) => {
-      const templatesData = snapshot.docs.map(doc => ({ ...doc.data() } as AppointmentTemplate));
+      const templatesData = snapshot.docs.map(doc => {
+        const data = doc.data() as AppointmentTemplate;
+        return {
+          ...data,
+          procedures: data.procedures || []
+        };
+      });
       setTemplates(templatesData);
       setLoadedCollections(prev => ({ ...prev, templates: true }));
     }, (error) => {

@@ -71,12 +71,15 @@ export const updateDoc = async (docRef: any, data: any) => {
       console.warn("Failed to fetch existing row for merge:", err);
     }
 
-    const success = await saveSupabaseItem(tableName, docId, mergedData);
+    // Clean mergedData of undefined values
+    const cleanData = JSON.parse(JSON.stringify(mergedData, (key, value) => value === undefined ? null : value));
+
+    const success = await saveSupabaseItem(tableName, docId, cleanData);
     if (!success) {
       throw new Error(`Failed to update ${tableName} in Supabase`);
     }
 
-    dispatchDbChange(collectionName, docId, mergedData, 'set');
+    dispatchDbChange(collectionName, docId, cleanData, 'set');
   } else {
     await firebaseUpdateDoc(docRef, data);
   }
@@ -133,8 +136,10 @@ export const writeBatch = (firestoreDb: any) => {
             } catch (err) {
               console.warn("Failed to fetch existing row for merge in batch:", err);
             }
-            await saveSupabaseItem(tableName, docId, mergedData);
-            dispatchDbChange(collectionName, docId, mergedData, 'set');
+            // Clean mergedData of undefined values
+            const cleanData = JSON.parse(JSON.stringify(mergedData, (key, value) => value === undefined ? null : value));
+            await saveSupabaseItem(tableName, docId, cleanData);
+            dispatchDbChange(collectionName, docId, cleanData, 'set');
           } else if (op.type === 'delete') {
             await deleteSupabaseItem(tableName, docId);
             dispatchDbChange(collectionName, docId, null, 'delete');

@@ -392,7 +392,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
     setSelectedTemplateId(template.id);
     setEditingTemplate({
       ...template,
-      procedures: JSON.parse(JSON.stringify(template.procedures))
+      procedures: JSON.parse(JSON.stringify(template.procedures || []))
     });
   };
 
@@ -600,7 +600,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                             if (orderA !== orderB) return orderA - orderB;
                             return a.name.localeCompare(b.name, 'vi');
                           }).map((t, idx) => {
-                          const templateProcIds = t.procedures.map(p => `${p.procedureId}_${p.startTime}_${p.endTime}`);
+                          const templateProcIds = (t.procedures || []).map(p => `${p.procedureId}_${p.startTime}_${p.endTime}`);
                           let usedCount = 0;
                           let usedByPatientIds: string[] = [];
                           
@@ -672,7 +672,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                                   <span className={`font-semibold text-sm ${selectedTemplateId === t.id ? 'text-emerald-700' : 'text-slate-800'}`}>
                                     {t.name}
                                   </span>
-                                  <span className="text-[10px] text-slate-400">{t.procedures.length} thủ thuật</span>
+                                  <span className="text-[10px] text-slate-400">{(t.procedures || []).length} thủ thuật</span>
                                 </div>
                                 <div className="absolute right-2 top-3 opacity-0 group-hover/cell:opacity-100 transition-opacity flex gap-1">
                                   <button onClick={(e) => { e.stopPropagation(); onDeleteTemplate(t.id); if (selectedTemplateId === t.id) setEditingTemplate(null); }} className="p-1.5 hover:bg-rose-100 text-rose-400 hover:text-rose-600 rounded-md shadow-sm bg-white border border-slate-200"><Trash2 size={12} /></button>

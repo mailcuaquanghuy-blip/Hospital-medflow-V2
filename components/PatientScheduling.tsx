@@ -487,7 +487,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
          if (!tmpl) return;
          
          const sortedAppts = [...appts].sort((a,b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime));
-         const sortedTmplProcs = [...tmpl.procedures].sort((a,b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime));
+         const sortedTmplProcs = [...(tmpl.procedures || [])].sort((a,b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime));
          
          let isMismatch = false;
          if (sortedAppts.length !== sortedTmplProcs.length) {
@@ -644,7 +644,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
               }
               
               const template = item.template;
-              const templateProcIds = template.procedures.map((p: TemplateProcedure) => `${p.procedureId}_${p.startTime}_${p.endTime}`).sort();
+              const templateProcIds = (template.procedures || []).map((p: TemplateProcedure) => `${p.procedureId}_${p.startTime}_${p.endTime}`).sort();
               const templateKey = templateProcIds.join('|');
               const allApptsForTemplate = appointments.filter(a => a.date === currentDate && a.deptId === currentDept.id && a.templateId === template.id);
               
@@ -810,7 +810,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         await Promise.all(existingAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id))));
       }
 
-      const createPromises = editingTemplate.procedures.map(async (tProc) => {
+      const createPromises = (editingTemplate.procedures || []).map(async (tProc) => {
         let staffId: string | null = null;
         let assistant1Id: string | null = null;
         let assistant2Id: string | null = null;
@@ -881,7 +881,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       await Promise.all(associatedAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id))));
 
       // Re-create from template in parallel
-      const createPromises = tmpl.procedures.map(async (tProc) => {
+      const createPromises = (tmpl.procedures || []).map(async (tProc) => {
         let staffId = tProc.staffId;
         let assistant1Id = tProc.assistant1Id;
         let assistant2Id = tProc.assistant2Id;
@@ -937,7 +937,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     if (!template) return;
 
     try {
-      const createPromises = template.procedures.map(async (tProc) => {
+      const createPromises = (template.procedures || []).map(async (tProc) => {
         const apptId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newAppt: Appointment = {
           id: apptId,
@@ -1902,7 +1902,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                               if (t.deptId !== currentDept.id) return false;
                               if (!templateSearchQuery.trim()) return true;
                               const q = templateSearchQuery.toLowerCase();
-                              const matchesProcedures = t.procedures.some(tp => {
+                              const matchesProcedures = (t.procedures || []).some(tp => {
                                 const proc = procedures.find(p => p.id === tp.procedureId);
                                 return proc?.name.toLowerCase().includes(q);
                               });
@@ -2040,7 +2040,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                               />
                             </div>
                             <div className="space-y-3">
-                              {editingTemplate.procedures.map((tProc, idx) => {
+                              {(editingTemplate.procedures || []).map((tProc, idx) => {
                                 const proc = procedures.find(p => p.id === tProc.procedureId);
                                 return (
                                   <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
@@ -2215,7 +2215,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                         <Button variant="secondary" onClick={() => setIsLoadTemplateModalOpen(false)}>Đóng</Button>
                         <Button 
                           onClick={handleApplyTemplate} 
-                          disabled={!selectedTemplateId || !editingTemplate || editingTemplate.procedures.length === 0 || editingTemplate.procedures.some(tp => procedures.find(p => p.id === tp.procedureId)?.requireMachine && !tp.assignedMachineId)} 
+                          disabled={!selectedTemplateId || !editingTemplate || (editingTemplate.procedures || []).length === 0 || (editingTemplate.procedures || []).some(tp => procedures.find(p => p.id === tp.procedureId)?.requireMachine && !tp.assignedMachineId)} 
                           className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
                           <CheckCircle2 size={18} /> Áp dụng mẫu
