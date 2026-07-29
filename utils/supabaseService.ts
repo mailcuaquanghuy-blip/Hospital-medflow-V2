@@ -1,20 +1,29 @@
 import { supabase } from '../supabaseClient';
 
 export function isSupabaseConfigured(): boolean {
-  const key = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string) || process.env.VITE_SUPABASE_ANON_KEY || "";
-  return Boolean(key && key.trim().length > 0 && key !== 'dummy_anon_key');
+  return true;
 }
 
 export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | null> {
-  if (!isSupabaseConfigured()) return null;
   try {
-    const { data, error } = await supabase.from(tableName).select('*');
-    if (error) {
-      console.warn(`Supabase fetch error for table ${tableName}:`, error.message);
-      return null;
+    let all: any[] = [];
+    let from = 0;
+    const step = 1000;
+    while (true) {
+      const res = await supabase.from(tableName).select('*').range(from, from + step - 1);
+      if (res.error) {
+        console.warn(`Supabase fetch error for table ${tableName}:`, res.error.message);
+        break;
+      }
+      if (!res.data || res.data.length === 0) break;
+      all = all.concat(res.data);
+      if (res.data.length < step) break;
+      from += step;
     }
-    // Parse wrapped json data if stored as { id, data: { ... } } or raw table columns
-    return (data || []).map(row => {
+
+    if (all.length === 0) return [];
+
+    return all.map(row => {
       if (row.data && typeof row.data === 'object') {
         return { ...row.data, id: row.id };
       }
@@ -27,7 +36,6 @@ export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | nu
 }
 
 export async function saveSupabaseItem(tableName: string, id: string, itemData: any): Promise<boolean> {
-  if (!isSupabaseConfigured()) return false;
   try {
     const payload = {
       id,
@@ -36,7 +44,6 @@ export async function saveSupabaseItem(tableName: string, id: string, itemData: 
     };
     const { error } = await supabase.from(tableName).upsert(payload);
     if (error) {
-      // Try fallback direct upsert if table uses flat schema
       const { error: flatErr } = await supabase.from(tableName).upsert({ id, ...itemData });
       if (flatErr) {
         console.error(`Supabase save error for ${tableName}:`, flatErr.message);
@@ -51,7 +58,6 @@ export async function saveSupabaseItem(tableName: string, id: string, itemData: 
 }
 
 export async function deleteSupabaseItem(tableName: string, id: string): Promise<boolean> {
-  if (!isSupabaseConfigured()) return false;
   try {
     const { error } = await supabase.from(tableName).delete().eq('id', id);
     if (error) {
@@ -64,3 +70,4 @@ export async function deleteSupabaseItem(tableName: string, id: string): Promise
     return false;
   }
 }
+

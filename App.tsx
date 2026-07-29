@@ -253,14 +253,15 @@ const App: React.FC = () => {
       console.log("Supabase configured. Loading data from Supabase project 'Chia thu thuat Son La'...");
       const loadSupabaseData = async () => {
         try {
-          const [pats, appts, stf, procs, att, shifts, tpls] = await Promise.all([
+          const [pats, appts, stf, procs, att, shifts, tpls, usrs] = await Promise.all([
             fetchSupabaseTable<Patient>('patients'),
             fetchSupabaseTable<Appointment>('appointments'),
             fetchSupabaseTable<Staff>('staff'),
             fetchSupabaseTable<Procedure>('procedures'),
             fetchSupabaseTable<AttendanceRecord>('attendance'),
             fetchSupabaseTable<MachineShift>('machine_shifts'),
-            fetchSupabaseTable<AppointmentTemplate>('templates')
+            fetchSupabaseTable<AppointmentTemplate>('templates'),
+            fetchSupabaseTable<UserAccount>('users')
           ]);
           if (pats) setPatients(pats);
           if (appts) setAppointments(appts);
@@ -269,6 +270,17 @@ const App: React.FC = () => {
           if (att) setAttendanceRecords(att);
           if (shifts) setMachineShifts(shifts);
           if (tpls) setTemplates(tpls);
+          if (usrs && usrs.length > 0) setUsers(usrs);
+
+          setLoadedCollections({
+            patients: true,
+            appointments: true,
+            templates: true,
+            attendance: true,
+            staff: true,
+            machineShifts: true,
+            procedures: true,
+          });
         } catch (err) {
           console.warn("Failed to fetch Supabase data:", err);
         }
@@ -278,6 +290,7 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     if (!db || !isAuthReady || !auth.currentUser) return;
     const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
       const usersData = snapshot.docs.map(doc => ({ ...doc.data() } as UserAccount));
@@ -289,6 +302,7 @@ const App: React.FC = () => {
   }, [isFirebaseReady, isAuthReady]);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     if (!db || !currentUser || !isAuthReady) return;
     const unsub = onSnapshot(collection(db, "patients"), (snapshot) => {
       const patientsData = snapshot.docs.map(doc => ({ ...doc.data() } as Patient));
@@ -302,6 +316,7 @@ const App: React.FC = () => {
   }, [isFirebaseReady, currentUser, isAuthReady]);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     if (!db || !currentUser || !isAuthReady) return;
     const unsub = onSnapshot(collection(db, "appointments"), (snapshot) => {
       const apptsData = snapshot.docs.map(doc => ({ ...doc.data() } as Appointment));
@@ -315,6 +330,7 @@ const App: React.FC = () => {
   }, [isFirebaseReady, currentUser, isAuthReady]);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     if (!db || !currentUser || !isAuthReady) return;
     const unsub = onSnapshot(collection(db, "templates"), (snapshot) => {
       const templatesData = snapshot.docs.map(doc => ({ ...doc.data() } as AppointmentTemplate));
@@ -328,6 +344,7 @@ const App: React.FC = () => {
   }, [isFirebaseReady, currentUser, isAuthReady]);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     if (!db || !currentUser || !isAuthReady) return;
     const unsub = onSnapshot(collection(db, "attendance"), (snapshot) => {
       const attData = snapshot.docs.map(doc => ({ ...doc.data() } as AttendanceRecord));
@@ -341,6 +358,7 @@ const App: React.FC = () => {
   }, [isFirebaseReady, currentUser, isAuthReady]);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     if (!db || !currentUser || !isAuthReady) return;
     const unsub = onSnapshot(collection(db, "staff"), (snapshot) => {
       const staffData = snapshot.docs.map(doc => ({ ...doc.data() } as Staff));
@@ -354,6 +372,7 @@ const App: React.FC = () => {
   }, [isFirebaseReady, currentUser, isAuthReady]);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     if (!db || !currentUser || !isAuthReady) return;
     const unsub = onSnapshot(collection(db, "machineShifts"), (snapshot) => {
       const shiftsData = snapshot.docs.map(doc => ({ ...doc.data() } as MachineShift));
@@ -367,6 +386,7 @@ const App: React.FC = () => {
   }, [isFirebaseReady, currentUser, isAuthReady]);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     if (!db || !currentUser || !isAuthReady) return;
     const unsub = onSnapshot(collection(db, "procedures"), (snapshot) => {
       const procData = snapshot.docs.map(doc => ({ ...doc.data() } as Procedure));
