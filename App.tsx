@@ -175,14 +175,14 @@ const App: React.FC = () => {
 
     const seedData = async () => {
       try {
-        // Check if patients collection is empty
+        // Check patients collection & auto-seed any missing mock patients
         const q = query(collection(db, "patients"));
         const snapshot = await getDocs(q);
-        
-        if (snapshot.empty) {
-          console.log("Seeding mock patients to Firestore in parallel...");
-          const promises = MOCK_PATIENTS.map(p => setDoc(doc(db, "patients", p.id), p));
-          await Promise.all(promises);
+        const existingPatientIds = new Set(snapshot.docs.map(d => d.id));
+        const missingPatients = MOCK_PATIENTS.filter(p => !existingPatientIds.has(p.id));
+        if (missingPatients.length > 0) {
+          console.log(`Seeding ${missingPatients.length} missing mock patients to Firestore...`);
+          await Promise.all(missingPatients.map(p => setDoc(doc(db, "patients", p.id), p)));
         }
 
         // Check if procedures collection has been seeded
@@ -196,44 +196,25 @@ const App: React.FC = () => {
           await Promise.all(promises);
           await setDoc(doc(db, "system_config", "procedures_seeded"), { seeded: true, at: new Date().toISOString() });
         } else {
-          // Auto-patch/migrate existing procedures to add Khoa Lão procedures if missing
-          const currentProcsInDb = pSnapshot.docs.map(doc => doc.data() as Procedure);
-          const needsLaoProcedures = !currentProcsInDb.some(p => p.deptId === 'dept_lao');
-          
-          const patchPromises: Promise<any>[] = [];
-          
-          // Add Khoa Lão procedures if missing
-          if (needsLaoProcedures) {
-            const laoProcs = MOCK_PROCEDURES.filter(p => p.deptId === 'dept_lao');
-            for (const laoP of laoProcs) {
-              patchPromises.push(setDoc(doc(db, "procedures", laoP.id), laoP));
-            }
-          }
-          
-          if (patchPromises.length > 0) {
-            console.log(`Running procedures migration for ${patchPromises.length} updates...`);
-            await Promise.all(patchPromises);
+          // Auto-patch/migrate existing procedures to add missing mock procedures
+          const currentProcIds = new Set(pSnapshot.docs.map(doc => doc.id));
+          const missingProcs = MOCK_PROCEDURES.filter(p => !currentProcIds.has(p.id));
+          if (missingProcs.length > 0) {
+            console.log(`Patching ${missingProcs.length} missing procedures...`);
+            await Promise.all(missingProcs.map(p => setDoc(doc(db, "procedures", p.id), p)));
           }
         }
 
-        // Check if staff collection is empty
+        // Check staff collection & auto-seed any missing staff
         const sQ = query(collection(db, "staff"));
         const sSnapshot = await getDocs(sQ);
         const existingStaff = sSnapshot.docs.map(d => ({id: d.id, ...d.data()} as Staff));
-        
-        if (sSnapshot.empty) {
-          console.log("Seeding mock staff to Firestore in parallel...");
-          const promises = MOCK_STAFF.map(s => setDoc(doc(db, "staff", s.id), s));
-          await Promise.all(promises);
-        } else {
-          // Check if Khoa Lão staff needs to be added
-          const hasLaoStaff = existingStaff.some(s => s.deptId === 'dept_lao');
-          if (!hasLaoStaff) {
-            console.log("Adding mock staff for Khoa Lão...");
-            const laoStaff = MOCK_STAFF.filter(s => s.deptId === 'dept_lao');
-            const promises = laoStaff.map(s => setDoc(doc(db, "staff", s.id), s));
-            await Promise.all(promises);
-          }
+        const existingStaffIds = new Set(existingStaff.map(d => d.id));
+        const missingStaff = MOCK_STAFF.filter(s => !existingStaffIds.has(s.id));
+        if (missingStaff.length > 0) {
+          console.log(`Seeding ${missingStaff.length} missing staff members...`);
+          await Promise.all(missingStaff.map(s => setDoc(doc(db, "staff", s.id), s)));
+        }
 
           // Migration: "bs uyên" -> "Cầm Thị Uyên"
           const targetStaff = existingStaff.find(s => s.name === "Cầm Thị Uyên");
@@ -261,7 +242,6 @@ const App: React.FC = () => {
              // If only "bs uyên" exists, rename it
              await updateDoc(doc(db, "staff", sourceStaff.id), { name: "Cầm Thị Uyên" });
           }
-        }
 
         // Check if users collection is empty or missing default admin
         const uQ = query(collection(db, "users"));

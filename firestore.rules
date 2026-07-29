@@ -54,8 +54,8 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    match /test/connection {
-      allow read: if isAuthenticated();
+    match /test/{testId} {
+      allow read, write: if isAuthenticated();
     }
 
     // Default deny
