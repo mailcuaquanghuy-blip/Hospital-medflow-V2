@@ -1,0 +1,147 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Global Deny
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Global Helpers
+    // ===============================================================
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      // In this app, we check the role in the users collection
+      // For bootstrapping, we might allow based on default admin ID
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+        request.auth.uid == 'admin_default'
+      );
+    }
+
+    // ===============================================================
+    // Entity Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.username is string && data.username.size() <= 50 &&
+             data.fullName is string && data.fullName.size() <= 100 &&
+             data.role in ['ADMIN', 'STAFF'] &&
+             data.viewableDeptIds is list &&
+             data.editableDeptIds is list;
+    }
+
+    function isValidStaff(data) {
+      return data.name is string && data.name.size() <= 100 &&
+             data.role in ['Doctor', 'Technician', 'Nurse', 'PhysicianAssistant', 'Pharmacist'] &&
+             data.deptId is string &&
+             data.capabilityIds is list &&
+             data.mainCapabilityIds is list &&
+             data.assistantCapabilityIds is list;
+    }
+
+    function isValidPatient(data) {
+      return data.name is string && data.name.size() <= 100 &&
+             data.dob is string &&
+             data.gender in ['Nam', 'Nữ'] &&
+             data.code is string &&
+             data.status in ['TREATING', 'DISCHARGED'] &&
+             data.admittedByDeptId is string;
+    }
+
+    function isValidAppointment(data) {
+      return data.patientId is string &&
+             data.staffId is string &&
+             data.procedureId is string &&
+             data.deptId is string &&
+             data.date is string &&
+             data.startTime is string &&
+             data.endTime is string &&
+             data.status in ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CONFLICT'];
+    }
+
+    // ===============================================================
+    // Rules by Collection
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (isAdmin() || request.auth.uid == userId);
+      allow update: if isSignedIn() && isValidUser(incoming()) && (isAdmin() || (request.auth.uid == userId && incoming().role == existing().role));
+      allow delete: if isAdmin();
+    }
+
+    match /staff/{staffId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(staffId) && isValidStaff(incoming());
+      allow update: if isSignedIn() && isValidStaff(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /patients/{patientId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(patientId) && isValidPatient(incoming());
+      allow update: if isSignedIn() && isValidPatient(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /procedures/{procedureId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn(); // Simplified for now
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(appointmentId) && isValidAppointment(incoming());
+      allow update: if isSignedIn() && isValidAppointment(incoming());
+      allow delete: if isSignedIn();
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    match /machineShifts/{shiftId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+
+    match /templates/{templateId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+
+    match /backups/{backupId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && isValidId(backupId);
+      allow delete: if isAdmin();
+    }
+
+    match /system_config/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn(); // Allow seeding
+    }
+
+    match /test/connection {
+      allow read: if isSignedIn();
+    }
+  }
+}

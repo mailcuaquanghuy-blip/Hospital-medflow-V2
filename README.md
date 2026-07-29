@@ -1,11 +1,37 @@
-<div align="center">
+# Hospital MedFlow - Hệ Thống Quản Lý Chỉ Định & Lịch Trình Y Tế
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Hospital MedFlow là hệ thống quản lý lịch làm việc, ca thực hiện thủ thuật y tế, điểm danh nhân viên và theo dõi tiến độ thủ thuật cho các khoa phòng bệnh viện.
 
-  <h1>Built with AI Studio</h2>
+## 🚀 Tính năng chính
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- **Quản lý Lịch hẹn & Thủ thuật**: Đặt lịch, theo dõi trạng thái ca thủ thuật, phân công bác sĩ/kỹ thuật viên.
+- **Quản lý Nhân sự & Điểm danh**: Theo dõi ca làm việc, điểm danh hàng ngày của đội ngũ y tế.
+- **Mẫu Thủ thuật (Templates)**: Quản lý danh mục bài tập, thủ thuật y tế.
+- **Đồng bộ Dữ liệu Cloud**: Hỗ trợ kết nối Supabase và Firebase Firestore.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## 🛠️ Công nghệ sử dụng
 
-</div>
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, Lucide Icons, Motion.
+- **Backend API**: Node.js / Express.
+- **Database**: Supabase / Firestore.
+
+## 💻 Hướng dẫn chạy cục bộ (Local Development)
+
+### 1. Cài đặt dependencies
+```bash
+npm install
+```
+
+### 2. Cấu hình biến môi trường
+Tạo file `.env` từ file `.env.example`:
+```env
+VITE_SUPABASE_URL=https://your-supabase-url.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+### 3. Chạy ứng dụng
+```bash
+npm run dev
+```
+
+Ứng dụng sẽ chạy tại: `http://localhost:3000`

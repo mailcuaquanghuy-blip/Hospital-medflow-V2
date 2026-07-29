@@ -1,0 +1,75 @@
+/* Custom styles for Hospital medflow */
+
+/* Clean, modern scrollbars for a premium feel and easy navigation */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f8fafc; /* slate-50 */
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* slate-300 */
+  border: 2px solid #f8fafc;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 12px; /* Thicker height for easy horizontal dragging on timelines */
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #f8fafc; /* slate-50 */
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* slate-300 */
+  border: 2px solid #f8fafc;
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+}
+
+/* Report container font scaling (approx +30% for improved readability) */
+.report-container {
+  font-size: 1.15rem !important;
+}
+
+/* Base override for tailwind text sizing classes inside report-container to be ~30% larger */
+.report-container .text-\[9px\] { font-size: 12px !important; }
+.report-container .text-\[10px\] { font-size: 13px !important; }
+.report-container .text-\[11px\] { font-size: 14.5px !important; }
+.report-container .text-\[14px\] { font-size: 18px !important; }
+.report-container .text-xs { font-size: 16px !important; }
+.report-container .text-sm { font-size: 18px !important; }
+.report-container .text-base { font-size: 21px !important; }
+.report-container .text-lg { font-size: 23px !important; }
+.report-container .text-xl { font-size: 26px !important; }
+.report-container .text-2xl { font-size: 31px !important; }
+.report-container .text-3xl { font-size: 39px !important; }
+.report-container .text-4xl { font-size: 47px !important; }
+
+/* Recharts / SVG specific text styling in reports */
+.report-container svg text {
+  font-size: 13px !important;
+}
+
+.report-container .recharts-legend-item-text {
+  font-size: 13px !important;
+}
+
+.report-container .recharts-tooltip-wrapper * {
+  font-size: 13px !important;
+}
+

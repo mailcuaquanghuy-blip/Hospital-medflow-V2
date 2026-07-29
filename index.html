@@ -1,0 +1,45 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hospital medflow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#0ea5e9', // Sky blue
+              success: '#22c55e', // Green
+              warning: '#ef4444', // Red for conflicts
+              neutral: '#64748b', // Gray for pending
+            },
+            animation: {
+              'marquee': 'marquee 10s linear infinite',
+              'blink': 'blink 1.5s ease-in-out infinite',
+            },
+            keyframes: {
+              marquee: {
+                '0%': { transform: 'translateX(0)' },
+                '100%': { transform: 'translateX(-50%)' },
+              },
+              blink: {
+                '0%, 100%': { opacity: '1' },
+                '50%': { opacity: '0.5' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <div id="portal-datepicker" style="position: absolute; top: 0; left: 0; z-index: 999999;"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

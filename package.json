@@ -1,0 +1,42 @@
+{
+  "name": "hospital-medflow",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "start": "node dist/server.cjs",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@supabase/supabase-js": "^2.111.0",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.1.0",
+    "@types/react-datepicker": "^6.2.0",
+    "@types/uuid": "^10.0.0",
+    "date-fns": "^4.1.0",
+    "express": "^5.2.1",
+    "firebase": "^12.9.0",
+    "lucide-react": "0.475.0",
+    "motion": "^12.38.0",
+    "multer": "^2.1.1",
+    "react": "^19.2.4",
+    "react-datepicker": "^9.1.0",
+    "react-dom": "^19.2.4",
+    "recharts": "^3.8.0",
+    "tsx": "^4.21.0",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "esbuild": "^0.28.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
