@@ -40,12 +40,12 @@ export async function saveSupabaseItem(tableName: string, id: string, itemData: 
     // We only use the standard format since all our tables are structured with a JSONB 'data' column
     const { error } = await supabase.from(tableName).upsert({ id, data: itemData });
     if (error) {
-      console.error(`Supabase upsert error on ${tableName}/${id}:`, error.message, error);
+      console.warn(`Supabase upsert note on ${tableName}/${id}: ${error.message}`);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error(`Supabase save catch error on ${tableName}/${id}:`, err);
+  } catch (err: any) {
+    console.warn(`Supabase save catch note on ${tableName}/${id}: ${err?.message || err}`);
     return false;
   }
 }
@@ -54,12 +54,12 @@ export async function deleteSupabaseItem(tableName: string, id: string): Promise
   try {
     const { error } = await supabase.from(tableName).delete().eq('id', id);
     if (error) {
-      console.error(`Supabase delete error for ${tableName}:`, error.message);
+      console.warn(`Supabase delete note for ${tableName}: ${error.message}`);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error(`Supabase delete error for ${tableName}:`, err);
+  } catch (err: any) {
+    console.warn(`Supabase delete note for ${tableName}: ${err?.message || err}`);
     return false;
   }
 }

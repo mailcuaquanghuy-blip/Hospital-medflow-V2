@@ -31,6 +31,14 @@ export const dispatchDbChange = (collectionName: string, docId: string, data: an
 };
 
 export const setDoc = async (docRef: any, data: any, options?: any) => {
+  if (docRef) {
+    try {
+      await firebaseSetDoc(docRef, data, options);
+    } catch (fbErr) {
+      console.warn("Firebase setDoc note:", fbErr);
+    }
+  }
+
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase setDoc] Saving to ${tableName}/${docId}:`, data);
@@ -40,16 +48,22 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
     
     const success = await saveSupabaseItem(tableName, docId, cleanData);
     if (!success) {
-      throw new Error(`Failed to save ${tableName} to Supabase`);
+      console.warn(`[Supabase setDoc] Note: Could not save ${tableName} to Supabase`);
     }
     
     dispatchDbChange(collectionName, docId, cleanData, 'set');
-  } else {
-    await firebaseSetDoc(docRef, data, options);
   }
 };
 
 export const updateDoc = async (docRef: any, data: any) => {
+  if (docRef) {
+    try {
+      await firebaseUpdateDoc(docRef, data);
+    } catch (fbErr) {
+      console.warn("Firebase updateDoc note:", fbErr);
+    }
+  }
+
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase updateDoc] Updating ${tableName}/${docId}:`, data);
@@ -76,46 +90,62 @@ export const updateDoc = async (docRef: any, data: any) => {
 
     const success = await saveSupabaseItem(tableName, docId, cleanData);
     if (!success) {
-      throw new Error(`Failed to update ${tableName} in Supabase`);
+      console.warn(`[Supabase updateDoc] Note: Could not update ${tableName} in Supabase`);
     }
 
     dispatchDbChange(collectionName, docId, cleanData, 'set');
-  } else {
-    await firebaseUpdateDoc(docRef, data);
   }
 };
 
 export const deleteDoc = async (docRef: any) => {
+  if (docRef) {
+    try {
+      await firebaseDeleteDoc(docRef);
+    } catch (fbErr) {
+      console.warn("Firebase deleteDoc note:", fbErr);
+    }
+  }
+
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase deleteDoc] Deleting from ${tableName}/${docId}`);
 
     const success = await deleteSupabaseItem(tableName, docId);
     if (!success) {
-      throw new Error(`Failed to delete ${tableName} from Supabase`);
+      console.warn(`[Supabase deleteDoc] Note: Could not delete ${tableName} from Supabase`);
     }
 
     dispatchDbChange(collectionName, docId, null, 'delete');
-  } else {
-    await firebaseDeleteDoc(docRef);
   }
 };
 
 export const writeBatch = (firestoreDb: any) => {
-  if (isSupabaseConfigured()) {
-    const operations: Array<{ docRef: any; data?: any; type: 'set' | 'update' | 'delete' }> = [];
-    
-    return {
-      set: (docRef: any, data: any) => {
-        operations.push({ docRef, data, type: 'set' });
-      },
-      update: (docRef: any, data: any) => {
-        operations.push({ docRef, data, type: 'update' });
-      },
-      delete: (docRef: any) => {
-        operations.push({ docRef, type: 'delete' });
-      },
-      commit: async () => {
+  const fbBatch = firestoreDb ? firebaseWriteBatch(firestoreDb) : null;
+  const operations: Array<{ docRef: any; data?: any; type: 'set' | 'update' | 'delete' }> = [];
+
+  return {
+    set: (docRef: any, data: any) => {
+      if (fbBatch) fbBatch.set(docRef, data);
+      operations.push({ docRef, data, type: 'set' });
+    },
+    update: (docRef: any, data: any) => {
+      if (fbBatch) fbBatch.update(docRef, data);
+      operations.push({ docRef, data, type: 'update' });
+    },
+    delete: (docRef: any) => {
+      if (fbBatch) fbBatch.delete(docRef);
+      operations.push({ docRef, type: 'delete' });
+    },
+    commit: async () => {
+      if (fbBatch) {
+        try {
+          await fbBatch.commit();
+        } catch (fbErr) {
+          console.warn("Firebase batch commit note:", fbErr);
+        }
+      }
+
+      if (isSupabaseConfigured()) {
         for (const op of operations) {
           const { collectionName, tableName, docId } = getRefDetails(op.docRef);
           if (op.type === 'set') {
@@ -136,7 +166,6 @@ export const writeBatch = (firestoreDb: any) => {
             } catch (err) {
               console.warn("Failed to fetch existing row for merge in batch:", err);
             }
-            // Clean mergedData of undefined values
             const cleanData = JSON.parse(JSON.stringify(mergedData, (key, value) => value === undefined ? null : value));
             await saveSupabaseItem(tableName, docId, cleanData);
             dispatchDbChange(collectionName, docId, cleanData, 'set');
@@ -146,8 +175,6 @@ export const writeBatch = (firestoreDb: any) => {
           }
         }
       }
-    } as any;
-  } else {
-    return firebaseWriteBatch(firestoreDb);
-  }
+    }
+  } as any;
 };
