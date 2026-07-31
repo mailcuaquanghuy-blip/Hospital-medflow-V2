@@ -139,12 +139,18 @@ export const checkConflict = (
   assistant2Id?: string | null,
   newApptData?: Partial<Appointment>
 ): { hasConflict: boolean; reason: string | null; conflictDetails: ConflictDetail[]; assignedMachineId?: string; isOvertime: boolean; isOutsideOfficeHours: boolean } => {
-  const startMin = timeStringToMinutes(newStart);
-  const endMin = timeStringToMinutes(newEnd);
+  let startMin = timeStringToMinutes(newStart);
+  let endMin = timeStringToMinutes(newEnd);
   const currentProc = getProcFromCache(procedures, procedureId);
   const staff = getStaffFromCache(staffList, staffId);
   
   const conflictDetails: ConflictDetail[] = [];
+
+  if (startMin > endMin) {
+    conflictDetails.push({ message: `Thời gian bắt đầu (${newStart}) không thể sau thời gian kết thúc (${newEnd}).`, level: 1 });
+    const duration = currentProc?.durationMinutes || 25;
+    endMin = startMin + duration;
+  }
 
   // Referral check for SUPPORT departments
   if (patientId && procedureId) {
@@ -473,8 +479,12 @@ export const checkConflict = (
     if (appt.id === excludeAppointmentId) continue;
 
     const apptStart = timeStringToMinutes(appt.startTime);
-    const apptEnd = timeStringToMinutes(appt.endTime);
+    let apptEnd = timeStringToMinutes(appt.endTime);
     const apptProc = getProcFromCache(procedures, appt.procedureId);
+    if (apptStart > apptEnd) {
+      const duration = apptProc?.durationMinutes || 25;
+      apptEnd = apptStart + duration;
+    }
 
     if (patientId && appt.patientId === patientId) {
       // Cảnh báo nếu chỉ định cùng một thủ thuật 2 lần trong ngày
