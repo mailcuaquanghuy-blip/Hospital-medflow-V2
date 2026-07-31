@@ -6,6 +6,7 @@ import { Lock, User, AlertCircle, Loader2, ShieldCheck, KeyRound, Database } fro
 import { db, auth } from '../firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { collection, getDocs } from 'firebase/firestore';
+import { isSupabaseConfigured, fetchSupabaseTable } from '../utils/supabaseService';
 
 interface LoginProps {
   onLogin: (user: UserAccount) => void;
@@ -25,7 +26,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
     setLoading(true);
 
     try {
-      if (!auth.currentUser) {
+      if (!isSupabaseConfigured() && !auth.currentUser && db) {
         await signInAnonymously(auth);
       }
       onLogin(DEFAULT_ADMIN);
@@ -46,9 +47,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
     const cleanPassword = password.trim();
 
     try {
-      // Direct Firestore fetch to guarantee latest users data
       let dbUsers: UserAccount[] = [];
-      if (db) {
+      if (isSupabaseConfigured()) {
+        try {
+          const supUsers = await fetchSupabaseTable<UserAccount>('users');
+          if (supUsers) {
+            dbUsers = supUsers;
+          }
+        } catch (err) {
+          console.warn('Supabase users fetch error:', err);
+        }
+      } else if (db) {
         try {
           if (!auth.currentUser) {
             await signInAnonymously(auth);
@@ -72,7 +81,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
 
       if (matchedUser) {
         try {
-          if (!auth.currentUser) {
+          if (!isSupabaseConfigured() && !auth.currentUser && db) {
             await signInAnonymously(auth);
           }
           onLogin(matchedUser);

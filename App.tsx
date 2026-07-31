@@ -5,7 +5,7 @@ import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN,
 
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
-import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem } from './utils/supabaseService';
+import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, resetSupabaseDatabase } from './utils/supabaseService';
 import { Timeline } from './components/Timeline';
 import { DailyReport } from './components/DailyReport';
 import { Dashboard } from './components/Dashboard';
@@ -262,6 +262,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const initAuth = async () => {
+      if (isSupabaseConfigured()) {
+        setIsAuthReady(true);
+        return;
+      }
       try {
         if (!auth.currentUser) {
           await signInAnonymously(auth);
@@ -284,6 +288,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (isSupabaseConfigured()) return;
     // Chỉ chạy seedData và listeners nếu Firebase đã sẵn sàng VÀ đã xác thực thành công
     if (!db || !isFirebaseReady || !isAuthReady || !auth.currentUser) return;
     
@@ -369,6 +374,48 @@ const App: React.FC = () => {
 
     seedData().then(() => seedTemplates()).catch(console.error);
   }, [isFirebaseReady, isAuthReady]);
+
+  // Load users from Supabase on startup and perform basic Supabase seeding if empty
+  useEffect(() => {
+    if (isSupabaseConfigured()) {
+      const initSupabase = async () => {
+        try {
+          const usrs = await fetchSupabaseTable<UserAccount>('users');
+          let currentUsrs = usrs || [];
+          
+          // Seed DEFAULT_ADMIN if not present
+          if (!currentUsrs.some(u => u.id === DEFAULT_ADMIN.id)) {
+            console.log("Seeding DEFAULT_ADMIN to Supabase...");
+            await saveSupabaseItem('users', DEFAULT_ADMIN.id, DEFAULT_ADMIN);
+            currentUsrs.push(DEFAULT_ADMIN);
+          }
+          
+          setUsers(currentUsrs);
+
+          // Seed procedures if empty
+          const procs = await fetchSupabaseTable<Procedure>('procedures');
+          if (!procs || procs.length === 0) {
+            console.log("Seeding MOCK_PROCEDURES to Supabase...");
+            for (const p of MOCK_PROCEDURES) {
+              await saveSupabaseItem('procedures', p.id, p);
+            }
+          }
+
+          // Seed templates if empty
+          const tpls = await fetchSupabaseTable<AppointmentTemplate>('templates');
+          if (!tpls || tpls.length === 0) {
+            console.log("Seeding MOCK_TEMPLATES to Supabase...");
+            for (const t of MOCK_TEMPLATES) {
+              await saveSupabaseItem('templates', t.id, t);
+            }
+          }
+        } catch (err) {
+          console.warn("Failed to initialize or fetch users on startup from Supabase:", err);
+        }
+      };
+      initSupabase();
+    }
+  }, []);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -648,17 +695,15 @@ const App: React.FC = () => {
   };
 
   const handleDeletePatient = async (patientId: string) => {
-    if (!db) return;
     if (!canEditCurrentDept) {
       alert("Bạn không có quyền xóa dữ liệu tại khoa này.");
       return;
     }
     try {
-      // Kiểm tra xem bệnh nhân còn thủ thuật nào không
-      const q = query(collection(db, "appointments"), where("patientId", "==", patientId));
-      const querySnapshot = await getDocs(q);
+      // Kiểm tra xem bệnh nhân còn thủ thuật nào không bằng local state
+      const hasAppointments = appointments.some(appt => appt.patientId === patientId);
       
-      if (!querySnapshot.empty) {
+      if (hasAppointments) {
         alert("Không thể xóa bệnh nhân này vì vẫn còn thủ thuật. Vui lòng xóa toàn bộ thủ thuật của bệnh nhân trước khi xóa hồ sơ.");
         return;
       }
@@ -1845,19 +1890,27 @@ const App: React.FC = () => {
   const handleResetDatabase = async () => {
     if (!window.confirm('Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu không? Thao tác này KHÔNG THỂ HOÀN TÁC! Tải lại trang sau khi hoàn tất.')) return;
     try {
-      if (!db) return;
       alert('Đang tiến hành xoá dữ liệu... Vui lòng đợi.');
-      const collections = ['patients', 'staff', 'appointments', 'machineShifts', 'attendance', 'procedures', 'users'];
-      for (const colName of collections) {
-        const q = query(collection(db, colName));
-        const snapshots = await getDocs(q);
-        const deletePromises = snapshots.docs.map((docSnap) => 
-          deleteDoc(doc(db, colName, docSnap.id)).catch(err => {
-            console.error(`Error deleting doc ${docSnap.id} from ${colName}:`, err);
-            // We ignore individual delete errors during reset to try and clean as much as possible
-          })
-        );
-        await Promise.all(deletePromises);
+      if (isSupabaseConfigured()) {
+        const success = await resetSupabaseDatabase();
+        if (!success) {
+          alert('Không thể xóa toàn bộ dữ liệu trên Supabase.');
+          return;
+        }
+      } else {
+        if (!db) return;
+        const collections = ['patients', 'staff', 'appointments', 'machineShifts', 'attendance', 'procedures', 'users'];
+        for (const colName of collections) {
+          const q = query(collection(db, colName));
+          const snapshots = await getDocs(q);
+          const deletePromises = snapshots.docs.map((docSnap) => 
+            deleteDoc(doc(db, colName, docSnap.id)).catch(err => {
+              console.error(`Error deleting doc ${docSnap.id} from ${colName}:`, err);
+              // We ignore individual delete errors during reset to try and clean as much as possible
+            })
+          );
+          await Promise.all(deletePromises);
+        }
       }
       alert('Thành công! Vui lòng tải lại trang để hệ thống tự động khởi tạo dữ liệu mặc định mới.');
     } catch (e) {

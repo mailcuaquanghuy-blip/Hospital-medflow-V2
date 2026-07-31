@@ -147,9 +147,11 @@ export const checkConflict = (
   const conflictDetails: ConflictDetail[] = [];
 
   if (startMin > endMin) {
-    conflictDetails.push({ message: `Thời gian bắt đầu (${newStart}) không thể sau thời gian kết thúc (${newEnd}).`, level: 1 });
+    conflictDetails.push({ message: `Giờ kết thúc (${newEnd}) không thể trước giờ bắt đầu (${newStart}).`, level: 1 });
     const duration = currentProc?.durationMinutes || 25;
     endMin = startMin + duration;
+  } else if (startMin === endMin) {
+    conflictDetails.push({ message: `Giờ kết thúc (${newEnd}) không thể bằng hoặc trước giờ bắt đầu (${newStart}).`, level: 1 });
   }
 
   // Referral check for SUPPORT departments

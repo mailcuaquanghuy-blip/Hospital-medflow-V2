@@ -31,14 +31,6 @@ export const dispatchDbChange = (collectionName: string, docId: string, data: an
 };
 
 export const setDoc = async (docRef: any, data: any, options?: any) => {
-  if (docRef) {
-    try {
-      await firebaseSetDoc(docRef, data, options);
-    } catch (fbErr) {
-      console.warn("Firebase setDoc note:", fbErr);
-    }
-  }
-
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase setDoc] Saving to ${tableName}/${docId}:`, data);
@@ -56,14 +48,6 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
 };
 
 export const updateDoc = async (docRef: any, data: any) => {
-  if (docRef) {
-    try {
-      await firebaseUpdateDoc(docRef, data);
-    } catch (fbErr) {
-      console.warn("Firebase updateDoc note:", fbErr);
-    }
-  }
-
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase updateDoc] Updating ${tableName}/${docId}:`, data);
@@ -98,14 +82,6 @@ export const updateDoc = async (docRef: any, data: any) => {
 };
 
 export const deleteDoc = async (docRef: any) => {
-  if (docRef) {
-    try {
-      await firebaseDeleteDoc(docRef);
-    } catch (fbErr) {
-      console.warn("Firebase deleteDoc note:", fbErr);
-    }
-  }
-
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase deleteDoc] Deleting from ${tableName}/${docId}`);
@@ -120,31 +96,19 @@ export const deleteDoc = async (docRef: any) => {
 };
 
 export const writeBatch = (firestoreDb: any) => {
-  const fbBatch = firestoreDb ? firebaseWriteBatch(firestoreDb) : null;
   const operations: Array<{ docRef: any; data?: any; type: 'set' | 'update' | 'delete' }> = [];
 
   return {
     set: (docRef: any, data: any) => {
-      if (fbBatch) fbBatch.set(docRef, data);
       operations.push({ docRef, data, type: 'set' });
     },
     update: (docRef: any, data: any) => {
-      if (fbBatch) fbBatch.update(docRef, data);
       operations.push({ docRef, data, type: 'update' });
     },
     delete: (docRef: any) => {
-      if (fbBatch) fbBatch.delete(docRef);
       operations.push({ docRef, type: 'delete' });
     },
     commit: async () => {
-      if (fbBatch) {
-        try {
-          await fbBatch.commit();
-        } catch (fbErr) {
-          console.warn("Firebase batch commit note:", fbErr);
-        }
-      }
-
       if (isSupabaseConfigured()) {
         for (const op of operations) {
           const { collectionName, tableName, docId } = getRefDetails(op.docRef);

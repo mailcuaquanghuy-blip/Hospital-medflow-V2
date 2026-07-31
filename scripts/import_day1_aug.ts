@@ -48,7 +48,37 @@ Lò Thị Thoại,453,Điện châm,10:32,10:57,Nguyễn Thị Huyền Trang,Ngu
 Quàng Thị Sách,421,Điện châm,10:39,11:04,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
 Đào Văn Phú,467,Điện châm,10:46,11:11,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
 Chu Văn Vường,468,Điện châm,10:53,11:18,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
-Hà Văn Phát,469,Điện châm,11:00,11:25,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang`;
+Hà Văn Phát,469,Điện châm,11:00,11:25,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Đinh Thị Dành,401,Điện châm,13:31,13:56,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Văn Thân,430,Điện châm,13:38,14:03,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Cà Thị Cong,402,Điện châm,13:45,14:10,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Cà Văn È,429,Điện châm,13:52,14:17,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Sồng Thị Cha,431,Điện châm,13:59,14:24,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Nguyễn Thị Tầm,403,Điện châm,14:06,14:31,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Thị Chuyên,432,Điện châm,14:13,14:38,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Nguyễn Thị Tám,404,Điện châm,14:20,14:45,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Hà Thị Thiền,405,Điện châm,14:27,14:52,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Điêu Thị Phá,433,Điện châm,14:34,14:59,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Văn Nhượng,406,Điện châm,14:41,15:06,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Vì Thị Ấu,407,Điện châm,14:48,15:13,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Văn Pánh,466,Điện châm,14:55,15:20,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Văn Tiển,465,Điện châm,15:02,15:27,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Tòng Thị Thưởng,408,Điện châm,15:09,15:34,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Ngô Thị Vẻ,454,Điện châm,15:16,15:41,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Phạm Thị Phức,457,Điện châm,15:23,15:48,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Thị Liêu,443,Điện châm,15:30,15:55,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Văn Bóng,444,Điện châm,15:37,16:02,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Thị Muôn,446,Điện châm,15:44,16:09,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Bạc Cầm Na,422,Điện châm,15:51,16:16,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Tòng Thị Định,447,Điện châm,15:58,16:23,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Đoàn Ngọc Minh,460,Điện châm,16:05,16:30,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Đèo Văn Sinh,423,Điện châm,16:12,16:37,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Tòng Văn Tối,424,Điện châm,16:19,16:44,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lường Thị Lựa,461,Điện châm,16:26,16:51,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Vũ Thị Bích Nhượng,475,Điện châm,16:33,16:58,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Nguyễn Văn Chi,478,Điện châm,16:40,17:05,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Phạm Văn Dược,480,Điện châm,16:47,17:12,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang
+Lò Thị Nghĩa,477,Điện châm,16:54,17:19,Nguyễn Thị Huyền Trang,Nguyễn Quang Huy,Lê Hương Giang`;
 
 // Pad single digit hours (e.g. "7:44" -> "07:44")
 function formatTime(t: string): string {

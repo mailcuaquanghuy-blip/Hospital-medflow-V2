@@ -64,3 +64,19 @@ export async function deleteSupabaseItem(tableName: string, id: string): Promise
   }
 }
 
+export async function resetSupabaseDatabase(): Promise<boolean> {
+  try {
+    const tables = ['patients', 'staff', 'appointments', 'machine_shifts', 'attendance', 'procedures', 'users'];
+    for (const tableName of tables) {
+      const { error } = await supabase.from(tableName).delete().neq('id', 'dummy_nonexistent_id');
+      if (error) {
+        console.warn(`Error resetting table ${tableName} on Supabase:`, error.message);
+      }
+    }
+    return true;
+  } catch (err: any) {
+    console.warn("Catch error in resetSupabaseDatabase:", err?.message || err);
+    return false;
+  }
+}
+
