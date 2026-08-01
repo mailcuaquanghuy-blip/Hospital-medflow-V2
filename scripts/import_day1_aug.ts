@@ -109,8 +109,27 @@ async function run() {
   const { data: attData } = await supabase.from('attendance').select('*');
   const attendanceRecords = attData?.map(d => ({ id: d.id, ...(d.data || d) })) as AttendanceRecord[];
 
-  const { data: apptData } = await supabase.from('appointments').select('*');
-  const existingAppointments = apptData?.map(d => ({ id: d.id, ...(d.data || d) })) as Appointment[];
+  // Load existing appointments with pagination to get all records
+  let allAppts: any[] = [];
+  let fromAppt = 0;
+  const stepAppt = 1000;
+  while (true) {
+    const res = await supabase.from('appointments').select('*').range(fromAppt, fromAppt + stepAppt - 1);
+    if (res.error) {
+      console.warn(`Supabase fetch error for appointments:`, res.error.message);
+      break;
+    }
+    if (!res.data || res.data.length === 0) break;
+    allAppts = allAppts.concat(res.data);
+    if (res.data.length < stepAppt) break;
+    fromAppt += stepAppt;
+  }
+  const existingAppointments = allAppts.map(d => {
+    if (d.data && typeof d.data === 'object') {
+      return { ...d.data, id: d.id };
+    }
+    return d;
+  }) as Appointment[];
 
   console.log(`Loaded from Supabase: ${patients.length} patients, ${staff.length} staff, ${procedures.length} procedures, ${attendanceRecords.length} attendance, ${existingAppointments.length} existing appointments.`);
 
@@ -202,8 +221,21 @@ async function run() {
     const formattedStartTime = formatTime(rawStart);
     const formattedEndTime = formatTime(rawEnd);
 
-    // Match patient by name
-    const foundPatient = patients.find(p => p.name?.trim().toLowerCase() === patientName.toLowerCase());
+    // Match patient by name, prioritizing active/treating ones and latest admissionDate
+    const matchingPatients = patients.filter(p => p.name?.trim().toLowerCase() === patientName.toLowerCase());
+    let foundPatient: Patient | undefined;
+    if (matchingPatients.length > 0) {
+      const sorted = [...matchingPatients].sort((a, b) => {
+        if (a.status === "TREATING" && b.status !== "TREATING") return -1;
+        if (a.status !== "TREATING" && b.status === "TREATING") return 1;
+        return new Date(b.admissionDate || 0).getTime() - new Date(a.admissionDate || 0).getTime();
+      });
+      if (bedNumber) {
+        foundPatient = sorted.find(p => p.bedNumber === bedNumber) || sorted[0];
+      } else {
+        foundPatient = sorted[0];
+      }
+    }
     if (!foundPatient) {
       console.error(`Row ${i}: Patient NOT found: "${patientName}"`);
       errorCount++;

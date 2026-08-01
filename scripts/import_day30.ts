@@ -134,8 +134,21 @@ async function run() {
     const asst1Name = parts[6].trim();
     const asst2Name = parts[7].trim();
 
-    // 1. Match patient by name (case-insensitive, trimmed)
-    const foundPatient = patients.find(p => p.name.trim().toLowerCase() === patientName.toLowerCase());
+    // 1. Match patient by name, prioritizing active/treating ones and latest admissionDate
+    const matchingPatients = patients.filter(p => p.name?.trim().toLowerCase() === patientName.toLowerCase());
+    let foundPatient: Patient | undefined;
+    if (matchingPatients.length > 0) {
+      const sorted = [...matchingPatients].sort((a, b) => {
+        if (a.status === "TREATING" && b.status !== "TREATING") return -1;
+        if (a.status !== "TREATING" && b.status === "TREATING") return 1;
+        return new Date(b.admissionDate || 0).getTime() - new Date(a.admissionDate || 0).getTime();
+      });
+      if (bedNumber) {
+        foundPatient = sorted.find(p => p.bedNumber === bedNumber) || sorted[0];
+      } else {
+        foundPatient = sorted[0];
+      }
+    }
     if (!foundPatient) {
       console.error(`Patient NOT found: "${patientName}" (bed ${bedNumber})`);
       errorCount++;
