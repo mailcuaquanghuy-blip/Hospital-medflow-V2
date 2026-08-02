@@ -51,7 +51,7 @@ export const PatientList: React.FC<PatientListProps> = ({
   onCancelReferral,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'TREATING' | 'DISCHARGED'>('TREATING');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'TREATING' | 'DISCHARGED'>('ALL');
   const [bedTypeFilter, setBedTypeFilter] = useState<string>('ALL');
   const [referringDeptFilter, setReferringDeptFilter] = useState<string>('ALL');
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([{ field: 'ADMISSION', direction: 'ASC' }]);
@@ -699,7 +699,8 @@ export const PatientList: React.FC<PatientListProps> = ({
       <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-4 bg-slate-50/50">
         <div className="flex items-center gap-4">
            <div className="flex bg-slate-200 rounded-lg p-1 shrink-0">
-              <button onClick={() => setFilterStatus('TREATING')} className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all uppercase tracking-wider ${filterStatus === 'TREATING' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Đang điều trị</button>
+              <button onClick={() => setFilterStatus('ALL')} className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all uppercase tracking-wider ${filterStatus === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Tất cả</button>
+               <button onClick={() => setFilterStatus('TREATING')} className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all uppercase tracking-wider ${filterStatus === 'TREATING' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Đang điều trị</button>
               <button onClick={() => setFilterStatus('DISCHARGED')} className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all uppercase tracking-wider ${filterStatus === 'DISCHARGED' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Ra viện</button>
            </div>
            

@@ -31,6 +31,14 @@ export const dispatchDbChange = (collectionName: string, docId: string, data: an
 };
 
 export const setDoc = async (docRef: any, data: any, options?: any) => {
+  try {
+    if (docRef) {
+      await firebaseSetDoc(docRef, data, options);
+    }
+  } catch (err) {
+    console.warn("[Firestore setDoc] Failed:", err);
+  }
+
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase setDoc] Saving to ${tableName}/${docId}:`, data);
@@ -48,6 +56,14 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
 };
 
 export const updateDoc = async (docRef: any, data: any) => {
+  try {
+    if (docRef) {
+      await firebaseUpdateDoc(docRef, data);
+    }
+  } catch (err) {
+    console.warn("[Firestore updateDoc] Failed:", err);
+  }
+
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase updateDoc] Updating ${tableName}/${docId}:`, data);
@@ -82,6 +98,14 @@ export const updateDoc = async (docRef: any, data: any) => {
 };
 
 export const deleteDoc = async (docRef: any) => {
+  try {
+    if (docRef) {
+      await firebaseDeleteDoc(docRef);
+    }
+  } catch (err) {
+    console.warn("[Firestore deleteDoc] Failed:", err);
+  }
+
   if (isSupabaseConfigured()) {
     const { collectionName, tableName, docId } = getRefDetails(docRef);
     console.log(`[Supabase deleteDoc] Deleting from ${tableName}/${docId}`);
@@ -109,6 +133,26 @@ export const writeBatch = (firestoreDb: any) => {
       operations.push({ docRef, type: 'delete' });
     },
     commit: async () => {
+      // 1. Write to Firestore first
+      try {
+        if (firestoreDb) {
+          const fsBatch = firebaseWriteBatch(firestoreDb);
+          for (const op of operations) {
+            if (op.type === 'set') {
+              fsBatch.set(op.docRef, op.data);
+            } else if (op.type === 'update') {
+              fsBatch.update(op.docRef, op.data);
+            } else if (op.type === 'delete') {
+              fsBatch.delete(op.docRef);
+            }
+          }
+          await fsBatch.commit();
+        }
+      } catch (err) {
+        console.warn("[Firestore batch commit] Failed:", err);
+      }
+
+      // 2. Write to Supabase
       if (isSupabaseConfigured()) {
         for (const op of operations) {
           const { collectionName, tableName, docId } = getRefDetails(op.docRef);
