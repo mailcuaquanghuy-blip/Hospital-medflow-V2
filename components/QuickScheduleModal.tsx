@@ -263,7 +263,10 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     dedicatedAsst2Id?: string | null
   ) => {
     // Find staff with main capability for this procedure
-    let eligibleMain = staffList.filter(s => s.mainCapabilityIds?.includes(procedure.id));
+    let eligibleMain = staffList.filter(s => s.mainCapabilityIds?.includes(procedure.id) || s.capabilityIds?.includes(procedure.id));
+    if (eligibleMain.length === 0) {
+      eligibleMain = [...staffList];
+    }
     if (dedicatedMainId) {
       const idx = eligibleMain.findIndex(s => s.id === dedicatedMainId);
       if (idx > -1) {
@@ -278,7 +281,10 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     const hasAsst2 = (procedure.asst2BusyEnd !== undefined && procedure.asst2BusyEnd > 0) ||
                      (procedure.assistant2BusyMinutes !== undefined && procedure.assistant2BusyMinutes > 0);
 
-    let eligibleAsst1 = hasAsst1 ? staffList.filter(s => s.assistantCapabilityIds?.includes(procedure.id)) : [null];
+    let eligibleAsst1 = hasAsst1 ? staffList.filter(s => s.assistantCapabilityIds?.includes(procedure.id) || s.capabilityIds?.includes(procedure.id)) : [null];
+    if (hasAsst1 && (eligibleAsst1.length === 0 || eligibleAsst1[0] === null)) {
+      eligibleAsst1 = [...staffList];
+    }
     if (hasAsst1 && dedicatedAsst1Id) {
       const idx = eligibleAsst1.findIndex(s => s && s.id === dedicatedAsst1Id);
       if (idx > -1) {
@@ -288,7 +294,10 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       }
     }
 
-    let eligibleAsst2 = hasAsst2 ? staffList.filter(s => s.assistantCapabilityIds?.includes(procedure.id)) : [null];
+    let eligibleAsst2 = hasAsst2 ? staffList.filter(s => s.assistantCapabilityIds?.includes(procedure.id) || s.capabilityIds?.includes(procedure.id)) : [null];
+    if (hasAsst2 && (eligibleAsst2.length === 0 || eligibleAsst2[0] === null)) {
+      eligibleAsst2 = [...staffList];
+    }
     if (hasAsst2 && dedicatedAsst2Id) {
       const idx = eligibleAsst2.findIndex(s => s && s.id === dedicatedAsst2Id);
       if (idx > -1) {

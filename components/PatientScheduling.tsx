@@ -2114,9 +2114,13 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                           className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                         >
                                           <option value="">-- Chọn nhân sự --</option>
-                                          {staff.filter(s => s.deptId === currentDept.id && s.mainCapabilityIds?.includes(tProc.procedureId)).map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                          ))}
+                                          {(() => {
+                                            const filtered = staff.filter(s => s.deptId === currentDept.id && (s.mainCapabilityIds?.includes(tProc.procedureId) || s.capabilityIds?.includes(tProc.procedureId)));
+                                            const list = filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id);
+                                            return list.map(s => (
+                                              <option key={s.id} value={s.id}>{s.name}</option>
+                                            ));
+                                          })()}
                                         </select>
                                       </div>
                                       {((proc?.asst1BusyEnd && proc.asst1BusyEnd > 0) || (proc?.assistant1BusyMinutes && proc.assistant1BusyMinutes > 0)) && (
@@ -2132,9 +2136,13 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                             className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                           >
                                             <option value="">-- Chọn người phụ --</option>
-                                            {staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(tProc.procedureId) && s.id !== tProc.staffId).map(s => (
-                                              <option key={s.id} value={s.id}>{s.name}</option>
-                                            ))}
+                                            {(() => {
+                                              const filtered = staff.filter(s => s.deptId === currentDept.id && (s.assistantCapabilityIds?.includes(tProc.procedureId) || s.capabilityIds?.includes(tProc.procedureId)) && s.id !== tProc.staffId);
+                                              const list = filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id && s.id !== tProc.staffId);
+                                              return list.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                              ));
+                                            })()}
                                           </select>
                                         </div>
                                       )}
@@ -2178,9 +2186,13 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                             className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                                           >
                                             <option value="">-- Chọn người phụ 2 --</option>
-                                            {staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(tProc.procedureId) && s.id !== tProc.staffId && s.id !== tProc.assistant1Id).map(s => (
-                                              <option key={s.id} value={s.id}>{s.name}</option>
-                                            ))}
+                                            {(() => {
+                                              const filtered = staff.filter(s => s.deptId === currentDept.id && (s.assistantCapabilityIds?.includes(tProc.procedureId) || s.capabilityIds?.includes(tProc.procedureId)) && s.id !== tProc.staffId && s.id !== tProc.assistant1Id);
+                                              const list = filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id && s.id !== tProc.staffId && s.id !== tProc.assistant1Id);
+                                              return list.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                              ));
+                                            })()}
                                           </select>
                                         </div>
                                       )}
