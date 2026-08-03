@@ -1,0 +1,6 @@
+{
+  "firestore": {
+    "database": "ai-studio-hospitalmedflowv-0d772e2e-f6fd-461f-812e-23a1f5b42365",
+    "rules": "firestore.rules"
+  }
+}

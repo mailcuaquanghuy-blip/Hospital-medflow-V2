@@ -582,7 +582,8 @@ const App: React.FC = () => {
   }, [isFirebaseReady, currentUser, isAuthReady]);
 
   useEffect(() => {
-    if (!db || !currentUser || currentUser.role !== UserRole.ADMIN) return;
+    if (isSupabaseConfigured()) return;
+    if (!db || !currentUser || !isAuthReady || currentUser.role !== UserRole.ADMIN) return;
     const unsub = onSnapshot(collection(db, "backups"), (snapshot) => {
       const backupData = snapshot.docs.map(doc => ({ ...doc.data() } as Backup));
       setBackups(backupData);
