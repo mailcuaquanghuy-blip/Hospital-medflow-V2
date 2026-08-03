@@ -2115,8 +2115,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                         >
                                           <option value="">-- Chọn nhân sự --</option>
                                           {(() => {
-                                            const filtered = staff.filter(s => s.deptId === currentDept.id && (s.mainCapabilityIds?.includes(tProc.procedureId) || s.capabilityIds?.includes(tProc.procedureId)));
-                                            const list = filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id);
+                                            const filtered = staff.filter(s => s.deptId === currentDept.id && (s.mainCapabilityIds?.includes(tProc.procedureId)));
+                                            const list = filtered;
                                             return list.map(s => (
                                               <option key={s.id} value={s.id}>{s.name}</option>
                                             ));
@@ -2137,8 +2137,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                           >
                                             <option value="">-- Chọn người phụ --</option>
                                             {(() => {
-                                              const filtered = staff.filter(s => s.deptId === currentDept.id && (s.assistantCapabilityIds?.includes(tProc.procedureId) || s.capabilityIds?.includes(tProc.procedureId)) && s.id !== tProc.staffId);
-                                              const list = filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id && s.id !== tProc.staffId);
+                                              const filtered = staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(tProc.procedureId) && s.id !== tProc.staffId);
+                                              const list = filtered;
                                               return list.map(s => (
                                                 <option key={s.id} value={s.id}>{s.name}</option>
                                               ));

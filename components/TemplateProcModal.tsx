@@ -51,13 +51,11 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
   }, [formData.procedureId]);
 
   const eligibleMainStaff = useMemo(() => {
-    const filtered = staff.filter(s => s.deptId === currentDept.id && (s.mainCapabilityIds?.includes(formData.procedureId || '') || s.capabilityIds?.includes(formData.procedureId || '')));
-    return filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id);
+    return staff.filter(s => s.deptId === currentDept.id && s.mainCapabilityIds?.includes(formData.procedureId || ''));
   }, [staff, currentDept, formData.procedureId]);
 
   const eligibleAssistants = useMemo(() => {
-    const filtered = staff.filter(s => s.deptId === currentDept.id && (s.assistantCapabilityIds?.includes(formData.procedureId || '') || s.capabilityIds?.includes(formData.procedureId || '')));
-    return filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id);
+    return staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(formData.procedureId || ''));
   }, [staff, currentDept, formData.procedureId]);
   const availableMachines = useMemo(() => currentProc?.availableMachines || [], [currentProc]);
 

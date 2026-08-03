@@ -148,8 +148,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       }
     }
     if (!formData.procedureId) return deptStaff;
-    const filtered = deptStaff.filter(s => s.mainCapabilityIds?.includes(formData.procedureId!) || s.capabilityIds?.includes(formData.procedureId!));
-    return filtered.length > 0 ? filtered : deptStaff;
+    const filtered = deptStaff.filter(s => s.mainCapabilityIds?.includes(formData.procedureId!));
+    return filtered;
   }, [staff, currentDept.id, formData.procedureId, formData.date, attendanceRecords]);
 
   const eligibleAssistants = useMemo(() => {
@@ -177,8 +177,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       }
     }
     if (!formData.procedureId) return deptStaff;
-    const filtered = deptStaff.filter(s => s.assistantCapabilityIds?.includes(formData.procedureId!) || s.capabilityIds?.includes(formData.procedureId!));
-    return filtered.length > 0 ? filtered : deptStaff;
+    const filtered = deptStaff.filter(s => s.assistantCapabilityIds?.includes(formData.procedureId!));
+    return filtered;
   }, [staff, currentDept.id, formData.procedureId, formData.date, attendanceRecords]);
 
   const allDeptMachines = useMemo(() => {
