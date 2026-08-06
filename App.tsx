@@ -2094,7 +2094,18 @@ const App: React.FC = () => {
                         Quản lý Khoa
                       </button>
                       <button 
-                        onClick={() => setIsDeptBackupModalOpen(true)}
+                        onClick={() => {
+                          if (!currentDept) {
+                            alert('Lỗi: Bạn chưa chọn khoa làm việc.');
+                            return;
+                          }
+                          const hasPermission = currentUser.role === UserRole.ADMIN || currentUser.editableDeptIds?.includes(currentDept.id);
+                          if (!hasPermission) {
+                            alert(`Lỗi: Tài khoản của bạn không được phân quyền quản lý / sao lưu khôi phục tại khoa "${currentDept.name}".`);
+                            return;
+                          }
+                          setIsDeptBackupModalOpen(true);
+                        }}
                         className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                         title="Sao lưu / Khôi phục dữ liệu khoa"
                       >

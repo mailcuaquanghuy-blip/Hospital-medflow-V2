@@ -73,7 +73,7 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
   // Handle Backup execution
   const handleExecuteBackup = () => {
     if (!hasPermission) {
-      alert('Chỉ tài khoản được phân quyền quản lý khoa này mới có thể tạo bản sao lưu.');
+      alert(`Lỗi: Tài khoản của bạn không được phân quyền quản lý / sao lưu ở khoa "${currentDept.name}".`);
       return;
     }
 
@@ -123,8 +123,8 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
       const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const safeDeptName = currentDept.name.replace(/[^a-zA-Z0-9À-ỹ]/g, '_');
-      const filename = `SaoLuu_${safeDeptName}_${fromDate}_${toDate}.json`;
+      const cleanDeptName = currentDept.name.replace(/[\/\\:*?"<>|]/g, '_').trim();
+      const filename = `${cleanDeptName}_Tu_${fromDate}_Den_${toDate}.json`;
 
       link.setAttribute('href', url);
       link.setAttribute('download', filename);
@@ -132,7 +132,7 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
       link.click();
       document.body.removeChild(link);
 
-      alert(`Sao lưu dữ liệu khoa ${currentDept.name} từ ${fromDate} đến ${toDate} thành công!`);
+      alert(`Sao lưu dữ liệu khoa ${currentDept.name} (Từ ngày ${fromDate} đến ngày ${toDate}) thành công!`);
       onClose();
     } catch (error) {
       console.error(error);
@@ -147,20 +147,26 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!hasPermission) {
+      alert(`Lỗi: Tài khoản của bạn không có quyền khôi phục dữ liệu ở khoa "${currentDept.name}".`);
+      setUploadedFileContent(null);
+      return;
+    }
+
     setUploadFileName(file.name);
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
         if (!json.deptId || !json.data || json.type !== 'DEPARTMENT_BACKUP') {
-          alert('File JSON không đúng định dạng sao lưu dữ liệu khoa.');
+          alert('Lỗi: File JSON không đúng định dạng sao lưu dữ liệu khoa.');
           setUploadedFileContent(null);
           return;
         }
 
         // Check if file matches currentDept
-        if (json.deptId !== currentDept.id && currentUser.role !== UserRole.ADMIN) {
-          alert(`File sao lưu này thuộc về khoa "${json.deptName || json.deptId}", bạn chỉ có thể khôi phục cho khoa hiện tại "${currentDept.name}".`);
+        if (json.deptId !== currentDept.id) {
+          alert(`Lỗi: File sao lưu này thuộc về khoa "${json.deptName || json.deptId}". Bạn đang ở khoa "${currentDept.name}". Chỉ có thể khôi phục file trùng với khoa hiện tại!`);
           setUploadedFileContent(null);
           return;
         }
@@ -178,12 +184,17 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
   // Handle Restore execution
   const handleExecuteRestore = async () => {
     if (!hasPermission) {
-      alert('Chỉ tài khoản được phân quyền mới có thể khôi phục dữ liệu.');
+      alert(`Lỗi: Tài khoản của bạn không được phân quyền khôi phục ở khoa "${currentDept.name}".`);
       return;
     }
 
     if (!uploadedFileContent) {
       alert('Vui lòng tải lên file JSON sao lưu hợp lệ trước.');
+      return;
+    }
+
+    if (uploadedFileContent.deptId !== currentDept.id) {
+      alert(`Lỗi: File sao lưu thuộc về khoa "${uploadedFileContent.deptName || uploadedFileContent.deptId}", không trùng với khoa hiện tại "${currentDept.name}".`);
       return;
     }
 
