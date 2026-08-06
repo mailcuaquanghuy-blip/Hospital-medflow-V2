@@ -20,6 +20,7 @@ import { Login } from './components/Login';
 import { LoginLoader } from './components/LoginLoader';
 import { AccountManager } from './components/AccountManager';
 import { BackupManager } from './components/BackupManager';
+import { DepartmentBackupModal } from './components/DepartmentBackupModal';
 import { BatchLoadOptions } from './components/BatchLoadModal';
 import { Button } from './components/Button';
 import { DateTimePicker } from './components/DateTimePicker';
@@ -104,6 +105,7 @@ const App: React.FC = () => {
   // Staff Edit State
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Partial<Staff> | null>(null);
+  const [isDeptBackupModalOpen, setIsDeptBackupModalOpen] = useState(false);
 
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(isQuotaExceededState);
 
@@ -1831,6 +1833,65 @@ const App: React.FC = () => {
     await handleImportData(snapshot);
   };
 
+  const handleRestoreDepartmentData = async (restoredData: any) => {
+    if (!db || !currentUser) return;
+    if (currentUser.role !== UserRole.ADMIN && !currentUser.editableDeptIds?.includes(currentDept?.id || '')) {
+      alert('Bạn không có quyền khôi phục dữ liệu cho khoa này.');
+      return;
+    }
+
+    try {
+      const promises: Promise<void>[] = [];
+
+      // 1. Staff
+      if (restoredData.staff) {
+        restoredData.staff.forEach((s: Staff) => {
+          promises.push(setDoc(doc(db, "staff", s.id), s));
+        });
+      }
+
+      // 2. Procedures
+      if (restoredData.procedures) {
+        restoredData.procedures.forEach((p: Procedure) => {
+          promises.push(setDoc(doc(db, "procedures", p.id), p));
+        });
+      }
+
+      // 3. Attendance
+      if (restoredData.attendance) {
+        restoredData.attendance.forEach((r: AttendanceRecord) => {
+          promises.push(setDoc(doc(db, "attendance", r.id), r));
+        });
+      }
+
+      // 4. Appointments
+      if (restoredData.appointments) {
+        restoredData.appointments.forEach((a: Appointment) => {
+          promises.push(setDoc(doc(db, "appointments", a.id), a));
+        });
+      }
+
+      // 5. Patients
+      if (restoredData.patients) {
+        restoredData.patients.forEach((p: Patient) => {
+          promises.push(setDoc(doc(db, "patients", p.id), p));
+        });
+      }
+
+      // 6. Machine shifts
+      if (restoredData.machineShifts) {
+        restoredData.machineShifts.forEach((m: MachineShift) => {
+          promises.push(setDoc(doc(db, "machineShifts", m.id), m));
+        });
+      }
+
+      await Promise.all(promises);
+    } catch (error) {
+      console.error("Lỗi khi khôi phục dữ liệu khoa:", error);
+      throw error;
+    }
+  };
+
   const handleDeleteBackup = async (backupId: string) => {
     if (!db) return;
     if (confirm('Xóa bản sao lưu này?')) {
@@ -2031,6 +2092,14 @@ const App: React.FC = () => {
                       >
                         <Building2 size={16} />
                         Quản lý Khoa
+                      </button>
+                      <button 
+                        onClick={() => setIsDeptBackupModalOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        title="Sao lưu / Khôi phục dữ liệu khoa"
+                      >
+                        <Database size={16} className="text-sky-500" />
+                        Sao lưu / Khôi phục
                       </button>
                       <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
                           <span className="text-[10px] font-black text-slate-400 px-2 uppercase tracking-widest">Làm việc ngày:</span>
@@ -2408,6 +2477,22 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {currentDept && (
+        <DepartmentBackupModal
+          isOpen={isDeptBackupModalOpen}
+          onClose={() => setIsDeptBackupModalOpen(false)}
+          currentDept={currentDept}
+          currentUser={currentUser}
+          staff={staff}
+          procedures={procedures}
+          appointments={appointments}
+          patients={patients}
+          attendanceRecords={attendanceRecords}
+          machineShifts={machineShifts}
+          onRestoreDepartmentData={handleRestoreDepartmentData}
+        />
       )}
     </div>
   );

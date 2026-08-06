@@ -13,6 +13,22 @@ import { db } from '../firebase';
 import { collection, doc } from 'firebase/firestore';
 import { setDoc } from '../utils/dbService';
 
+
+const getLocalDateString = (isoStr: string | null | undefined): string => {
+  if (!isoStr) return '';
+  if (!isoStr.includes('T')) {
+    return isoStr.split(' ')[0] || '';
+  }
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) {
+    return isoStr.split('T')[0] || '';
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 type SortField = 'NAME' | 'ROOM' | 'BED' | 'ADMISSION';
 type SortDirection = 'ASC' | 'DESC';
 interface SortConfig { field: SortField; direction: SortDirection }
@@ -383,7 +399,7 @@ export const PatientList: React.FC<PatientListProps> = ({
 
   const filteredPatients = patients.filter(p => {
     // Bệnh nhân chưa vào viện vào thời điểm activeDate
-    const admissionDateStr = p.admissionDate.split('T')[0];
+    const admissionDateStr = getLocalDateString(p.admissionDate);
     if (activeDate < admissionDateStr) return false;
 
     const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.code || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -413,7 +429,7 @@ export const PatientList: React.FC<PatientListProps> = ({
                                (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
                                
                 if (!isMatch) return false;
-                const refDate = r.referralDate || p.admissionDate.split('T')[0];
+                const refDate = r.referralDate || getLocalDateString(p.admissionDate);
                 // patients referred on the same day OR in the past should be visible
                 if (activeDate < refDate) return false;
                 if (r.status === 'FINISHED' && r.finishedDate && activeDate > r.finishedDate) return false;

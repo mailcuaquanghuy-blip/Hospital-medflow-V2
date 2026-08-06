@@ -16,6 +16,22 @@ import { db } from '../firebase';
 import { doc, collection } from 'firebase/firestore';
 import { setDoc, deleteDoc } from '../utils/dbService';
 
+
+const getLocalDateString = (isoStr: string | null | undefined): string => {
+  if (!isoStr) return '';
+  if (!isoStr.includes('T')) {
+    return isoStr.split(' ')[0] || '';
+  }
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) {
+    return isoStr.split('T')[0] || '';
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 type SortField = 'NAME' | 'ROOM_BED' | 'ADMISSION';
 type SortDirection = 'ASC' | 'DESC';
 interface SortConfig { field: SortField; direction: SortDirection }
@@ -217,12 +233,12 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const visiblePatients = useMemo(() => {
     const list = patients.filter(p => {
       // Bệnh nhân chưa vào viện vào thời điểm currentDate
-      const admissionDateStr = p.admissionDate.split('T')[0];
+      const admissionDateStr = getLocalDateString(p.admissionDate);
       if (currentDate < admissionDateStr) return false;
 
       // Logic lọc theo trạng thái điều trị (Tab Đang điều trị / Ra viện / Tất cả)
       const isDischarged = p.status === 'DISCHARGED';
-      const dischargeDateStr = p.dischargeDate ? p.dischargeDate.split('T')[0] : '';
+      const dischargeDateStr = getLocalDateString(p.dischargeDate);
 
       // Loại bỏ hoàn toàn bệnh nhân đã ra viện từ ngày trước ngày hiện tại (currentDate)
       if (isDischarged && dischargeDateStr && dischargeDateStr < currentDate) {
@@ -261,7 +277,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                            
             if (!isMatch) return false;
 
-            const refDate = r.referralDate || p.admissionDate.split('T')[0];
+            const refDate = r.referralDate || getLocalDateString(p.admissionDate);
             // patients referred on the same day OR in the past should be visible
             if (currentDate < refDate) return false;
 

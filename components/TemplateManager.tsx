@@ -7,6 +7,22 @@ import { MOCK_PROCEDURES } from '../constants';
 import { TemplateProcModal } from './TemplateProcModal';
 import { TemplateProcedure } from '../types';
 
+
+const getLocalDateString = (isoStr: string | null | undefined): string => {
+  if (!isoStr) return '';
+  if (!isoStr.includes('T')) {
+    return isoStr.split(' ')[0] || '';
+  }
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) {
+    return isoStr.split('T')[0] || '';
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 interface TemplateManagerProps {
   templates: AppointmentTemplate[];
   procedures: Procedure[];
@@ -32,11 +48,11 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
   
   const visiblePatients = patients.filter(p => {
     // Bệnh nhân chưa vào viện vào thời điểm activeDate
-    const admissionDateStr = p.admissionDate.split('T')[0];
+    const admissionDateStr = getLocalDateString(p.admissionDate);
     if (activeDate < admissionDateStr) return false;
 
     // Basic visibility check similar to PatientScheduling
-    const isDischargedBeforeToday = p.status === 'DISCHARGED' && (!p.dischargeDate || activeDate > p.dischargeDate.split('T')[0]);
+    const isDischargedBeforeToday = p.status === 'DISCHARGED' && (!p.dischargeDate || activeDate > getLocalDateString(p.dischargeDate));
     if (isDischargedBeforeToday) return false;
 
     // Check if in current dept OR referred to current dept
@@ -47,7 +63,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
         const dName = currentDept.name.toLowerCase().trim();
         const isMatch = s === dId || s === dName || dName.includes(s) || s.includes(dName);
         if (!isMatch) return false;
-        const refDate = r.referralDate || p.admissionDate.split('T')[0];
+        const refDate = r.referralDate || getLocalDateString(p.admissionDate);
         if (activeDate < refDate) return false;
         if (r.status === 'FINISHED' && r.finishedDate && activeDate > r.finishedDate) return false;
         return true;

@@ -6,6 +6,22 @@ import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours
 import { Zap, User, UserCog, Monitor, Filter, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
 
+
+const getLocalDateString = (isoStr: string | null | undefined): string => {
+  if (!isoStr) return '';
+  if (!isoStr.includes('T')) {
+    return isoStr.split(' ')[0] || '';
+  }
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) {
+    return isoStr.split('T')[0] || '';
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const compareNamesByFirstName = (aName: string, bName: string) => {
   const partsA = aName.trim().split(/\s+/);
   const firstNameA = partsA.length > 0 ? partsA[partsA.length - 1] : aName;
@@ -473,7 +489,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       case 'PATIENT': 
         return patients.filter(p => {
           if (p.status !== 'TREATING' && p.status !== 'DISCHARGED') return false;
-          const admissionDateStr = p.admissionDate.split('T')[0];
+          const admissionDateStr = getLocalDateString(p.admissionDate);
           return date >= admissionDateStr;
         }).map(p => ({
           id: p.id,
@@ -835,7 +851,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             ${appt.assistant2Id ? `<br/><small>Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}</small>` : ''}
           </td>
           <td style="text-align:center">${appt.startTime} - ${appt.endTime}</td>
-          <td style="text-align:center">${appt.assignedMachineId || '-'}</td>
+          <td style="text-align:center">${appt.assignedMachineId ? appt.assignedMachineId.replace(/-/g, '') : ''}</td>
         </tr>
       `;
     }).join('');
