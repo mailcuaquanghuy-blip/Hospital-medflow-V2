@@ -961,7 +961,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         assistant1: appt.assistant1Id ? staff.find(s => s.id === appt.assistant1Id)?.name : '',
         assistant2: appt.assistant2Id ? staff.find(s => s.id === appt.assistant2Id)?.name : '',
         time: `${appt.startTime} - ${appt.endTime}`,
-        machine: appt.assignedMachineId || '-'
+        machine: appt.assignedMachineId ? appt.assignedMachineId.replace(/-/g, '') : ''
       };
     });
 
@@ -1371,7 +1371,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const stickyCellBg = isBgHighlight ? 'bg-[#fff5f5]' : 'bg-white';
                 const stickyCellHover = isBgHighlight ? 'group-hover:bg-rose-100/60' : 'group-hover:bg-slate-50';
                 
-                const marqueeContent = `(${procedure?.name || 'Thủ thuật đã xóa'}) ${appt.startTime} - ${appt.endTime}, ${staffMember?.name}${appt.assistant1Id ? `, Phụ 1: ${staff.find(s => s.id === appt.assistant1Id)?.name}` : ''}${appt.assistant2Id ? `, Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}` : ''}${appt.assignedMachineId ? `, Máy: ${appt.assignedMachineId}` : ''}`;
+                const marqueeContent = `(${procedure?.name || 'Thủ thuật đã xóa'}) ${appt.startTime} - ${appt.endTime}, ${staffMember?.name}${appt.assistant1Id ? `, Phụ 1: ${staff.find(s => s.id === appt.assistant1Id)?.name}` : ''}${appt.assistant2Id ? `, Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}` : ''}${appt.assignedMachineId ? `, Máy: ${appt.assignedMachineId.replace(/-/g, '')}` : ''}`;
 
                 return (
                   <tr key={appt.id} className={`hover:bg-slate-50 transition-all group min-h-[5rem] ${hasConflict || isOutside ? 'bg-rose-50/20' : ''}`}>
@@ -1459,9 +1459,11 @@ export const Timeline: React.FC<TimelineProps> = ({
                         {appt.startTime} - {appt.endTime}
                     </td>
                     <td className={`p-3 text-center sticky left-[1030px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[110px] min-w-[110px] max-w-[110px] shadow-[2px_0_5px_rgba(0,0,0,0.05)]`}>
-                       <span className={`px-2.5 py-1 rounded text-xs font-bold border ${appt.assignedMachineId ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
-                          {appt.assignedMachineId || '-'}
-                       </span>
+                       {appt.assignedMachineId ? (
+                         <span className="px-2.5 py-1 rounded text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-100">
+                            {appt.assignedMachineId.replace(/-/g, '')}
+                         </span>
+                       ) : null}
                     </td>
                     <td className="p-0 relative bg-slate-50/20">
                       <div className="relative h-full w-full" style={{ width: timelineWidth }}>
