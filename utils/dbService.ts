@@ -1,6 +1,25 @@
 import { isSupabaseConfigured, saveSupabaseItem, deleteSupabaseItem } from './supabaseService';
 import { supabase } from '../supabaseClient';
 
+// BroadcastChannel for cross-tab real-time synchronization
+const dbBroadcastChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window 
+  ? new BroadcastChannel('medflow_db_sync') 
+  : null;
+
+if (dbBroadcastChannel) {
+  dbBroadcastChannel.onmessage = (event) => {
+    if (event.data && event.data.type === 'db-change') {
+      const { collectionName, docId, data, action } = event.data.detail;
+      if (typeof window !== 'undefined') {
+        const customEvent = new CustomEvent('db-change', {
+          detail: { collectionName, docId, data, action }
+        });
+        window.dispatchEvent(customEvent);
+      }
+    }
+  };
+}
+
 export const getRefDetails = (docRef: any) => {
   let collectionName = docRef.parent?.id || '';
   if (!collectionName && docRef.path) {
@@ -14,13 +33,20 @@ export const getRefDetails = (docRef: any) => {
   return { collectionName, tableName, docId };
 };
 
-// Dispatch a change event so App.tsx can update state reactively
+// Dispatch a change event so App.tsx can update state reactively locally and across all tabs
 export const dispatchDbChange = (collectionName: string, docId: string, data: any, action: 'set' | 'delete') => {
   if (typeof window !== 'undefined') {
-    const event = new CustomEvent('db-change', {
-      detail: { collectionName, docId, data, action }
-    });
+    const detail = { collectionName, docId, data, action };
+    const event = new CustomEvent('db-change', { detail });
     window.dispatchEvent(event);
+
+    if (dbBroadcastChannel) {
+      try {
+        dbBroadcastChannel.postMessage({ type: 'db-change', detail });
+      } catch (e) {
+        console.warn('BroadcastChannel postMessage failed:', e);
+      }
+    }
   }
 };
 

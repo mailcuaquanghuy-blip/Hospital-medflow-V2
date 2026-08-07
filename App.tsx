@@ -6,6 +6,7 @@ import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN,
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
 import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, resetSupabaseDatabase } from './utils/supabaseService';
+import { supabase } from './supabaseClient';
 import { Timeline } from './components/Timeline';
 import { DailyReport } from './components/DailyReport';
 import { Dashboard } from './components/Dashboard';
@@ -422,7 +423,8 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!currentUser) return;
     if (isSupabaseConfigured()) {
-      console.log("Supabase configured. Loading data from Supabase project 'Chia thu thuat Son La'...");
+      console.log("Supabase configured. Loading and subscribing to real-time data from Supabase project...");
+      
       const loadSupabaseData = async () => {
         try {
           const [pats, appts, stf, procs, att, shifts, tpls, usrs] = await Promise.all([
@@ -463,7 +465,63 @@ const App: React.FC = () => {
           console.warn("Failed to fetch Supabase data:", err);
         }
       };
+
       loadSupabaseData();
+
+      // Supabase Realtime Subscription for instant updates across tabs & devices
+      const channel = supabase
+        .channel('schema-db-changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public' },
+          (payload) => {
+            const tableName = payload.table;
+            let collectionName = tableName;
+            if (tableName === 'machine_shifts') collectionName = 'machineShifts';
+
+            if (payload.eventType === 'DELETE') {
+              const docId = payload.old?.id;
+              if (docId) {
+                const event = new CustomEvent('db-change', {
+                  detail: { collectionName, docId, data: null, action: 'delete' }
+                });
+                window.dispatchEvent(event);
+              }
+            } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const row = payload.new;
+              if (row && row.id) {
+                const itemData = row.data && typeof row.data === 'object' ? { ...row.data, id: row.id } : row;
+                const event = new CustomEvent('db-change', {
+                  detail: { collectionName, docId: row.id, data: itemData, action: 'set' }
+                });
+                window.dispatchEvent(event);
+              }
+            }
+          }
+        )
+        .subscribe();
+
+      // Background periodic sync (every 4s) when page is visible
+      const pollInterval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          loadSupabaseData();
+        }
+      }, 4000);
+
+      // Re-sync on window focus
+      const handleFocus = () => {
+        loadSupabaseData();
+      };
+
+      window.addEventListener('focus', handleFocus);
+      window.addEventListener('visibilitychange', handleFocus);
+
+      return () => {
+        supabase.removeChannel(channel);
+        clearInterval(pollInterval);
+        window.removeEventListener('focus', handleFocus);
+        window.removeEventListener('visibilitychange', handleFocus);
+      };
     }
   }, [currentUser]);
 
