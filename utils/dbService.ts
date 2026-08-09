@@ -57,12 +57,13 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
   // Clean data of undefined values
   const cleanData = JSON.parse(JSON.stringify(data, (key, value) => value === undefined ? null : value));
   
+  // 1. Dispatch optimistic update immediately for instant local UI responsiveness!
+  dispatchDbChange(collectionName, docId, cleanData, 'set');
+
   const success = await saveSupabaseItem(tableName, docId, cleanData);
   if (!success) {
     console.warn(`[Supabase setDoc] Note: Could not save ${tableName} to Supabase`);
   }
-  
-  dispatchDbChange(collectionName, docId, cleanData, 'set');
 };
 
 export const updateDoc = async (docRef: any, data: any) => {
@@ -70,6 +71,9 @@ export const updateDoc = async (docRef: any, data: any) => {
   console.log(`[Supabase updateDoc] Updating ${tableName}/${docId}:`, data);
 
   let mergedData = { ...data };
+
+  // 1. Best-effort optimistic update immediately!
+  dispatchDbChange(collectionName, docId, mergedData, 'set');
 
   try {
     // Fetch existing nested data column if it exists to merge
@@ -94,6 +98,7 @@ export const updateDoc = async (docRef: any, data: any) => {
     console.warn(`[Supabase updateDoc] Note: Could not update ${tableName} in Supabase`);
   }
 
+  // 2. Dispatch the fully merged data to keep state completely accurate
   dispatchDbChange(collectionName, docId, cleanData, 'set');
 };
 
@@ -101,12 +106,13 @@ export const deleteDoc = async (docRef: any) => {
   const { collectionName, tableName, docId } = getRefDetails(docRef);
   console.log(`[Supabase deleteDoc] Deleting from ${tableName}/${docId}`);
 
+  // 1. Dispatch optimistic delete immediately for instant UI responsiveness!
+  dispatchDbChange(collectionName, docId, null, 'delete');
+
   const success = await deleteSupabaseItem(tableName, docId);
   if (!success) {
     console.warn(`[Supabase deleteDoc] Note: Could not delete ${tableName} from Supabase`);
   }
-
-  dispatchDbChange(collectionName, docId, null, 'delete');
 };
 
 export const writeBatch = (firestoreDb: any) => {

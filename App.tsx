@@ -501,12 +501,12 @@ const App: React.FC = () => {
         )
         .subscribe();
 
-      // Background periodic sync (every 4s) when page is visible
+      // Background periodic sync (every 60s) when page is visible as a fallback
       const pollInterval = setInterval(() => {
         if (document.visibilityState === 'visible') {
           loadSupabaseData();
         }
-      }, 4000);
+      }, 60000);
 
       // Re-sync on window focus
       const handleFocus = () => {
@@ -2052,19 +2052,40 @@ const App: React.FC = () => {
 
   const handleUpdateProcedures = async (updatedProcs: Procedure[]) => {
     if (!db || !currentDept) return;
+    
+    // 1. Optimistic update: instantly update local React state so UI changes are immediate (0ms latency)!
+    setProcedures(updatedProcs);
+
     try {
-      // Identify procedures to delete (only within current department)
+      // 2. Identify deleted procedures (only within current department)
       const currentDeptProcIds = procedures.filter(p => p.deptId === currentDept.id).map(p => p.id);
       const newIds = updatedProcs.map(p => p.id);
       const idsToDelete = currentDeptProcIds.filter(id => !newIds.includes(id));
 
+      // 3. Identify added or modified procedures
+      const changedOrNewProcs = updatedProcs.filter(p => {
+        const existing = procedures.find(oldP => oldP.id === p.id);
+        if (!existing) return true; // Added
+        // Check if actually modified by comparing JSON representation
+        return JSON.stringify(existing) !== JSON.stringify(p);
+      });
+
+      const promises: Promise<void>[] = [];
+
+      // 4. Batch delete operations in parallel
       for (const id of idsToDelete) {
-        await deleteDoc(doc(db, "procedures", id));
+        promises.push(deleteDoc(doc(db, "procedures", id)));
       }
 
-      for (const p of updatedProcs) {
+      // 5. Batch insert/update operations in parallel
+      for (const p of changedOrNewProcs) {
         const procData: any = JSON.parse(JSON.stringify(p));
-        await setDoc(doc(db, "procedures", p.id), procData);
+        promises.push(setDoc(doc(db, "procedures", p.id), procData));
+      }
+
+      if (promises.length > 0) {
+        console.log(`[handleUpdateProcedures] Executing ${promises.length} DB operations in parallel...`);
+        await Promise.all(promises);
       }
     } catch (error) {
       console.error("Error updating procedures:", error);

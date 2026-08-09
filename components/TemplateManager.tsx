@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AppointmentTemplate, Procedure, Staff, Department, Appointment, Patient } from '../types';
 import { Button } from './Button';
-import { Search, Plus, Trash2, Edit3, FolderOpen, Save, X, ChevronDown, CheckCircle2, Copy, User, Monitor, ArrowRightLeft } from 'lucide-react';
+import { Search, Plus, Trash2, Edit3, FolderOpen, Save, X, ChevronDown, CheckCircle2, Copy, User, Monitor, ArrowRightLeft, FileSpreadsheet, Printer, Download, Upload } from 'lucide-react';
 import { getAbbreviation, calculateAge } from '../utils/timeUtils';
 import { MOCK_PROCEDURES } from '../constants';
 import { TemplateProcModal } from './TemplateProcModal';
@@ -44,6 +44,125 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportCSV = () => {
+    try {
+      const headers = ['Nhóm Mẫu', 'Tên Mẫu', 'Loại Mẫu', 'Số Thủ Thuật', 'Chi Tiết Thủ Thuật'];
+      const rows = templates.filter(t => t.deptId === currentDept.id).map(t => {
+        const groupName = t.isFolder ? 'Thư mục nhóm' : (t.group || 'Khác');
+        const typeStr = t.isFolder ? 'Thư mục' : 'Mẫu thường';
+        const procCount = t.isFolder ? 0 : (t.procedures || []).length;
+        const procDetails = t.isFolder ? '' : (t.procedures || []).map(tp => {
+          const pInfo = procedures.find(p => p.id === tp.procedureId);
+          const sInfo = staff.find(s => s.id === tp.staffId);
+          return `${pInfo?.name || 'Thủ thuật trống'} (${tp.startTime} - ${tp.endTime} | thực hiện: ${sInfo?.name || 'Trống'})`;
+        }).join('; ');
+
+        return [
+          groupName,
+          t.name,
+          typeStr,
+          procCount.toString(),
+          procDetails
+        ];
+      });
+
+      // Escape fields for CSV
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
+      ].join('\r\n');
+
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Danh_Sach_Mau_${currentDept.name.replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error(error);
+      alert('Lỗi khi xuất file CSV.');
+    }
+  };
+
+  const handlePrintTemplates = () => {
+    try {
+      window.print();
+    } catch (error) {
+      console.error(error);
+      alert('Lỗi khi in bảng mẫu.');
+    }
+  };
+
+  const handleBackupTemplates = () => {
+    try {
+      const currentDeptTemplates = templates.filter(t => t.deptId === currentDept.id);
+      const backupPayload = {
+        version: '1.0',
+        type: 'TEMPLATE_BACKUP',
+        deptId: currentDept.id,
+        deptName: currentDept.name,
+        createdAt: new Date().toISOString(),
+        templates: currentDeptTemplates
+      };
+
+      const jsonString = JSON.stringify(backupPayload, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const cleanDeptName = currentDept.name.replace(/[\/\\:*?"<>|]/g, '_').trim();
+      const filename = `Sao_Luu_Mau_${cleanDeptName}_${new Date().toISOString().split('T')[0]}.json`;
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error(error);
+      alert('Lỗi khi tạo file sao lưu mẫu.');
+    }
+  };
+
+  const handleRestoreTemplates = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (!json || json.type !== 'TEMPLATE_BACKUP' || !Array.isArray(json.templates)) {
+          alert('Lỗi: File JSON không đúng định dạng sao lưu danh sách mẫu.');
+          return;
+        }
+
+        const confirmMsg = `Bạn có chắc chắn muốn khôi phục ${json.templates.length} mẫu thủ thuật từ file sao lưu của khoa "${json.deptName || json.deptId}" vào khoa hiện tại "${currentDept.name}" không?\n\n(Lưu ý: Các mẫu trùng ID sẽ được cập nhật/ghi đè)`;
+        if (window.confirm(confirmMsg)) {
+          let count = 0;
+          for (const t of json.templates) {
+            const restoredTemplate = {
+              ...t,
+              deptId: currentDept.id
+            };
+            onSaveTemplate(restoredTemplate, true);
+            count++;
+          }
+          alert(`Khôi phục thành công ${count} mẫu thủ thuật cho khoa ${currentDept.name}!`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Lỗi đọc file JSON: File không hợp lệ.');
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const deptTemplates = templates.filter(t => t.deptId === currentDept.id);
   
   const visiblePatients = patients.filter(p => {
@@ -481,6 +600,27 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
               className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all font-medium text-slate-700"
             />
           </div>
+          <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-150 mt-1">
+            <Button size="sm" onClick={handleExportCSV} variant="secondary" className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 p-1 px-2 text-[10px] uppercase font-black tracking-wider flex items-center gap-1 shadow-sm">
+              <FileSpreadsheet size={13} className="text-emerald-600 shrink-0" /> Xuất CSV
+            </Button>
+            <Button size="sm" onClick={handlePrintTemplates} variant="secondary" className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 p-1 px-2 text-[10px] uppercase font-black tracking-wider flex items-center gap-1 shadow-sm">
+              <Printer size={13} className="text-blue-600 shrink-0" /> In bảng mẫu
+            </Button>
+            <Button size="sm" onClick={handleBackupTemplates} variant="secondary" className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 p-1 px-2 text-[10px] uppercase font-black tracking-wider flex items-center gap-1 shadow-sm">
+              <Download size={13} className="text-purple-600 shrink-0" /> Sao lưu mẫu
+            </Button>
+            <Button size="sm" onClick={() => fileInputRef.current?.click()} variant="secondary" className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 p-1 px-2 text-[10px] uppercase font-black tracking-wider flex items-center gap-1 shadow-sm">
+              <Upload size={13} className="text-indigo-600 shrink-0" /> Khôi phục mẫu
+            </Button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleRestoreTemplates} 
+              accept=".json" 
+              className="hidden" 
+            />
+          </div>
         </div>
         {patientsNoAppointments.length > 0 && (
           <div className="p-4 border-b border-rose-100 bg-rose-50/30 shrink-0">
@@ -871,6 +1011,89 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
           initialData={editingProcIndex !== null ? editingTemplate.procedures![editingProcIndex] : undefined}
         />
       )}
+
+      {/* Printable Area for Templates Table */}
+      <div className="printable-area hidden">
+        <div style={{ padding: '24px', fontFamily: 'sans-serif' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #334155', paddingBottom: '12px' }}>
+            <div>
+              <h1 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', color: '#1e293b' }}>
+                DANH SÁCH MẪU CHỈ ĐỊNH THỦ THUẬT
+              </h1>
+              <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginTop: '4px' }}>
+                KHOA: {currentDept.name.toUpperCase()}
+              </p>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748b' }}>
+              <p>Ngày in: {new Date().toLocaleDateString('vi-VN')}</p>
+              <p>Giờ in: {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+          </div>
+
+          <table style={{ width: '100%', marginTop: '24px', borderCollapse: 'collapse', fontSize: '12px' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #cbd5e1', textAlign: 'left', backgroundColor: '#f1f5f9' }}>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', width: '25%' }}>Nhóm Mẫu</th>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', width: '35%' }}>Tên Mẫu Thủ Thuật</th>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', width: '40%' }}>Các Bước Thủ Thuật Chi Tiết</th>
+              </tr>
+            </thead>
+            <tbody>
+              {templates.filter(t => t.deptId === currentDept.id).length === 0 ? (
+                <tr>
+                  <td colSpan={3} style={{ padding: '16px', fontStyle: 'italic', textAlign: 'center', color: '#64748b' }}>
+                    Chưa có mẫu nào trong khoa.
+                  </td>
+                </tr>
+              ) : (
+                templates.filter(t => t.deptId === currentDept.id).map(t => {
+                  if (t.isFolder) return null;
+                  return (
+                    <tr key={t.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontWeight: 'bold', color: '#334155' }}>
+                        {t.group || 'Khác'}
+                      </td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a' }}>
+                        {t.name}
+                      </td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', color: '#334155' }}>
+                        <ol style={{ margin: 0, paddingLeft: '16px' }}>
+                          {(t.procedures || []).map((tp, idx) => {
+                            const procInfo = procedures.find(p => p.id === tp.procedureId);
+                            const staffInfo = staff.find(s => s.id === tp.staffId);
+                            return (
+                              <li key={idx} style={{ marginBottom: '4px' }}>
+                                <strong>{procInfo?.name || 'Thủ thuật trống'}</strong> ({tp.startTime} - {tp.endTime}) 
+                                {staffInfo ? ` - Thực hiện: ${staffInfo.name}` : ''}
+                                {tp.notes ? ` (Ghi chú: ${tp.notes})` : ''}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                        {(t.procedures || []).length === 0 && (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Chưa thiết lập thủ thuật</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+          
+          <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+            <div style={{ textAlign: 'center', width: '200px' }}>
+              <p style={{ fontWeight: 'bold' }}>Người lập bảng</p>
+              <p style={{ fontStyle: 'italic', color: '#64748b', fontSize: '10px' }}>(Ký, ghi rõ họ tên)</p>
+            </div>
+            <div style={{ textAlign: 'center', width: '250px' }}>
+              <p style={{ fontStyle: 'italic' }}>Ngày ..... tháng ..... năm 20...</p>
+              <p style={{ fontWeight: 'bold' }}>Trưởng khoa / Trưởng bộ phận</p>
+              <p style={{ fontStyle: 'italic', color: '#64748b', fontSize: '10px' }}>(Ký, đóng dấu)</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -41,7 +41,7 @@
   background: #94a3b8; /* slate-400 */
 }
 
-/* Report container font scaling (approx +30% for improved readability) */
+/* Custom Report container font scaling (approx +30% for improved readability) */
 .report-container {
   font-size: 1.15rem !important;
 }
@@ -72,4 +72,30 @@
 .report-container .recharts-tooltip-wrapper * {
   font-size: 13px !important;
 }
+
+/* Print styles for Hospital Medflow template lists and reports */
+@media print {
+  .printable-area {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    background: white !important;
+    color: black !important;
+    z-index: 9999999 !important;
+    display: block !important;
+    visibility: visible !important;
+  }
+  
+  /* Hide interactive UI elements and main page elements to prevent print bleed */
+  header, nav, aside, footer, button, input, select, .no-print, .print-hidden, [role="tablist"], .bg-slate-50, .border-slate-200 {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
 
