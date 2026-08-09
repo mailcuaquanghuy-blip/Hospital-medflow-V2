@@ -90,7 +90,146 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
 
   const handlePrintTemplates = () => {
     try {
-      window.print();
+      const deptTemplates = templates.filter(t => t.deptId === currentDept.id && !t.isFolder);
+      
+      const tableRowsHTML = deptTemplates.length === 0
+        ? `<tr>
+            <td colspan="3" style="padding: 16px; font-style: italic; text-align: center; color: #64748b; border: 1px solid #cbd5e1;">
+              Chưa có mẫu nào trong khoa.
+            </td>
+          </tr>`
+        : deptTemplates.map(t => {
+            const procListHTML = (t.procedures || []).map(tp => {
+              const procInfo = procedures.find(p => p.id === tp.procedureId);
+              const staffInfo = staff.find(s => s.id === tp.staffId);
+              const staffText = staffInfo ? ` - Thực hiện: ${staffInfo.name}` : '';
+              const notesText = tp.notes ? ` (Ghi chú: ${tp.notes})` : '';
+              return `<li style="margin-bottom: 4px;">
+                <strong>${procInfo?.name || 'Thủ thuật trống'}</strong> (${tp.startTime} - ${tp.endTime})${staffText}${notesText}
+              </li>`;
+            }).join('');
+
+            const procContent = (t.procedures || []).length > 0
+              ? `<ol style="margin: 0; padding-left: 16px;">${procListHTML}</ol>`
+              : `<span style="color: #94a3b8; font-style: italic;">Chưa thiết lập thủ thuật</span>`;
+
+            return `<tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155; vertical-align: top;">
+                ${t.group || 'Khác'}
+              </td>
+              <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a; vertical-align: top;">
+                ${t.name}
+              </td>
+              <td style="padding: 10px; border: 1px solid #cbd5e1; color: #334155; vertical-align: top;">
+                ${procContent}
+              </td>
+            </tr>`;
+          }).join('');
+
+      const printWindowHTML = `
+        <html>
+          <head>
+            <title>In danh sách mẫu</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+                background-color: #ffffff;
+                color: #000000;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+                font-size: 13px;
+              }
+              th {
+                background-color: #f1f5f9;
+                color: #0f172a;
+                font-weight: bold;
+                border: 1px solid #cbd5e1;
+                padding: 10px;
+                text-align: left;
+              }
+              td {
+                border: 1px solid #cbd5e1;
+                padding: 10px;
+              }
+              @media print {
+                body { margin: 1cm; }
+              }
+            </style>
+          </head>
+          <body>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 12px;">
+              <div>
+                <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; color: #1e293b; margin: 0;">
+                  DANH SÁCH MẪU CHỈ ĐỊNH THỦ THUẬT
+                </h1>
+                <p style="font-size: 13px; font-weight: bold; color: #475569; margin: 6px 0 0 0;">
+                  KHOA: ${currentDept.name.toUpperCase()}
+                </p>
+              </div>
+              <div style="text-align: right; font-size: 11px; color: #475569;">
+                <p style="margin: 0;">Ngày in: ${new Date().toLocaleDateString('vi-VN')}</p>
+                <p style="margin: 4px 0 0 0;">Giờ in: ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</p>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 25%;">Nhóm Mẫu</th>
+                  <th style="width: 35%;">Tên Mẫu Thủ Thuật</th>
+                  <th style="width: 40%;">Các Bước Thủ Thuật Chi Tiết</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRowsHTML}
+              </tbody>
+            </table>
+
+            <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 13px;">
+              <div style="text-align: center; width: 200px;">
+                <p style="font-weight: bold; margin: 0 0 50px 0;">Người lập bảng</p>
+                <p style="font-style: italic; color: #64748b; font-size: 11px; margin: 0;">(Ký, ghi rõ họ tên)</p>
+              </div>
+              <div style="text-align: center; width: 250px;">
+                <p style="font-style: italic; margin: 0 0 10px 0;">Ngày ..... tháng ..... năm 20...</p>
+                <p style="font-weight: bold; margin: 0 0 50px 0;">Trưởng khoa / Trưởng bộ phận</p>
+                <p style="font-style: italic; color: #64748b; font-size: 11px; margin: 0;">(Ký, đóng dấu)</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (doc) {
+        doc.open();
+        doc.write(printWindowHTML);
+        doc.close();
+
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }, 500);
+      } else {
+        alert('Không thể tạo môi trường in.');
+      }
     } catch (error) {
       console.error(error);
       alert('Lỗi khi in bảng mẫu.');
