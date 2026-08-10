@@ -712,6 +712,8 @@ const App: React.FC = () => {
   const handleSavePatient = async (patient: Patient) => {
     if (!db || !canEditCurrentDept) return;
     try {
+      let apptsToDelete: Appointment[] = [];
+
       if (patient.status === PatientStatus.DISCHARGED && patient.dischargeDate) {
         const originalPatient = patients.find(oldP => oldP.id === patient.id);
         const isNewDischarge = originalPatient?.status !== PatientStatus.DISCHARGED;
@@ -725,7 +727,7 @@ const App: React.FC = () => {
 
           const dischargeDayOnly = patient.dischargeDate.split('T')[0];
           const dischargeLimit = new Date(patient.dischargeDate).getTime();
-          const apptsToDelete = appointments.filter(appt => {
+          apptsToDelete = appointments.filter(appt => {
             if (appt.patientId !== patient.id) return false;
             if (appt.date > dischargeDayOnly) {
               return true;
@@ -736,20 +738,34 @@ const App: React.FC = () => {
             }
             return false;
           });
-
-          if (apptsToDelete.length > 0) {
-            for (const appt of apptsToDelete) {
-              await deleteDoc(doc(db, "appointments", appt.id));
-            }
-          }
         }
+      }
+
+      // Close modal immediately so UI is 100% instant (0ms delay)!
+      setIsPatientEditModalOpen(false);
+      setEditingPatient(null);
+
+      // Optimistic state updates
+      setPatients(prev => {
+        const exists = prev.some(oldP => oldP.id === patient.id);
+        if (exists) return prev.map(oldP => oldP.id === patient.id ? patient : oldP);
+        return [patient, ...prev];
+      });
+
+      if (apptsToDelete.length > 0) {
+        const apptIdsToDelete = new Set(apptsToDelete.map(a => a.id));
+        setAppointments(prev => prev.filter(a => !apptIdsToDelete.has(a.id)));
       }
 
       // Ensure no undefined values are sent to Firestore
       const cleanPatient = JSON.parse(JSON.stringify(patient, (key, value) => value === undefined ? null : value));
-      await setDoc(doc(db, "patients", patient.id), cleanPatient);
-      setIsPatientEditModalOpen(false);
-      setEditingPatient(null);
+      const dbPromises: Promise<any>[] = [setDoc(doc(db, "patients", patient.id), cleanPatient)];
+      if (apptsToDelete.length > 0) {
+        apptsToDelete.forEach(appt => {
+          dbPromises.push(deleteDoc(doc(db, "appointments", appt.id)));
+        });
+      }
+      await Promise.all(dbPromises);
     } catch (error) { 
       handleFirestoreError(error, OperationType.WRITE, `patients/${patient.id}`);
     }
@@ -769,7 +785,9 @@ const App: React.FC = () => {
         return;
       }
 
-      // Xóa hồ sơ bệnh nhân
+      // Optimistic update
+      setPatients(prev => prev.filter(p => p.id !== patientId));
+
       await deleteDoc(doc(db, "patients", patientId));
       console.log(`Đã xóa hồ sơ bệnh nhân ${patientId}`);
     } catch (error) { 
@@ -2155,7 +2173,8 @@ const App: React.FC = () => {
     }
     try {
       const dischargeDateIso = status === PatientStatus.TREATING ? null : (dDate ? new Date(dDate).toISOString() : p.dischargeDate || null);
-      
+      let apptsToDelete: Appointment[] = [];
+
       if (status === PatientStatus.DISCHARGED && dischargeDateIso) {
         const confirmDischarge = window.confirm("Khi cho bệnh nhân ra, các thủ thuật sau thời gian ra viện sẽ bị xóa. Bạn có chắc chắn muốn tiếp tục?");
         if (!confirmDischarge) {
@@ -2164,7 +2183,7 @@ const App: React.FC = () => {
 
         const dischargeDayOnly = dischargeDateIso.split('T')[0];
         const dischargeLimit = new Date(dischargeDateIso).getTime();
-        const apptsToDelete = appointments.filter(appt => {
+        apptsToDelete = appointments.filter(appt => {
           if (appt.patientId !== p.id) return false;
           if (appt.date > dischargeDayOnly) {
             return true;
@@ -2175,16 +2194,25 @@ const App: React.FC = () => {
           }
           return false;
         });
-
-        if (apptsToDelete.length > 0) {
-          for (const appt of apptsToDelete) {
-            await deleteDoc(doc(db, "appointments", appt.id));
-          }
-        }
       }
 
       const updatedPatient = { ...p, status, dischargeDate: dischargeDateIso };
-      await setDoc(doc(db, "patients", p.id), updatedPatient);
+
+      // Optimistic local state update for zero latency response
+      setPatients(prev => prev.map(item => item.id === p.id ? updatedPatient : item));
+
+      if (apptsToDelete.length > 0) {
+        const apptIdsToDelete = new Set(apptsToDelete.map(a => a.id));
+        setAppointments(prev => prev.filter(a => !apptIdsToDelete.has(a.id)));
+      }
+
+      const promises: Promise<any>[] = [setDoc(doc(db, "patients", p.id), updatedPatient)];
+      if (apptsToDelete.length > 0) {
+        apptsToDelete.forEach(appt => {
+          promises.push(deleteDoc(doc(db, "appointments", appt.id)));
+        });
+      }
+      await Promise.all(promises);
     } catch (e) { 
       console.error(e);
       alert("Lỗi khi cập nhật trạng thái bệnh nhân.");
