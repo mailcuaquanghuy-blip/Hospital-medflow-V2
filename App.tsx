@@ -998,11 +998,12 @@ const App: React.FC = () => {
   const handleCopyToDateRange = async (patientId: string, sourceDate: string, startDate: string, endDate: string, selectedApptIds?: string[]) => {
     if (!db || !canEditCurrentDept) return;
     
-    // Mỗi khoa chỉ được sao chép thủ thuật của riêng mình
+    // Mỗi khoa chỉ được sao chép thủ thuật thuộc khoa của mình
+    const targetDeptId = currentDept?.id;
     let sourceAppts = appointments.filter(a => 
       a.patientId === patientId && 
       a.date === sourceDate && 
-      (currentUser?.role === UserRole.ADMIN || a.deptId === currentDept?.id)
+      (!targetDeptId || a.deptId === targetDeptId)
     );
     
     // Filter by selected appointments if provided
@@ -1012,17 +1013,22 @@ const App: React.FC = () => {
     
     if (sourceAppts.length === 0) return;
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Build dateRange in a timezone-safe manner using local year, month, day integers
     let dateRange: string[] = [];
-    let current = new Date(start);
-    while (current <= end) {
-      dateRange.push(current.toISOString().split('T')[0]);
-      current.setDate(current.getDate() + 1);
+    const [sY, sM, sD] = startDate.split('-').map(Number);
+    const [eY, eM, eD] = endDate.split('-').map(Number);
+    let currDate = new Date(sY, sM - 1, sD);
+    const endDateObj = new Date(eY, eM - 1, eD);
+
+    while (currDate <= endDateObj) {
+      const y = currDate.getFullYear();
+      const m = String(currDate.getMonth() + 1).padStart(2, '0');
+      const d = String(currDate.getDate()).padStart(2, '0');
+      dateRange.push(`${y}-${m}-${d}`);
+      currDate.setDate(currDate.getDate() + 1);
     }
 
     // Lọc bỏ ngày nghỉ toàn khoa khỏi dateRange
-    const targetDeptId = currentDept?.id || sourceAppts[0]?.deptId;
     const holidayDates: string[] = [];
     if (targetDeptId) {
       dateRange = dateRange.filter(targetDate => {
@@ -1041,7 +1047,7 @@ const App: React.FC = () => {
     const actualTargetDates = dateRange.filter(d => d !== sourceDate);
     if (actualTargetDates.length === 0) {
       if (holidayDates.length > 0) {
-        alert(`Không thể sao chép. Tất cả các ngày trong khoảng từ ngày ${new Date(startDate).toLocaleDateString('vi-VN')} đến ngày ${new Date(endDate).toLocaleDateString('vi-VN')} đều là ngày nghỉ toàn khoa.`);
+        alert(`Không thể sao chép. Tất cả các ngày trong khoảng từ ngày ${startDate} đến ngày ${endDate} đều là ngày nghỉ toàn khoa.`);
       } else {
         alert("Không có ngày nào khả dụng để sao chép.");
       }
@@ -1054,7 +1060,6 @@ const App: React.FC = () => {
       const dischargeDateStr = patientObj.dischargeDate ? patientObj.dischargeDate.split('T')[0] : '';
       const invalidDates = dateRange.filter(targetDate => {
         if (targetDate === sourceDate) return false;
-        // Nếu không có ngày ra viện cụ thể hoặc ngày đích lớn hơn ngày ra viện (bệnh nhân ra viện hôm trước ngày đích)
         return !patientObj.dischargeDate || targetDate > dischargeDateStr;
       });
 
@@ -1064,24 +1069,47 @@ const App: React.FC = () => {
       }
     }
 
-    // Check for duplicate procedures on target dates
+    // Check for duplicate procedures on target dates within the current department
     const duplicateWarnings: string[] = [];
+    const toDeleteApptIds: string[] = [];
+
     dateRange.forEach(targetDate => {
       if (targetDate === sourceDate) return;
-      const targetDateAppts = appointments.filter(a => a.patientId === patientId && a.date === targetDate);
+      const targetDateAppts = appointments.filter(a => 
+        a.patientId === patientId && 
+        a.date === targetDate && 
+        (!targetDeptId || a.deptId === targetDeptId)
+      );
       
       sourceAppts.forEach(source => {
-        const isDuplicate = targetDateAppts.some(a => a.procedureId === source.procedureId);
-        if (isDuplicate) {
+        const dupes = targetDateAppts.filter(a => a.procedureId === source.procedureId);
+        if (dupes.length > 0) {
           const procName = procedures.find(p => p.id === source.procedureId)?.name || 'Thủ thuật';
-          duplicateWarnings.push(`Ngày ${targetDate}: Đã có "${procName}"`);
+          const [y, m, d] = targetDate.split('-');
+          duplicateWarnings.push(`Ngày ${d}/${m}/${y}: Đã có "${procName}"`);
+          dupes.forEach(dp => {
+            if (!toDeleteApptIds.includes(dp.id)) toDeleteApptIds.push(dp.id);
+          });
         }
       });
     });
 
     if (duplicateWarnings.length > 0) {
-      alert(`LỖI TRÙNG LẶP:\nKhông thể sao chép vì các thủ thuật sau đã tồn tại ở ngày đích:\n${duplicateWarnings.slice(0, 10).join('\n')}${duplicateWarnings.length > 10 ? '\n...' : ''}\n\nVui lòng bỏ chọn các thủ thuật này hoặc xóa ở ngày đích trước khi sao chép.`);
-      return;
+      const confirmOverwrite = window.confirm(
+        `CẢNH BÁO TRÙNG LẶP THỦ THUẬT:\nMột số thủ thuật đã tồn tại ở các ngày đích trong khoa:\n` +
+        duplicateWarnings.slice(0, 8).join('\n') +
+        (duplicateWarnings.length > 8 ? `\n... và ${duplicateWarnings.length - 8} trùng lặp khác.` : '') +
+        `\n\nBạn có muốn XÓA CÁC THỦ THUẬT CŨ BỊ TRÙNG ở ngày đích để GHI ĐÈ bằng các thủ thuật mới không?\n` +
+        `- Bấm [OK]: Xóa thủ thuật trùng ở ngày đích và ghi đè thủ thuật mới.\n` +
+        `- Bấm [Cancel]: Hủy thao tác sao chép.`
+      );
+
+      if (!confirmOverwrite) return;
+
+      // User confirmed overwrite: delete old duplicate appointments from Firestore
+      if (toDeleteApptIds.length > 0) {
+        await Promise.all(toDeleteApptIds.map(id => deleteDoc(doc(db, "appointments", id))));
+      }
     }
 
     // Kiểm tra ca máy cho các thủ thuật chạy theo ca máy
@@ -1174,7 +1202,8 @@ const App: React.FC = () => {
     }
 
     const newAppts: Appointment[] = [];
-    let currentApptsState = [...appointments];
+    // State including newly created ones and excluding deleted ones
+    let currentApptsState = appointments.filter(a => !toDeleteApptIds.includes(a.id));
 
     // Create missing shifts if user confirmed
     if (autoCreateShifts && shiftsToCreate.length > 0) {
@@ -1224,14 +1253,27 @@ const App: React.FC = () => {
     });
 
     if (newAppts.length > 0) {
-      const apptPromises = newAppts.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
-      await Promise.all(apptPromises);
-      
-      let msg = `Đã sao chép thành công.`;
-      if (holidayDates.length > 0) {
-        msg += `\nLưu ý: Hệ thống đã tự động bỏ qua các ngày nghỉ toàn khoa: ${holidayDates.map(d => new Date(d).toLocaleDateString('vi-VN')).join(', ')}.`;
+      // Optimistically update local state in React so the UI updates immediately!
+      setAppointments(prev => {
+        const filtered = prev.filter(a => !toDeleteApptIds.includes(a.id));
+        return [...filtered, ...newAppts];
+      });
+
+      try {
+        const apptPromises = newAppts.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
+        await Promise.all(apptPromises);
+        
+        let msg = `Đã sao chép thành công ${newAppts.length} lượt thủ thuật.`;
+        if (holidayDates.length > 0) {
+          msg += `\nLưu ý: Hệ thống đã tự động bỏ qua các ngày nghỉ toàn khoa: ${holidayDates.map(d => {
+            const [y, m, day] = d.split('-');
+            return `${day}/${m}/${y}`;
+          }).join(', ')}.`;
+        }
+        alert(msg);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, "appointments");
       }
-      alert(msg);
     }
   };
 

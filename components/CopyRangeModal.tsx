@@ -34,21 +34,30 @@ export const CopyRangeModal: React.FC<CopyRangeModalProps> = ({
   appointmentsToCopy = [],
   procedures = []
 }) => {
-  const [startDate, setStartDate] = useState(new Date(sourceDate).toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(() => {
-    const nextDay = new Date(sourceDate);
-    nextDay.setDate(nextDay.getDate() + 1);
-    return nextDay.toISOString().split('T')[0];
-  });
+  const getNextDayStr = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr;
+    const dt = new Date(y, m - 1, d + 1);
+    const resY = dt.getFullYear();
+    const resM = String(dt.getMonth() + 1).padStart(2, '0');
+    const resD = String(dt.getDate()).padStart(2, '0');
+    return `${resY}-${resM}-${resD}`;
+  };
+
+  const [startDate, setStartDate] = useState(sourceDate);
+  const [endDate, setEndDate] = useState(() => getNextDayStr(sourceDate));
   const [selectedApptIds, setSelectedApptIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       setSelectedApptIds(appointmentsToCopy.map(a => a.id));
-      setStartDate(new Date(sourceDate).toISOString().split('T')[0]);
-      const nextDay = new Date(sourceDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      setEndDate(nextDay.toISOString().split('T')[0]);
+      setStartDate(sourceDate);
+      setEndDate(getNextDayStr(sourceDate));
     }
   }, [isOpen, sourceDate, appointmentsToCopy]);
 
