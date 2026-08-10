@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, ComposedChart, LabelList } from 'recharts';
-import { Appointment, Procedure, Staff, Department, DepartmentType, Patient, AttendanceRecord, AttendanceStatus } from '../types';
+import { Appointment, Procedure, Staff, Department, DepartmentType, Patient, AttendanceRecord, AttendanceStatus, AppointmentStatus } from '../types';
 import { timeStringToMinutes, minutesToTimeString, getRoleLabel } from '../utils/timeUtils';
-import { Clock, User, Zap, Filter, Building2, CalendarDays, Calendar, TrendingUp, Bed, Activity, Award } from 'lucide-react';
+import { downloadCSV } from '../utils/csvUtils';
+import { Clock, User, Zap, Filter, Building2, CalendarDays, Calendar, TrendingUp, Bed, Activity, Award, FileSpreadsheet, Printer, Download, Search, RotateCcw, FileText, CheckCircle2 } from 'lucide-react';
 
 interface DailyReportProps {
   appointments: Appointment[];
@@ -115,6 +116,26 @@ export const DailyReport: React.FC<DailyReportProps> = ({
   });
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedTimelineStaff, setSelectedTimelineStaff] = useState<string[]>([]);
+
+  // States cho Bảng chấm công thủ thuật
+  const [tcFromDate, setTcFromDate] = useState<string>(() => {
+    const m = String(selectedMonth).padStart(2, '0');
+    return `${selectedYear}-${m}-01`;
+  });
+  const [tcToDate, setTcToDate] = useState<string>(() => {
+    const daysInM = new Date(selectedYear, selectedMonth, 0).getDate();
+    const m = String(selectedMonth).padStart(2, '0');
+    return `${selectedYear}-${m}-${String(daysInM).padStart(2, '0')}`;
+  });
+  const [tcSearchTerm, setTcSearchTerm] = useState<string>('');
+
+  // Tự động cập nhật khoảng ngày khi chọn tháng/năm ở header báo cáo
+  React.useEffect(() => {
+    const m = String(selectedMonth).padStart(2, '0');
+    const daysInM = new Date(selectedYear, selectedMonth, 0).getDate();
+    setTcFromDate(`${selectedYear}-${m}-01`);
+    setTcToDate(`${selectedYear}-${m}-${String(daysInM).padStart(2, '0')}`);
+  }, [selectedMonth, selectedYear]);
 
   // Tự động tìm các năm có dữ liệu trong danh sách lịch hẹn
   const availableYears = useMemo(() => {
@@ -524,6 +545,392 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     if (!selectedStaffId) return null;
     return staffStats.find(s => s.id === selectedStaffId);
   }, [selectedStaffId, staffStats]);
+
+  // Danh sách các ngày trong khoảng [tcFromDate, tcToDate]
+  const dateList = useMemo(() => {
+    if (!tcFromDate || !tcToDate || tcFromDate > tcToDate) return [];
+    const list: string[] = [];
+    const [sY, sM, sD] = tcFromDate.split('-').map(Number);
+    const [eY, eM, eD] = tcToDate.split('-').map(Number);
+    if (isNaN(sY) || isNaN(eY)) return [];
+
+    let curr = new Date(sY, sM - 1, sD);
+    const end = new Date(eY, eM - 1, eD);
+
+    let count = 0;
+    while (curr <= end && count < 62) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, '0');
+      const d = String(curr.getDate()).padStart(2, '0');
+      list.push(`${y}-${m}-${d}`);
+      curr.setDate(curr.getDate() + 1);
+      count++;
+    }
+    return list;
+  }, [tcFromDate, tcToDate]);
+
+  // Lịch hẹn thuộc khoảng ngày chấm công thủ thuật
+  const timecardAppointments = useMemo(() => {
+    if (!tcFromDate || !tcToDate) return [];
+    return appointments.filter(a => {
+      if (a.date < tcFromDate || a.date > tcToDate) return false;
+
+      const patient = patients.find(p => p.id === a.patientId);
+      const proc = procedures.find(p => p.id === a.procedureId);
+      const procedureDeptId = proc?.deptId || a.deptId;
+
+      if (currentDept.type === DepartmentType.CLINICAL) {
+        return patient?.admittedByDeptId === currentDept.id && (filterDeptId === 'ALL' || procedureDeptId === filterDeptId);
+      } else {
+        if (filterDeptId === currentDept.id || filterDeptId === 'ALL') {
+          return procedureDeptId === currentDept.id;
+        } else {
+          return procedureDeptId === currentDept.id && patient?.admittedByDeptId === filterDeptId;
+        }
+      }
+    });
+  }, [appointments, tcFromDate, tcToDate, currentDept, filterDeptId, patients, procedures]);
+
+  // Ma trận chấm công thủ thuật theo từng bệnh nhân
+  const timecardMatrix = useMemo(() => {
+    const patientMap = new Map<string, {
+      patient: Patient;
+      proceduresMap: Map<string, {
+        procedure: Procedure;
+        datesSet: Set<string>;
+        countByDate: Map<string, number>;
+      }>;
+    }>();
+
+    timecardAppointments.forEach(a => {
+      const p = patients.find(patient => patient.id === a.patientId);
+      if (!p) return;
+
+      if (tcSearchTerm) {
+        const term = tcSearchTerm.trim().toLowerCase();
+        const matchName = (p.name || '').toLowerCase().includes(term);
+        const matchCode = (p.code || '').toLowerCase().includes(term);
+        const matchBed = (p.bedNumber || '').toLowerCase().includes(term);
+        const matchRoom = (p.roomNumber || '').toLowerCase().includes(term);
+        if (!matchName && !matchCode && !matchBed && !matchRoom) return;
+      }
+
+      const proc = procedures.find(pr => pr.id === a.procedureId);
+      const procName = proc ? proc.name : 'Thủ thuật khác';
+      const procId = proc ? proc.id : a.procedureId;
+
+      if (!patientMap.has(p.id)) {
+        patientMap.set(p.id, {
+          patient: p,
+          proceduresMap: new Map()
+        });
+      }
+
+      const pEntry = patientMap.get(p.id)!;
+      if (!pEntry.proceduresMap.has(procId)) {
+        pEntry.proceduresMap.set(procId, {
+          procedure: proc || ({ id: procId, name: procName, deptId: a.deptId, durationMinutes: 30 } as Procedure),
+          datesSet: new Set(),
+          countByDate: new Map()
+        });
+      }
+
+      const procEntry = pEntry.proceduresMap.get(procId)!;
+      procEntry.datesSet.add(a.date);
+      procEntry.countByDate.set(a.date, (procEntry.countByDate.get(a.date) || 0) + 1);
+    });
+
+    const result = Array.from(patientMap.values()).map(pEntry => {
+      const procsList = Array.from(pEntry.proceduresMap.values()).map(pProc => ({
+        procedure: pProc.procedure,
+        datesSet: pProc.datesSet,
+        countByDate: pProc.countByDate,
+        totalExecutions: pProc.datesSet.size
+      }));
+
+      procsList.sort((a, b) => a.procedure.name.localeCompare(b.procedure.name, 'vi'));
+
+      return {
+        patient: pEntry.patient,
+        procedures: procsList
+      };
+    });
+
+    result.sort((a, b) => {
+      const bedA = parseInt(a.patient.bedNumber || '9999', 10);
+      const bedB = parseInt(b.patient.bedNumber || '9999', 10);
+      if (!isNaN(bedA) && !isNaN(bedB) && bedA !== bedB) return bedA - bedB;
+      return a.patient.name.localeCompare(b.patient.name, 'vi');
+    });
+
+    return result;
+  }, [timecardAppointments, patients, procedures, tcSearchTerm]);
+
+  // Xuất CSV Bảng chấm công thủ thuật
+  const handleExportTimecardCSV = () => {
+    if (timecardMatrix.length === 0 || dateList.length === 0) {
+      alert("Không có dữ liệu chấm công thủ thuật để xuất CSV.");
+      return;
+    }
+
+    const headers = [
+      { label: 'Họ tên bệnh nhân', key: 'patientName' },
+      { label: 'Mã BN', key: 'patientCode' },
+      { label: 'Phòng', key: 'roomNumber' },
+      { label: 'Giường', key: 'bedNumber' },
+      { label: 'Tên thủ thuật', key: 'procedureName' },
+      ...dateList.map(d => {
+        const [y, m, day] = d.split('-');
+        return { label: `${parseInt(day, 10)}/${parseInt(m, 10)}`, key: `d_${d}` };
+      }),
+      { label: 'Tổng số lượt', key: 'total' }
+    ];
+
+    const csvRows: any[] = [];
+    timecardMatrix.forEach(pItem => {
+      if (pItem.procedures.length === 0) {
+        const rowObj: any = {
+          patientName: pItem.patient.name,
+          patientCode: pItem.patient.code,
+          roomNumber: pItem.patient.roomNumber || '',
+          bedNumber: pItem.patient.bedNumber || '',
+          procedureName: 'Chưa có thủ thuật',
+          total: 0
+        };
+        dateList.forEach(d => {
+          rowObj[`d_${d}`] = '';
+        });
+        csvRows.push(rowObj);
+      } else {
+        pItem.procedures.forEach((procItem, idx) => {
+          const rowObj: any = {
+            patientName: idx === 0 ? pItem.patient.name : '',
+            patientCode: idx === 0 ? pItem.patient.code : '',
+            roomNumber: idx === 0 ? (pItem.patient.roomNumber || '') : '',
+            bedNumber: idx === 0 ? (pItem.patient.bedNumber || '') : '',
+            procedureName: procItem.procedure.name,
+            total: procItem.totalExecutions
+          };
+          dateList.forEach(d => {
+            rowObj[`d_${d}`] = procItem.datesSet.has(d) ? 'x' : '';
+          });
+          csvRows.push(rowObj);
+        });
+      }
+    });
+
+    const filename = `Bang_Cham_Cong_Thu_Thuat_${tcFromDate}_den_${tcToDate}.csv`;
+    downloadCSV(csvRows, filename, headers);
+  };
+
+  // In / Xuất PDF Bảng chấm công thủ thuật
+  const handlePrintTimecard = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Vui lòng cho phép mở cửa sổ bật lên (popup) trên trình duyệt để in báo cáo.");
+      return;
+    }
+
+    const formatDateVi = (dStr: string) => {
+      if (!dStr) return '';
+      const parts = dStr.split('-');
+      if (parts.length !== 3) return dStr;
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    };
+
+    let matrixRowsHTML = '';
+    if (timecardMatrix.length === 0) {
+      matrixRowsHTML = `
+        <tr>
+          <td colSpan="${dateList.length + 3}" style="text-align: center; padding: 25px; font-style: italic; color: #666;">
+            Không có dữ liệu thủ thuật trong khoảng thời gian từ ${formatDateVi(tcFromDate)} đến ${formatDateVi(tcToDate)}
+          </td>
+        </tr>
+      `;
+    } else {
+      timecardMatrix.forEach(pItem => {
+        if (pItem.procedures.length === 0) {
+          matrixRowsHTML += `
+            <tr>
+              <td style="font-weight: bold; vertical-align: top;">
+                ${pItem.patient.name}<br/>
+                <small style="font-weight: normal; color: #555;">Mã: ${pItem.patient.code} | G: ${pItem.patient.bedNumber || '-'}</small>
+              </td>
+              <td style="color: #888; font-style: italic;">Chưa thực hiện thủ thuật nào</td>
+              ${dateList.map(() => `<td class="text-center"></td>`).join('')}
+              <td class="text-center">0</td>
+            </tr>
+          `;
+        } else {
+          pItem.procedures.forEach((procItem, idx) => {
+            matrixRowsHTML += '<tr>';
+            if (idx === 0) {
+              matrixRowsHTML += `
+                <td rowspan="${pItem.procedures.length}" style="font-weight: bold; vertical-align: top; background-color: #fafafa;">
+                  ${pItem.patient.name}<br/>
+                  <small style="font-weight: normal; color: #444; font-family: monospace;">Mã: ${pItem.patient.code}</small><br/>
+                  <small style="font-weight: bold; color: #1e40af;">G: ${pItem.patient.bedNumber || '-'} | P: ${pItem.patient.roomNumber || '-'}</small>
+                </td>
+              `;
+            }
+            matrixRowsHTML += `<td>${procItem.procedure.name}</td>`;
+            dateList.forEach(d => {
+              const hasAppt = procItem.datesSet.has(d);
+              matrixRowsHTML += `<td class="text-center" style="font-weight: bold; font-size: 11pt; color: ${hasAppt ? '#000' : '#ccc'};">${hasAppt ? 'x' : ''}</td>`;
+            });
+            matrixRowsHTML += `<td class="text-center" style="font-weight: bold; background-color: #f9fafb;">${procItem.totalExecutions}</td>`;
+            matrixRowsHTML += '</tr>';
+          });
+        }
+      });
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <title>Bảng chấm công thủ thuật - ${currentDept.name}</title>
+        <style>
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
+          @media print {
+            body { -webkit-print-color-adjust: exact; }
+          }
+          body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 10.5pt;
+            color: #000;
+            margin: 0;
+            padding: 10px;
+          }
+          .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+          }
+          .header-table td {
+            border: none !important;
+            padding: 2px 0;
+            font-size: 10pt;
+          }
+          .title {
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 10px 0 3px 0;
+          }
+          .subtitle {
+            text-align: center;
+            font-size: 10pt;
+            font-style: italic;
+            margin-bottom: 12px;
+          }
+          .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+          }
+          .data-table th, .data-table td {
+            border: 1px solid #000;
+            padding: 5px 6px;
+            font-size: 9.5pt;
+          }
+          .data-table th {
+            background-color: #f2f2f2 !important;
+            text-align: center;
+            font-weight: bold;
+          }
+          .text-center { text-align: center !important; }
+          .signature-section {
+            margin-top: 25px;
+            width: 100%;
+            page-break-inside: avoid;
+          }
+          .sig-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          .sig-table td {
+            border: none !important;
+            text-align: center;
+            vertical-align: top;
+            width: 33%;
+            font-size: 10pt;
+          }
+        </style>
+      </head>
+      <body>
+        <table class="header-table">
+          <tr>
+            <td style="width: 50%; font-weight: bold; text-transform: uppercase; vertical-align: top;">
+              BỆNH VIỆN / ĐƠN VỊ Y TẾ<br/>
+              KHOA: ${currentDept.name.toUpperCase()}
+            </td>
+            <td style="width: 50%; text-align: right; font-style: italic; vertical-align: top;">
+              CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br/>
+              <b>Độc lập - Tự do - Hạnh phúc</b>
+            </td>
+          </tr>
+        </table>
+
+        <div class="title">BẢNG CHẤM CÔNG THỦ THUẬT BỆNH NHÂN</div>
+        <div class="subtitle">(Từ ngày ${formatDateVi(tcFromDate)} đến ngày ${formatDateVi(tcToDate)})</div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 160px;">Họ và tên bệnh nhân</th>
+              <th style="width: 150px;">Tên thủ thuật</th>
+              ${dateList.map(d => {
+                const [y, m, day] = d.split('-');
+                return `<th class="text-center">${parseInt(day, 10)}/${parseInt(m, 10)}</th>`;
+              }).join('')}
+              <th class="text-center" style="width: 45px;">Tổng</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${matrixRowsHTML}
+          </tbody>
+        </table>
+
+        <div class="signature-section">
+          <table class="sig-table">
+            <tr>
+              <td>
+                <b>TRƯỞNG KHOA</b><br/>
+                <i style="font-size: 8.5pt;">(Ký, ghi rõ họ tên)</i>
+                <div style="height: 60px;"></div>
+              </td>
+              <td>
+                <b>ĐIỀU DƯỠNG TRƯỞNG</b><br/>
+                <i style="font-size: 8.5pt;">(Ký, ghi rõ họ tên)</i>
+                <div style="height: 60px;"></div>
+              </td>
+              <td>
+                <b>NGƯỜI LẬP BẢNG</b><br/>
+                <i style="font-size: 8.5pt;">(Ký, ghi rõ họ tên)</i>
+                <div style="height: 60px;"></div>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
 
   const getRoleDisplayName = (role: string) => {
     switch (role) {
@@ -1314,6 +1721,202 @@ export const DailyReport: React.FC<DailyReportProps> = ({
             </div>
           </div>
         </div>
+      {/* BẢNG CHẤM CÔNG THỦ THUẬT BỆNH NHÂN (MATRIX TIMECARD REPORT) */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col mt-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 border-b border-slate-100 pb-5">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 font-sans">
+              <FileSpreadsheet className="text-emerald-600" size={22} />
+              Bảng Chấm Công Thủ Thuật Bệnh Nhân
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Theo dõi ma trận chấm công chi tiết các thủ thuật thực hiện theo từng ngày cho bệnh nhân (Đánh dấu 'x' ngày có thực hiện).
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportTimecardCSV}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-sm active:scale-95"
+              title="Tải bảng chấm công dưới dạng file CSV Excel"
+            >
+              <Download size={15} />
+              Xuất CSV
+            </button>
+            <button
+              onClick={handlePrintTimecard}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-sm active:scale-95"
+              title="In hoặc xuất file PDF chuẩn trang ngang A4"
+            >
+              <Printer size={15} />
+              In / Xuất PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Thanh công cụ lọc Từ ngày - Đến ngày & Tìm kiếm */}
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-xs">
+              <span className="text-[11px] font-black text-slate-500 uppercase">Từ ngày:</span>
+              <input
+                type="date"
+                value={tcFromDate}
+                onChange={(e) => setTcFromDate(e.target.value)}
+                className="bg-transparent text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-xs">
+              <span className="text-[11px] font-black text-slate-500 uppercase">Đến ngày:</span>
+              <input
+                type="date"
+                value={tcToDate}
+                onChange={(e) => setTcToDate(e.target.value)}
+                className="bg-transparent text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer"
+              />
+            </div>
+
+            {/* Quick preset buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  const m = String(selectedMonth).padStart(2, '0');
+                  const daysInM = new Date(selectedYear, selectedMonth, 0).getDate();
+                  setTcFromDate(`${selectedYear}-${m}-01`);
+                  setTcToDate(`${selectedYear}-${m}-${String(daysInM).padStart(2, '0')}`);
+                }}
+                className="px-2.5 py-1.5 text-[10px] font-bold bg-white text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+              >
+                Cả tháng {selectedMonth}/{selectedYear}
+              </button>
+              <button
+                onClick={() => {
+                  const today = new Date();
+                  const past7 = new Date(today);
+                  past7.setDate(today.getDate() - 6);
+                  setTcFromDate(past7.toISOString().split('T')[0]);
+                  setTcToDate(today.toISOString().split('T')[0]);
+                }}
+                className="px-2.5 py-1.5 text-[10px] font-bold bg-white text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+              >
+                7 ngày gần nhất
+              </button>
+            </div>
+          </div>
+
+          {/* Ô tìm kiếm bệnh nhân */}
+          <div className="relative min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+            <input
+              type="text"
+              placeholder="Tìm theo tên, mã BN, giường..."
+              value={tcSearchTerm}
+              onChange={(e) => setTcSearchTerm(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+            />
+          </div>
+        </div>
+
+        {/* Bảng ma trận chấm công */}
+        <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-xs">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider border-b border-slate-200">
+                <th className="p-3 border-r border-slate-200 min-w-[180px] text-slate-800">Họ tên bệnh nhân</th>
+                <th className="p-3 border-r border-slate-200 min-w-[170px] text-slate-800">Tên thủ thuật</th>
+                {dateList.map(d => {
+                  const [y, m, day] = d.split('-');
+                  return (
+                    <th key={d} className="p-2 border-r border-slate-200 text-center min-w-[42px] bg-slate-100/90 text-slate-700">
+                      {parseInt(day, 10)}/{parseInt(m, 10)}
+                    </th>
+                  );
+                })}
+                <th className="p-3 text-center min-w-[60px] bg-slate-200/60 text-slate-800">Tổng</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 bg-white">
+              {timecardMatrix.map((pItem) => {
+                if (pItem.procedures.length === 0) {
+                  return (
+                    <tr key={pItem.patient.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3 border-r border-slate-200 bg-slate-50/50 align-top">
+                        <div className="font-bold text-slate-800 text-xs uppercase">{pItem.patient.name}</div>
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">Mã: {pItem.patient.code}</div>
+                        <div className="text-[10px] text-indigo-600 font-bold mt-0.5">
+                          G: {pItem.patient.bedNumber || '-'} | P: {pItem.patient.roomNumber || '-'}
+                        </div>
+                      </td>
+                      <td className="p-3 border-r border-slate-200 text-xs italic text-slate-400">
+                        Chưa có thủ thuật
+                      </td>
+                      {dateList.map(d => (
+                        <td key={d} className="p-2 border-r border-slate-200 text-center text-slate-300 font-light text-xs">-</td>
+                      ))}
+                      <td className="p-3 text-center font-black text-xs text-slate-400 bg-slate-50/50">0</td>
+                    </tr>
+                  );
+                }
+
+                return pItem.procedures.map((procItem, procIdx) => (
+                  <tr key={`${pItem.patient.id}-${procItem.procedure.id}`} className="hover:bg-amber-50/30 transition-colors">
+                    {procIdx === 0 && (
+                      <td
+                        rowSpan={pItem.procedures.length}
+                        className="p-3 border-r border-b border-slate-200 bg-slate-50/60 align-top"
+                      >
+                        <div className="font-bold text-slate-900 text-xs uppercase tracking-wide">
+                          {pItem.patient.name}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          Mã: {pItem.patient.code}
+                        </div>
+                        <div className="text-[10px] text-indigo-700 font-extrabold mt-0.5 bg-indigo-50 inline-block px-1.5 py-0.5 rounded border border-indigo-100">
+                          G: {pItem.patient.bedNumber || '-'} | P: {pItem.patient.roomNumber || '-'}
+                        </div>
+                      </td>
+                    )}
+                    <td className="p-2.5 border-r border-slate-200 text-xs font-extrabold text-slate-700">
+                      {procItem.procedure.name}
+                    </td>
+                    {dateList.map(d => {
+                      const hasExec = procItem.datesSet.has(d);
+                      return (
+                        <td key={d} className="p-1 border-r border-slate-200 text-center">
+                          {hasExec ? (
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 font-black text-xs border border-emerald-200 shadow-2xs">
+                              x
+                            </span>
+                          ) : (
+                            <span className="text-slate-200 text-xs font-light">-</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="p-2.5 text-center font-black text-xs text-slate-800 bg-slate-50/50">
+                      {procItem.totalExecutions}
+                    </td>
+                  </tr>
+                ));
+              })}
+
+              {timecardMatrix.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={dateList.length + 3}
+                    className="p-12 text-center text-xs text-slate-400 font-bold bg-slate-50/30"
+                  >
+                    <FileSpreadsheet size={32} className="mx-auto mb-2 text-slate-300 animate-pulse" />
+                    Không tìm thấy dữ liệu thủ thuật phù hợp trong khoảng thời gian {tcFromDate} - {tcToDate}.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
       </div>
       </>
       )}
