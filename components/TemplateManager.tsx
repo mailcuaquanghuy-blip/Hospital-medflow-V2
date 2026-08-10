@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { AppointmentTemplate, Procedure, Staff, Department, Appointment, Patient } from '../types';
 import { Button } from './Button';
 import { Search, Plus, Trash2, Edit3, FolderOpen, Save, X, ChevronDown, CheckCircle2, Copy, User, Monitor, ArrowRightLeft, FileSpreadsheet, Printer, Download, Upload } from 'lucide-react';
-import { getAbbreviation, calculateAge } from '../utils/timeUtils';
+import { getAbbreviation, calculateAge, timeStringToMinutes } from '../utils/timeUtils';
+import { downloadCSV } from '../utils/csvUtils';
 import { MOCK_PROCEDURES } from '../constants';
 import { TemplateProcModal } from './TemplateProcModal';
 import { TemplateProcedure } from '../types';
@@ -48,40 +49,88 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
 
   const handleExportCSV = () => {
     try {
-      const headers = ['Nhóm Mẫu', 'Tên Mẫu', 'Loại Mẫu', 'Số Thủ Thuật', 'Chi Tiết Thủ Thuật'];
-      const rows = templates.filter(t => t.deptId === currentDept.id).map(t => {
-        const groupName = t.isFolder ? 'Thư mục nhóm' : (t.group || 'Khác');
-        const typeStr = t.isFolder ? 'Thư mục' : 'Mẫu thường';
-        const procCount = t.isFolder ? 0 : (t.procedures || []).length;
-        const procDetails = t.isFolder ? '' : (t.procedures || []).map(tp => {
-          const pInfo = procedures.find(p => p.id === tp.procedureId);
-          const sInfo = staff.find(s => s.id === tp.staffId);
-          return `${pInfo?.name || 'Thủ thuật trống'} (${tp.startTime} - ${tp.endTime} | thực hiện: ${sInfo?.name || 'Trống'})`;
-        }).join('; ');
+      const deptTemplates = templates.filter(t => t.deptId === currentDept.id && !t.isFolder);
 
-        return [
-          groupName,
-          t.name,
-          typeStr,
-          procCount.toString(),
-          procDetails
-        ];
+      const sortedTemplates = [...deptTemplates].sort((a, b) => {
+        const groupA = (a.group || 'Khác').trim();
+        const groupB = (b.group || 'Khác').trim();
+        const groupCmp = groupA.localeCompare(groupB, 'vi');
+        if (groupCmp !== 0) return groupCmp;
+
+        const nameA = (a.name || '').trim();
+        const nameB = (b.name || '').trim();
+        const nameCmp = nameA.localeCompare(nameB, 'vi');
+        if (nameCmp !== 0) return nameCmp;
+
+        return (a.order || 0) - (b.order || 0);
       });
 
-      // Escape fields for CSV
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
-      ].join('\r\n');
+      const rows: any[] = [];
+      let stt = 1;
 
-      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `Danh_Sach_Mau_${currentDept.name.replace(/\s+/g, '_')}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      sortedTemplates.forEach(t => {
+        const procs = t.procedures || [];
+        if (procs.length === 0) {
+          rows.push({
+            stt: stt++,
+            groupName: t.group || 'Khác',
+            templateName: t.name,
+            dept: currentDept.name,
+            procedure: 'Chưa thiết lập thủ thuật',
+            duration: '-',
+            staff: '-',
+            assistant1: '',
+            assistant2: '',
+            time: '-',
+            machine: ''
+          });
+        } else {
+          const sortedProcs = [...procs].sort((a, b) => 
+            timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime)
+          );
+
+          sortedProcs.forEach(tp => {
+            const procInfo = procedures.find(p => p.id === tp.procedureId);
+            const staffInfo = staff.find(s => s.id === tp.staffId);
+            const asst1Info = tp.assistant1Id ? staff.find(s => s.id === tp.assistant1Id) : null;
+            const asst2Info = tp.assistant2Id ? staff.find(s => s.id === tp.assistant2Id) : null;
+            
+            const durationMins = (timeStringToMinutes(tp.endTime) - timeStringToMinutes(tp.startTime));
+            const durationStr = durationMins > 0 ? `${durationMins}p` : '-';
+            const machineCode = tp.assignedMachineId ? tp.assignedMachineId.replace(/-/g, '') : '';
+
+            rows.push({
+              stt: stt++,
+              groupName: t.group || 'Khác',
+              templateName: t.name,
+              dept: currentDept.name,
+              procedure: procInfo?.name || 'Thủ thuật đã xóa',
+              duration: durationStr,
+              staff: staffInfo?.name || '',
+              assistant1: asst1Info?.name || '',
+              assistant2: asst2Info?.name || '',
+              time: `${tp.startTime} - ${tp.endTime}`,
+              machine: machineCode
+            });
+          });
+        }
+      });
+
+      const headers = [
+        { label: 'STT', key: 'stt' },
+        { label: 'Nhóm Mẫu', key: 'groupName' },
+        { label: 'Tên Mẫu', key: 'templateName' },
+        { label: 'Khoa thực hiện', key: 'dept' },
+        { label: 'Thủ thuật', key: 'procedure' },
+        { label: 'Thời lượng', key: 'duration' },
+        { label: 'Nhân viên', key: 'staff' },
+        { label: 'Phụ 1', key: 'assistant1' },
+        { label: 'Phụ 2', key: 'assistant2' },
+        { label: 'Thời gian', key: 'time' },
+        { label: 'Máy', key: 'machine' }
+      ];
+
+      downloadCSV(rows, `Danh_Sach_Mau_${currentDept.name.replace(/\s+/g, '_')}.csv`, headers);
     } catch (error) {
       console.error(error);
       alert('Lỗi khi xuất file CSV.');
@@ -92,81 +141,124 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
     try {
       const deptTemplates = templates.filter(t => t.deptId === currentDept.id && !t.isFolder);
       
-      const tableRowsHTML = deptTemplates.length === 0
-        ? `<tr>
-            <td colspan="3" style="padding: 16px; font-style: italic; text-align: center; color: #64748b; border: 1px solid #cbd5e1;">
-              Chưa có mẫu nào trong khoa.
-            </td>
-          </tr>`
-        : deptTemplates.map(t => {
-            const procListHTML = (t.procedures || []).map(tp => {
+      const sortedTemplates = [...deptTemplates].sort((a, b) => {
+        const groupA = (a.group || 'Khác').trim();
+        const groupB = (b.group || 'Khác').trim();
+        const groupCmp = groupA.localeCompare(groupB, 'vi');
+        if (groupCmp !== 0) return groupCmp;
+
+        const nameA = (a.name || '').trim();
+        const nameB = (b.name || '').trim();
+        const nameCmp = nameA.localeCompare(nameB, 'vi');
+        if (nameCmp !== 0) return nameCmp;
+
+        return (a.order || 0) - (b.order || 0);
+      });
+
+      let stt = 1;
+      let tableRowsHTML = '';
+
+      if (sortedTemplates.length === 0) {
+        tableRowsHTML = `<tr>
+          <td colspan="11" style="padding: 16px; font-style: italic; text-align: center; color: #64748b; border: 1px solid #cbd5e1;">
+            Chưa có mẫu nào trong khoa.
+          </td>
+        </tr>`;
+      } else {
+        sortedTemplates.forEach(t => {
+          const procs = t.procedures || [];
+          if (procs.length === 0) {
+            tableRowsHTML += `
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">${stt++}</td>
+                <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155;">${t.group || 'Khác'}</td>
+                <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a;">${t.name}</td>
+                <td style="padding: 6px 8px; border: 1px solid #cbd5e1;">${currentDept.name}</td>
+                <td style="padding: 6px 8px; border: 1px solid #cbd5e1; color: #94a3b8; font-style: italic;" colspan="7">Chưa thiết lập thủ thuật</td>
+              </tr>
+            `;
+          } else {
+            const sortedProcs = [...procs].sort((a, b) => 
+              timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime)
+            );
+
+            sortedProcs.forEach(tp => {
               const procInfo = procedures.find(p => p.id === tp.procedureId);
               const staffInfo = staff.find(s => s.id === tp.staffId);
-              const staffText = staffInfo ? ` - Thực hiện: ${staffInfo.name}` : '';
-              const notesText = tp.notes ? ` (Ghi chú: ${tp.notes})` : '';
-              return `<li style="margin-bottom: 4px;">
-                <strong>${procInfo?.name || 'Thủ thuật trống'}</strong> (${tp.startTime} - ${tp.endTime})${staffText}${notesText}
-              </li>`;
-            }).join('');
+              const asst1Info = tp.assistant1Id ? staff.find(s => s.id === tp.assistant1Id) : null;
+              const asst2Info = tp.assistant2Id ? staff.find(s => s.id === tp.assistant2Id) : null;
+              
+              const durationMins = (timeStringToMinutes(tp.endTime) - timeStringToMinutes(tp.startTime));
+              const durationStr = durationMins > 0 ? `${durationMins}p` : '-';
+              const machineCode = tp.assignedMachineId ? tp.assignedMachineId.replace(/-/g, '') : '';
 
-            const procContent = (t.procedures || []).length > 0
-              ? `<ol style="margin: 0; padding-left: 16px;">${procListHTML}</ol>`
-              : `<span style="color: #94a3b8; font-style: italic;">Chưa thiết lập thủ thuật</span>`;
-
-            return `<tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155; vertical-align: top;">
-                ${t.group || 'Khác'}
-              </td>
-              <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a; vertical-align: top;">
-                ${t.name}
-              </td>
-              <td style="padding: 10px; border: 1px solid #cbd5e1; color: #334155; vertical-align: top;">
-                ${procContent}
-              </td>
-            </tr>`;
-          }).join('');
+              tableRowsHTML += `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: 500;">${stt++}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155;">${t.group || 'Khác'}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a;">${t.name}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1;">${currentDept.name}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 600; color: #1e293b;">${procInfo?.name || 'Thủ thuật đã xóa'}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">${durationStr}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 500;">${staffInfo?.name || ''}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; color: #475569;">${asst1Info?.name || ''}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; color: #475569;">${asst2Info?.name || ''}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: 500;">${tp.startTime} - ${tp.endTime}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #0284c7;">${machineCode}</td>
+                </tr>
+              `;
+            });
+          }
+        });
+      }
 
       const printWindowHTML = `
         <html>
           <head>
-            <title>In danh sách mẫu</title>
+            <title>In danh sách mẫu thủ thuật</title>
             <style>
+              @page {
+                size: A4 landscape;
+                margin: 10mm;
+              }
               body {
                 font-family: Arial, sans-serif;
-                margin: 20px;
+                margin: 10px;
                 background-color: #ffffff;
                 color: #000000;
+                font-size: 11px;
               }
               table {
                 width: 100%;
                 border-collapse: collapse;
-                margin-top: 20px;
-                font-size: 13px;
+                margin-top: 15px;
+                font-size: 11px;
               }
               th {
                 background-color: #f1f5f9;
                 color: #0f172a;
                 font-weight: bold;
                 border: 1px solid #cbd5e1;
-                padding: 10px;
+                padding: 8px 6px;
                 text-align: left;
+                font-size: 11px;
               }
               td {
                 border: 1px solid #cbd5e1;
-                padding: 10px;
+                padding: 6px 8px;
               }
               @media print {
-                body { margin: 1cm; }
+                body { margin: 0; }
               }
             </style>
           </head>
           <body>
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 10px;">
               <div>
-                <h1 style="font-size: 20px; font-weight: bold; text-transform: uppercase; color: #1e293b; margin: 0;">
+                <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1e293b; margin: 0;">
                   DANH SÁCH MẪU CHỈ ĐỊNH THỦ THUẬT
                 </h1>
-                <p style="font-size: 13px; font-weight: bold; color: #475569; margin: 6px 0 0 0;">
+                <p style="font-size: 12px; font-weight: bold; color: #475569; margin: 4px 0 0 0;">
                   KHOA: ${currentDept.name.toUpperCase()}
                 </p>
               </div>
@@ -179,9 +271,17 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             <table>
               <thead>
                 <tr>
-                  <th style="width: 25%;">Nhóm Mẫu</th>
-                  <th style="width: 35%;">Tên Mẫu Thủ Thuật</th>
-                  <th style="width: 40%;">Các Bước Thủ Thuật Chi Tiết</th>
+                  <th style="width: 3%; text-align: center;">STT</th>
+                  <th style="width: 12%;">Nhóm Mẫu</th>
+                  <th style="width: 15%;">Tên Mẫu</th>
+                  <th style="width: 9%;">Khoa thực hiện</th>
+                  <th style="width: 15%;">Thủ thuật</th>
+                  <th style="width: 6%; text-align: center;">Thời lượng</th>
+                  <th style="width: 12%;">Nhân viên</th>
+                  <th style="width: 9%;">Phụ 1</th>
+                  <th style="width: 9%;">Phụ 2</th>
+                  <th style="width: 7%; text-align: center;">Thời gian</th>
+                  <th style="width: 3%; text-align: center;">Máy</th>
                 </tr>
               </thead>
               <tbody>
@@ -189,7 +289,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
               </tbody>
             </table>
 
-            <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 13px;">
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px;">
               <div style="text-align: center; width: 200px;">
                 <p style="font-weight: bold; margin: 0 0 50px 0;">Người lập bảng</p>
                 <p style="font-style: italic; color: #64748b; font-size: 11px; margin: 0;">(Ký, ghi rõ họ tên)</p>
