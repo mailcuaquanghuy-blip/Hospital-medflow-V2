@@ -308,10 +308,12 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   }, [patients, currentDept, currentDate, showDischarged]);
 
   const filteredPatients = visiblePatients.filter(p => {
-    const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (p.bedNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (p.roomNumber && p.roomNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (p.id || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.trim().toLowerCase();
+    const matchesSearch = !term || 
+                         (p.name || '').toLowerCase().includes(term) || 
+                         (p.code || '').toLowerCase().includes(term) ||
+                         (p.bedNumber || '').toLowerCase().includes(term) ||
+                         (p.roomNumber && p.roomNumber.toLowerCase().includes(term));
     
     const matchesDept = referringDeptFilter === 'ALL' || p.admittedByDeptId === referringDeptFilter;
     const matchesAdmissionDate = !filterAdmissionDate || p.admissionDate.startsWith(filterAdmissionDate);
