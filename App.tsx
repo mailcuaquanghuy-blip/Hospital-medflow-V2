@@ -820,6 +820,13 @@ const App: React.FC = () => {
     setIsModalOpen(false);
     setEditingAppt(undefined);
 
+    // Optimistic local state update for zero latency responsiveness
+    setAppointments(prev => {
+      const exists = prev.some(a => a.id === id);
+      if (exists) return prev.map(a => a.id === id ? (baseAppt as Appointment) : a);
+      return [...prev, baseAppt as Appointment];
+    });
+
     try {
       await setDoc(doc(db, "appointments", id), baseAppt as Appointment);
     } catch (error) { 
@@ -944,6 +951,9 @@ const App: React.FC = () => {
       }
     });
 
+    // Optimistic local state update for zero-delay UI response
+    setAppointments(prev => prev.map(a => a.id === updatedAppt.id ? (finalAppt as Appointment) : a));
+
     try {
       await updateDoc(doc(db, "appointments", updatedAppt.id), finalAppt);
     } catch (error) { 
@@ -974,6 +984,9 @@ const App: React.FC = () => {
       alert("Bạn không có quyền xóa thủ thuật của khoa khác.");
       return;
     }
+
+    // Optimistic local state update for instant zero-delay deletion UI response
+    setAppointments(prev => prev.filter(a => a.id !== apptId));
 
     try {
         await deleteDoc(doc(db, "appointments", apptId));
