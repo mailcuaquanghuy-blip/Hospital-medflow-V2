@@ -43,7 +43,7 @@ interface PatientListProps {
   onAddPatient: () => void;
   onEditPatient: (p: Patient) => void;
   onDeletePatient: (patientId: string) => void;
-  onUpdateStatus: (patient: Patient, status: PatientStatus, dischargeDate?: string) => void;
+  onUpdateStatus: (patient: Patient, status: PatientStatus, dischargeDate?: string) => Promise<boolean> | void;
   onReferral: (patientId: string, specialty: string) => void;
   onFinishReferral: (patientId: string, specialty: string) => void;
   onCancelFinishReferral: (patientId: string, specialty: string) => void;
@@ -474,10 +474,12 @@ export const PatientList: React.FC<PatientListProps> = ({
     return 0;
   });
 
-  const handleConfirmDischarge = () => {
+  const handleConfirmDischarge = async () => {
     if (dischargingPatient) {
-      onUpdateStatus(dischargingPatient, PatientStatus.DISCHARGED, dischargeDateInput);
-      setDischargingPatient(null);
+      const result = await onUpdateStatus(dischargingPatient, PatientStatus.DISCHARGED, dischargeDateInput);
+      if (result !== false) {
+        setDischargingPatient(null);
+      }
     }
   };
 

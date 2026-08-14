@@ -90,6 +90,9 @@ const App: React.FC = () => {
   const [backups, setBackups] = useState<Backup[]>([]);
   const [undoData, setUndoData] = useState<Appointment[] | null>(null);
   
+  // Ref to throttle rapid database reloads (preventing lag & state overwrites during focus events)
+  const lastFetchTimeRef = React.useRef<number>(0);
+  
   // Verification State
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -425,7 +428,15 @@ const App: React.FC = () => {
     if (isSupabaseConfigured()) {
       console.log("Supabase configured. Loading and subscribing to real-time data from Supabase project...");
       
-      const loadSupabaseData = async () => {
+      const loadSupabaseData = async (force = false) => {
+        const now = Date.now();
+        // Throttle reloads to maximum once every 20 seconds, unless forced
+        if (!force && now - lastFetchTimeRef.current < 20000) {
+          console.log("[loadSupabaseData] Throttled (last sync was < 20s ago). Skipping fetch to preserve UI state.");
+          return;
+        }
+        lastFetchTimeRef.current = now;
+
         try {
           const [pats, appts, stf, procs, att, shifts, tpls, usrs] = await Promise.all([
             fetchSupabaseTable<Patient>('patients'),
@@ -466,7 +477,8 @@ const App: React.FC = () => {
         }
       };
 
-      loadSupabaseData();
+      // Force initial load of data on mount
+      loadSupabaseData(true);
 
       // Supabase Realtime Subscription for instant updates across tabs & devices
       const channel = supabase
@@ -504,23 +516,23 @@ const App: React.FC = () => {
       // Background periodic sync (every 60s) when page is visible as a fallback
       const pollInterval = setInterval(() => {
         if (document.visibilityState === 'visible') {
-          loadSupabaseData();
+          loadSupabaseData(true);
         }
       }, 60000);
 
-      // Re-sync on window focus
-      const handleFocus = () => {
-        loadSupabaseData();
+      // Throttled re-sync on tab visibility change (tab switches, locks, etc.)
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          loadSupabaseData(false);
+        }
       };
 
-      window.addEventListener('focus', handleFocus);
-      window.addEventListener('visibilitychange', handleFocus);
+      window.addEventListener('visibilitychange', handleVisibilityChange);
 
       return () => {
         supabase.removeChannel(channel);
         clearInterval(pollInterval);
-        window.removeEventListener('focus', handleFocus);
-        window.removeEventListener('visibilitychange', handleFocus);
+        window.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     }
   }, [currentUser]);
@@ -2165,11 +2177,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateStatus = async (p: Patient, status: PatientStatus, dDate?: string) => {
-    if (!db) return;
+  const handleUpdateStatus = async (p: Patient, status: PatientStatus, dDate?: string): Promise<boolean> => {
+    if (!db) return false;
     if (!canEditCurrentDept) {
       alert("Bạn không có quyền cập nhật trạng thái bệnh nhân tại khoa này.");
-      return;
+      return false;
     }
     try {
       const dischargeDateIso = status === PatientStatus.TREATING ? null : (dDate ? new Date(dDate).toISOString() : p.dischargeDate || null);
@@ -2178,7 +2190,7 @@ const App: React.FC = () => {
       if (status === PatientStatus.DISCHARGED && dischargeDateIso) {
         const confirmDischarge = window.confirm("Khi cho bệnh nhân ra, các thủ thuật sau thời gian ra viện sẽ bị xóa. Bạn có chắc chắn muốn tiếp tục?");
         if (!confirmDischarge) {
-          return;
+          return false;
         }
 
         const dischargeDayOnly = dischargeDateIso.split('T')[0];
@@ -2213,9 +2225,11 @@ const App: React.FC = () => {
         });
       }
       await Promise.all(promises);
+      return true;
     } catch (e) { 
       console.error(e);
       alert("Lỗi khi cập nhật trạng thái bệnh nhân.");
+      return false;
     }
   };
 
