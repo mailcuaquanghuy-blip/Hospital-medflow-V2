@@ -1,77 +1,5 @@
 {
   "patientByName": {
-    "LÒ VĂN BINH": [
-      {
-        "id": "p_353fvkivq",
-        "dob": "1979-01-01",
-        "code": "LVB-030826-LAO",
-        "name": "Lò Văn Binh",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "429B",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-08-03T08:14:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "ĐÀM ĐĂNG TỰ": [
-      {
-        "id": "p_hbsqaqe16",
-        "dob": "1934-01-01",
-        "code": "ĐĐT-030826-LAO",
-        "name": "Đàm Đăng Tự",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "462",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-08-03T02:41:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "NGUYỄN THỊ GÁI": [
-      {
-        "id": "p_fostht62j",
-        "dob": "1950-01-01",
-        "code": "NTG-030826-LAO",
-        "name": "Nguyễn Thị Gái",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "411",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-08-03T04:04:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      },
-      {
-        "id": "p_s031mkmff",
-        "dob": "1950-01-01",
-        "code": "NTG-020626-LAO",
-        "name": "Nguyễn Thị Gái",
-        "gender": "Nữ",
-        "status": "DISCHARGED",
-        "bedType": "Nội trú",
-        "bedNumber": "409",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-06-02T07:50:00.000Z",
-        "dischargeDate": "2026-06-17T07:06:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "ĐIÊU THỊ HÀ": [
       {
         "id": "p_88ipn1c3r",
@@ -88,6 +16,116 @@
         "admissionDate": "2026-07-20T04:04:00.000Z",
         "dischargeDate": "2026-07-31T07:14:00.000Z",
         "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LƯỜNG VĂN HÙNG": [
+      {
+        "id": "p_eoabeakjs",
+        "dob": "1954-01-01",
+        "code": "LVH-100826-LAO",
+        "name": "Lường Văn Hùng",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "420",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T08:39:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐÀM ĐĂNG TỰ": [
+      {
+        "id": "p_hbsqaqe16",
+        "dob": "1934-01-01",
+        "code": "ĐĐT-030826-LAO",
+        "name": "Đàm Đăng Tự",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "462",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T02:41:00.000Z",
+        "dischargeDate": "2026-08-13T06:40:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "TÒNG THỊ HIÊNG": [
+      {
+        "id": "p_vgo3yi2zl",
+        "dob": "1959-01-01",
+        "code": "TTH-030826-LAO",
+        "name": "Tòng Thị Hiêng",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "403B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T09:32:00.000Z",
+        "dischargeDate": "2026-08-14T06:44:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ VĂN BINH": [
+      {
+        "id": "p_353fvkivq",
+        "dob": "1979-01-01",
+        "code": "LVB-030826-LAO",
+        "name": "Lò Văn Binh",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "429B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T08:14:00.000Z",
+        "dischargeDate": "2026-08-14T07:04:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "NGUYỄN THỊ GÁI": [
+      {
+        "id": "p_fostht62j",
+        "dob": "1950-01-01",
+        "code": "NTG-030826-LAO",
+        "name": "Nguyễn Thị Gái",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "411",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T04:04:00.000Z",
+        "dischargeDate": "2026-08-14T06:42:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_s031mkmff",
+        "dob": "1950-01-01",
+        "code": "NTG-020626-LAO",
+        "name": "Nguyễn Thị Gái",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "409",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-06-02T07:50:00.000Z",
+        "dischargeDate": "2026-06-17T07:06:00.000Z",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -110,6 +148,25 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "ĐINH THỊ DÀNH": [
+      {
+        "id": "p_f380zyais",
+        "dob": "1970-01-01",
+        "code": "ĐTD-210726-LAO",
+        "name": "Đinh Thị Dành",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "401",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-21T02:36:00.000Z",
+        "dischargeDate": "2026-08-04T06:48:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "QUÀNG THỊ PIÊNG": [
       {
         "id": "p_n1slr8twj",
@@ -129,6 +186,25 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "VŨ THỊ BÍCH NHƯỢNG": [
+      {
+        "id": "p_42r4hogku",
+        "dob": "1953-01-01",
+        "code": "VTBN-280726-LAO",
+        "name": "Vũ Thị Bích Nhượng",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "475",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-28T02:27:00.000Z",
+        "dischargeDate": "2026-08-11T06:44:00.000Z",
+        "insuranceLevel": "95%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "QUÀNG THỊ ĐỊNH": [
       {
         "id": "p_v85lroje8",
@@ -137,32 +213,13 @@
         "name": "Quàng Thị Định",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "442B",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-08-03T02:23:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "LÒ VĂN LÓN": [
-      {
-        "id": "p_58tzvfkuw",
-        "dob": "1954-01-01",
-        "code": "LVL-030826-LAO",
-        "name": "Lò Văn Lón",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "455",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-08-03T01:38:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-14T06:54:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -186,25 +243,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ VĂN PÁNH": [
-      {
-        "id": "p_a7yt3c5d5",
-        "dob": "1956-01-01",
-        "code": "LVP-280726-LAO",
-        "name": "Lò Văn Pánh",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "466",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-28T02:40:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "LÒ MINH CHẤN": [
       {
         "id": "p_f3gqhd716",
@@ -220,6 +258,82 @@
         "roomNumber": "",
         "admissionDate": "2026-07-20T04:22:00.000Z",
         "dischargeDate": "2026-07-31T07:18:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "NGUYỄN THỊ TẦM": [
+      {
+        "id": "p_kpj96y54y",
+        "dob": "1954-01-01",
+        "code": "NTT-280726-LAO",
+        "name": "Nguyễn Thị Tầm",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "403",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-28T01:06:00.000Z",
+        "dischargeDate": "2026-08-04T07:06:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ VĂN PÁNH": [
+      {
+        "id": "p_a7yt3c5d5",
+        "dob": "1956-01-01",
+        "code": "LVP-280726-LAO",
+        "name": "Lò Văn Pánh",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "466",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-28T02:40:00.000Z",
+        "dischargeDate": "2026-08-11T06:40:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ VĂN NHƯỢNG": [
+      {
+        "id": "p_6xs1rfucd",
+        "dob": "1964-01-01",
+        "code": "LVN-300726-LAO",
+        "name": "Lò Văn Nhượng",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "406",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-30T03:31:00.000Z",
+        "dischargeDate": "2026-08-11T06:58:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ VĂN LÓN": [
+      {
+        "id": "p_58tzvfkuw",
+        "dob": "1954-01-01",
+        "code": "LVL-030826-LAO",
+        "name": "Lò Văn Lón",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "455",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T01:38:00.000Z",
+        "dischargeDate": "2026-08-14T06:48:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -243,6 +357,44 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "LƯU THỊ DI": [
+      {
+        "id": "p_jkmn6j51t",
+        "dob": "1935-01-01",
+        "code": "LTD-240726-LAO",
+        "name": "Lưu Thị Di",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "470",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-24T08:11:00.000Z",
+        "dischargeDate": "2026-08-04T07:02:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "NGÔ THỊ VẺ": [
+      {
+        "id": "p_d4m4nd6wk",
+        "dob": "1948-01-01",
+        "code": "NTV-280726-LAO",
+        "name": "Ngô Thị Vẻ",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "454",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-28T01:45:00.000Z",
+        "dischargeDate": "2026-08-12T06:38:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "LÙ THỊ HỰT": [
       {
         "id": "p_ep3fm1g1f",
@@ -251,13 +403,13 @@
         "name": "Lù Thị Hựt",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú ban ngày",
         "bedNumber": "473",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-08-03T01:32:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-13T06:44:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -281,6 +433,188 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "PHẠM THỊ HUÊ": [
+      {
+        "id": "p_kertpjqp0",
+        "dob": "1963-01-01",
+        "code": "PTH-040826-LAO",
+        "name": "Phạm Thị Huê",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "413",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-04T01:47:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_zh4ldiwb1",
+        "dob": "1963-01-01",
+        "code": "PTH-020626-LAO",
+        "name": "Phạm Thị Huê",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "447",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-06-02T08:13:00.000Z",
+        "dischargeDate": "2026-06-18T07:08:00.000Z",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_dtt146iov",
+        "dob": "1963-01-01",
+        "code": "PTH-060726-LAO",
+        "name": "Phạm Thị Huê",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "421",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-06T01:21:00.000Z",
+        "dischargeDate": "2026-07-21T07:08:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÁCH TÁ THANH": [
+      {
+        "id": "p_h8oq53ne3",
+        "dob": "1966-01-01",
+        "code": "QTT-110826-LAO",
+        "name": "Quách Tá Thanh",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "475",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-11T03:08:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG THỊ È": [
+      {
+        "id": "p_v26kr5ifh",
+        "dob": "1944-01-01",
+        "code": "QTE-110826-LAO",
+        "name": "Quàng Thị È",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "414",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-11T04:01:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LƯU THỊ BÌNH": [
+      {
+        "id": "p_p575us92q",
+        "dob": "1952-01-01",
+        "code": "LTB-110826-LAO",
+        "name": "Lưu Thị Bình",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "480",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-11T08:35:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ ẢNH": [
+      {
+        "id": "p_ensg9uoxt",
+        "dob": "1975-01-01",
+        "code": "LTA-110826-LAO",
+        "name": "Lò Thị Ảnh",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "402",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-11T07:14:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "VÌ VĂN TÂM": [
+      {
+        "id": "p_2ax9of898",
+        "dob": "1976-01-01",
+        "code": "VVT-110826-LAO",
+        "name": "Vì Văn Tâm",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "467",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-11T08:39:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG THỊ XƯƠNG": [
+      {
+        "id": "p_7hpczmli7",
+        "dob": "1968-01-01",
+        "code": "QTX-110826-LAO",
+        "name": "Quàng Thị Xương",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "404",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-11T07:11:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_80jp3tcpl",
+        "dob": "1964-01-01",
+        "code": "QTX-030826-LAO",
+        "name": "Quàng Thị Xương",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "408B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T02:32:00.000Z",
+        "dischargeDate": "2026-08-14T06:38:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "TÒNG VĂN NẾN": [
       {
         "id": "p_qshcv901y",
@@ -289,13 +623,13 @@
         "name": "Tòng Văn Nến",
         "note": "",
         "gender": "Nam",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "432B",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-08-03T04:23:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-14T07:00:00.000Z",
         "insuranceLevel": "80%",
         "admittedByDeptId": "dept_lao"
       }
@@ -317,6 +651,80 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "VÌ THỊ SAN": [
+      {
+        "id": "p_dvncgtl13",
+        "dob": "1969-01-01",
+        "code": "VTS-110826-LAO",
+        "name": "Vì Thị San",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "421",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-11T03:37:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_9s5g2cszh",
+        "dob": "1969-01-01",
+        "code": "VTS-130726-LAO",
+        "name": "Vì Thị San",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "446",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-13T08:29:00.000Z",
+        "dischargeDate": "2026-07-28T07:20:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ MĂN": [
+      {
+        "id": "p_vfcj2x3xx",
+        "dob": "1968-01-01",
+        "code": "LTM-110826-LAO",
+        "name": "Lò Thị Măn",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "417",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-11T03:56:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "VÌ THỊ BỤN": [
+      {
+        "id": "p_ncm6dsgma",
+        "dob": "1955-01-01",
+        "code": "VTB-120826-LAO",
+        "name": "Vì Thị Bụn",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "430",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-12T06:48:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "LÙ THỊ MÔNG": [
       {
         "id": "p_bejxpovzj",
@@ -331,25 +739,6 @@
         "roomNumber": "",
         "admissionDate": "2026-05-25T02:34:00.000Z",
         "dischargeDate": "2026-06-09T07:14:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "CÀ THỊ BIÊNG": [
-      {
-        "id": "p_93ftdmibv",
-        "dob": "1974-01-01",
-        "code": "CTB-030826-LAO",
-        "name": "Cà Thị Biêng",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "438B",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-08-03T02:14:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -550,6 +939,63 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "CÀ THỊ BIÊNG": [
+      {
+        "id": "p_93ftdmibv",
+        "dob": "1974-01-01",
+        "code": "CTB-030826-LAO",
+        "name": "Cà Thị Biêng",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "438B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T02:14:00.000Z",
+        "dischargeDate": "2026-08-14T06:52:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐINH THỊ HANH": [
+      {
+        "id": "p_mxr99sckg",
+        "dob": "1965-01-01",
+        "code": "ĐTH-040826-LAO",
+        "name": "Đinh Thị Hanh",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "410B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-04T03:04:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐINH THỊ KHUẤN": [
+      {
+        "id": "p_d3bexb07h",
+        "dob": "1961-01-01",
+        "code": "ĐTK-120826-LAO",
+        "name": "Đinh Thị Khuấn",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "401B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-12T07:00:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "QUÀNG THỊ ĐẠI": [
       {
         "id": "p_28a0n6ywm",
@@ -558,13 +1004,13 @@
         "name": "Quàng Thị Đại",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "434B",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-08-03T03:51:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-14T06:58:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       },
@@ -616,22 +1062,22 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ THỊ HÒA": [
+    "VŨ THỊ HUẤN": [
       {
-        "id": "p_sx4jf1ux3",
-        "dob": "1984-01-01",
-        "code": "LTH-030826-LAO",
-        "name": "Lò Thị Hòa",
-        "note": "",
+        "id": "p_qzdx6ztq4",
+        "dob": "1961-01-01",
+        "code": "VTH-040826-LAO",
+        "name": "Vũ Thị Huấn",
+        "note": "Không lấy thủy châm",
         "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "430B",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "479",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-08-03T08:20:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
+        "admissionDate": "2026-08-04T09:01:00.000Z",
+        "dischargeDate": "2026-08-14T07:08:00.000Z",
+        "insuranceLevel": "95%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -650,6 +1096,101 @@
         "roomNumber": "",
         "admissionDate": "2026-06-15T04:17:00.000Z",
         "dischargeDate": "2026-06-30T07:26:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ CHUYÊN": [
+      {
+        "id": "p_cm51ymlqq",
+        "dob": "1975-01-01",
+        "code": "LTC-240726-LAO",
+        "name": "Lò Thị Chuyên",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "432",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-24T06:46:00.000Z",
+        "dischargeDate": "2026-08-04T06:38:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "TRẦN TRỌNG TRIỂN": [
+      {
+        "id": "p_74a9n5sso",
+        "dob": "1959-01-01",
+        "code": "TTT-040826-LAO",
+        "name": "Trần Trọng Triển",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "468",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-04T08:06:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "CÀ THỊ CONG": [
+      {
+        "id": "p_ey6pqyt82",
+        "dob": "1980-01-01",
+        "code": "CTC-270726-LAO",
+        "name": "Cà Thị Cong",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "402",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-27T03:44:00.000Z",
+        "dischargeDate": "2026-08-10T06:44:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐINH VĂN LIỂN": [
+      {
+        "id": "p_cuu5i9hvi",
+        "dob": "1958-01-01",
+        "code": "ĐVL-120826-LAO",
+        "name": "Đinh Văn Liển",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Khác",
+        "bedNumber": "459V",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-12T01:32:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ HÒA": [
+      {
+        "id": "p_sx4jf1ux3",
+        "dob": "1984-01-01",
+        "code": "LTH-030826-LAO",
+        "name": "Lò Thị Hòa",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "430B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T08:20:00.000Z",
+        "dischargeDate": "2026-08-14T07:06:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -688,25 +1229,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-22T01:08:00.000Z",
         "dischargeDate": "2026-07-07T07:06:00.000Z",
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "LÒ THỊ CHUYÊN": [
-      {
-        "id": "p_cm51ymlqq",
-        "dob": "1975-01-01",
-        "code": "LTC-240726-LAO",
-        "name": "Lò Thị Chuyên",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "432",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-24T06:46:00.000Z",
-        "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -819,22 +1341,22 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "CÀ THỊ CONG": [
+    "NGUYỄN VĂN CHI": [
       {
-        "id": "p_ey6pqyt82",
-        "dob": "1980-01-01",
-        "code": "CTC-270726-LAO",
-        "name": "Cà Thị Cong",
+        "id": "p_o426pi8a7",
+        "dob": "1948-01-01",
+        "code": "NVC-220726-LAO",
+        "name": "Nguyễn Văn Chi",
         "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "402",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "478",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-27T03:44:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
+        "admissionDate": "2026-07-22T03:17:00.000Z",
+        "dischargeDate": "2026-08-05T06:42:00.000Z",
+        "insuranceLevel": "95%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -857,6 +1379,25 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "VÀNG A PÁO": [
+      {
+        "id": "p_n5zhiwilh",
+        "dob": "1955-01-01",
+        "code": "VAP-270726-LAO",
+        "name": "Vàng A Páo",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "437",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-27T03:55:00.000Z",
+        "dischargeDate": "2026-08-11T06:38:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "ĐÀM VĂN THIỆN": [
       {
         "id": "p_3c7r5jhsc",
@@ -865,12 +1406,82 @@
         "name": "Đàm Văn Thiện",
         "note": "",
         "gender": "Nam",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "463",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-08-03T02:46:00.000Z",
+        "dischargeDate": "2026-08-13T06:42:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "PHÙNG ĐỨC DINH": [
+      {
+        "id": "p_oejzshrv0",
+        "dob": "1958-01-01",
+        "code": "PĐD-120826-LAO",
+        "name": "Phùng Đức Dinh",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Khác",
+        "bedNumber": "461V",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-12T01:23:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG THỊ LẢ": [
+      {
+        "id": "p_ly25id9qd",
+        "dob": "1948-01-01",
+        "code": "QTL-040826-LAO",
+        "name": "Quàng Thị Lả",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "450",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-04T08:01:00.000Z",
+        "dischargeDate": "2026-08-14T06:50:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_rj18enqqv",
+        "dob": "1948-01-01",
+        "code": "QTL-080626-LAO",
+        "name": "Quàng Thị Lả",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "443",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-06-08T02:55:00.000Z",
+        "dischargeDate": "2026-06-23T07:10:00.000Z",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_0xg9akp4n",
+        "dob": "1961-01-01",
+        "code": "QTL-060826-LAO",
+        "name": "Quàng Thị Lả",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "412",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-06T03:05:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
@@ -901,32 +1512,13 @@
         "name": "Đào Văn Phú",
         "note": "",
         "gender": "Nam",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "467",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-30T08:03:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "VÀNG A PÁO": [
-      {
-        "id": "p_n5zhiwilh",
-        "dob": "1955-01-01",
-        "code": "VAP-270726-LAO",
-        "name": "Vàng A Páo",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "437",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-27T03:55:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-11T07:02:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -986,41 +1578,229 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "NGUYỄN VĂN CHI": [
+    "ĐINH HOÀI SƠN": [
       {
-        "id": "p_o426pi8a7",
-        "dob": "1948-01-01",
-        "code": "NVC-220726-LAO",
-        "name": "Nguyễn Văn Chi",
+        "id": "p_d792of504",
+        "dob": "1960-01-01",
+        "code": "ĐHS-050826-LAO",
+        "name": "Đinh Hoài Sơn",
         "note": "",
         "gender": "Nam",
         "status": "TREATING",
-        "bedType": "Nội trú ban ngày",
-        "bedNumber": "478",
+        "bedType": "Nội trú",
+        "bedNumber": "416B",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-22T03:17:00.000Z",
+        "admissionDate": "2026-08-05T03:31:00.000Z",
         "dischargeDate": null,
-        "insuranceLevel": "95%",
+        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "QUÀNG THỊ BIÊNG": [
+    "LÒ THỊ HỘI": [
       {
-        "id": "p_2yhtzj432",
-        "dob": "1956-01-01",
-        "code": "QTB-030826-LAO",
-        "name": "Quàng Thị Biêng",
+        "id": "p_mkllgp3uk",
+        "dob": "1981-01-01",
+        "code": "LTH-050826-LAO",
+        "name": "Lò Thị Hội",
         "note": "",
         "gender": "Nữ",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "458",
+        "bedNumber": "453",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-08-03T02:53:00.000Z",
+        "admissionDate": "2026-08-05T07:22:00.000Z",
         "dischargeDate": null,
-        "insuranceLevel": "80%",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ PHƯỢNG": [
+      {
+        "id": "p_io14nlg3u",
+        "dob": "1976-01-01",
+        "code": "LTP-050826-LAO",
+        "name": "Lò Thị Phượng",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "452",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T07:13:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LƯỜNG THỊ PHANH": [
+      {
+        "id": "p_9aqv0s40q",
+        "dob": "1956-01-01",
+        "code": "LTP-050826-LAO",
+        "name": "Lường Thị Phanh",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "451",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T07:46:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_mr3ym02nr",
+        "dob": "1959-01-01",
+        "code": "LTP-130826-LAO",
+        "name": "Lường Thị Phanh",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "412B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-13T01:54:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐINH THỊ SÁY": [
+      {
+        "id": "p_u9ifxus6g",
+        "dob": "1964-01-01",
+        "code": "ĐTS-050826-LAO",
+        "name": "Đinh Thị Sáy",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "405",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T02:47:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐINH THỊ XANH": [
+      {
+        "id": "p_bcjvyru95",
+        "dob": "1961-01-01",
+        "code": "ĐTX-050826-LAO",
+        "name": "Đinh Thị Xanh",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "415B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T03:40:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "NGUYỄN THỊ KỲ": [
+      {
+        "id": "p_gzjwoo4ua",
+        "dob": "1957-01-01",
+        "code": "NTK-050826-LAO",
+        "name": "Nguyễn Thị Kỳ",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "422",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T03:34:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "VÌ VĂN TỤI": [
+      {
+        "id": "p_tm0acdcqe",
+        "dob": "1961-01-01",
+        "code": "VVT-050826-LAO",
+        "name": "Vì Văn Tụi",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "465",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T08:58:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐOÀN VĂN MÙI": [
+      {
+        "id": "p_4xdbmpibr",
+        "dob": "1955-01-01",
+        "code": "ĐVM-050826-LAO",
+        "name": "Đoàn Văn Mùi",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "424",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T03:29:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG THỊ PHÍCH": [
+      {
+        "id": "p_mbo91t3zo",
+        "dob": "1968-01-01",
+        "code": "QTP-050826-LAO",
+        "name": "Quàng Thị Phích",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "439B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T07:30:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐIÊU THỊ KHỎ": [
+      {
+        "id": "p_jc0e4858j",
+        "dob": "1971-01-01",
+        "code": "ĐTK-050826-LAO",
+        "name": "Điêu Thị Khỏ",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "446B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T03:54:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -1032,13 +1812,13 @@
         "name": "Trần Thị Thành",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "449",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-28T04:10:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-10T06:36:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       },
@@ -1056,6 +1836,63 @@
         "roomNumber": "",
         "admissionDate": "2026-06-15T03:15:00.000Z",
         "dischargeDate": "2026-06-30T07:04:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐINH VĂN THANH": [
+      {
+        "id": "p_cj5qccoqt",
+        "dob": "1959-01-01",
+        "code": "ĐVT-120826-LAO",
+        "name": "Đinh Văn Thanh",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "461",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-12T03:23:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG THỊ BIÊNG": [
+      {
+        "id": "p_2yhtzj432",
+        "dob": "1956-01-01",
+        "code": "QTB-030826-LAO",
+        "name": "Quàng Thị Biêng",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "458",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T02:53:00.000Z",
+        "dischargeDate": "2026-08-14T06:46:00.000Z",
+        "insuranceLevel": "80%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ LẺ": [
+      {
+        "id": "p_b5j6pw23e",
+        "dob": "1963-01-01",
+        "code": "LTL-050826-LAO",
+        "name": "Lò Thị Lẻ",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "448",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-05T07:39:00.000Z",
+        "dischargeDate": "2026-08-13T06:46:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -1098,6 +1935,120 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "CHU VĂN VƯỜNG": [
+      {
+        "id": "p_tnrjahpd1",
+        "dob": "1960-01-01",
+        "code": "CVV-210726-LAO",
+        "name": "Chu Văn Vường",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "468",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-21T03:31:00.000Z",
+        "dischargeDate": "2026-08-04T06:58:00.000Z",
+        "insuranceLevel": "95%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ HIỀN": [
+      {
+        "id": "p_f1bc36u43",
+        "dob": "1975-01-01",
+        "code": "LTH-240726-LAO",
+        "name": "Lò Thị Hiền",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "448",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-24T06:51:00.000Z",
+        "dischargeDate": "2026-08-04T06:40:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "HÀ VĂN PHÁT": [
+      {
+        "id": "p_sfm9nn3ml",
+        "dob": "1958-01-01",
+        "code": "HVP-290726-LAO",
+        "name": "Hà Văn Phát",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "469",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-29T01:54:00.000Z",
+        "dischargeDate": "2026-08-06T06:44:00.000Z",
+        "insuranceLevel": "95%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÈO VĂN THOẠI": [
+      {
+        "id": "p_zfun0kxqb",
+        "dob": "1959-01-01",
+        "code": "LVT-060826-LAO",
+        "name": "Lèo Văn Thoại",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "469",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-06T03:18:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "TÒNG THỊ ĐỊNH": [
+      {
+        "id": "p_6eb7domrm",
+        "dob": "1956-01-01",
+        "code": "TTĐ-290726-LAO",
+        "name": "Tòng Thị Định",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "447",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-29T01:37:00.000Z",
+        "dischargeDate": "2026-08-11T06:42:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "HÀ VĂN HUẤN": [
+      {
+        "id": "p_89ivgc7fs",
+        "dob": "1971-01-01",
+        "code": "HVH-290726-LAO",
+        "name": "Hà Văn Huấn",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "417",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-29T03:04:00.000Z",
+        "dischargeDate": "2026-08-11T06:52:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "CAO THỊ NHÂM": [
       {
         "id": "p_3896hqumd",
@@ -1117,25 +2068,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "TÒNG THỊ ĐỊNH": [
-      {
-        "id": "p_6eb7domrm",
-        "dob": "1956-01-01",
-        "code": "TTĐ-290726-LAO",
-        "name": "Tòng Thị Định",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "447",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-29T01:37:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "LƯỜNG THỊ LỰA": [
       {
         "id": "p_ms4dzv7dd",
@@ -1144,90 +2076,33 @@
         "name": "Lường Thị Lựa",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "461",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-29T08:22:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-12T06:36:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "HÀ VĂN HUẤN": [
+    "SA THỊ XÈN": [
       {
-        "id": "p_89ivgc7fs",
-        "dob": "1971-01-01",
-        "code": "HVH-290726-LAO",
-        "name": "Hà Văn Huấn",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "417",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-29T03:04:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "LÒ THỊ HIỀN": [
-      {
-        "id": "p_f1bc36u43",
-        "dob": "1975-01-01",
-        "code": "LTH-240726-LAO",
-        "name": "Lò Thị Hiền",
+        "id": "p_i5kcxyfho",
+        "dob": "1955-01-01",
+        "code": "STX-120826-LAO",
+        "name": "Sa Thị Xèn",
         "note": "",
         "gender": "Nữ",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "448",
+        "bedNumber": "408",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-24T06:51:00.000Z",
+        "admissionDate": "2026-08-12T07:06:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "HÀ VĂN PHÁT": [
-      {
-        "id": "p_sfm9nn3ml",
-        "dob": "1958-01-01",
-        "code": "HVP-290726-LAO",
-        "name": "Hà Văn Phát",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "469",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-29T01:54:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "95%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "CHU VĂN VƯỜNG": [
-      {
-        "id": "p_tnrjahpd1",
-        "dob": "1960-01-01",
-        "code": "CVV-210726-LAO",
-        "name": "Chu Văn Vường",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "468",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-21T03:31:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "95%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -1250,59 +2125,74 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "QUÀNG THỊ THANH": [
+    "LÒ VĂN KHÁNH": [
       {
-        "id": "p_70ijcn68t",
-        "dob": "1975-01-01",
-        "code": "QTT-200726-LAO",
-        "name": "Quàng Thị Thanh",
+        "id": "p_skt4b97cj",
+        "dob": "1969-01-01",
+        "code": "LVK-300726-LAO",
+        "name": "Lò Văn Khánh",
         "note": "",
-        "gender": "Nữ",
+        "gender": "Nam",
         "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "458",
+        "bedNumber": "414",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-20T04:05:00.000Z",
-        "dischargeDate": "2026-07-31T07:16:00.000Z",
+        "admissionDate": "2026-07-30T03:39:00.000Z",
+        "dischargeDate": "2026-08-11T07:00:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ THỊ NHÂU": [
+    "ĐÈO VĂN SINH": [
       {
-        "id": "p_7jtdfrcid",
-        "dob": "1983-01-01",
-        "code": "LTN-200726-LAO",
-        "name": "Lò Thị Nhâu",
+        "id": "p_nid3tu4j7",
+        "dob": "1965-01-01",
+        "code": "ĐVS-300726-LAO",
+        "name": "Đèo Văn Sinh",
         "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "423",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-30T02:22:00.000Z",
+        "dischargeDate": "2026-08-11T06:54:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_48gnjk4f6",
+        "dob": "1965-01-01",
+        "code": "ĐVS-200526-LAO",
+        "name": "Đèo Văn Sinh",
         "gender": "Nữ",
         "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "455",
+        "bedNumber": "402B",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-20T03:58:00.000Z",
-        "dischargeDate": "2026-07-31T07:12:00.000Z",
-        "insuranceLevel": "100%",
+        "admissionDate": "2026-05-20T01:59:00.000Z",
+        "dischargeDate": "2026-06-05T07:06:00.000Z",
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ THỊ HẶC": [
+    "CÀ VĂN È": [
       {
-        "id": "p_x1fi4gewf",
+        "id": "p_w5h3h8t7s",
         "dob": "1962-01-01",
-        "code": "LTH-030826-LAO",
-        "name": "Lò Thị Hặc",
+        "code": "CVE-200726-LAO",
+        "name": "Cà Văn È",
         "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
+        "gender": "Nam",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "401",
+        "bedNumber": "429",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-08-03T03:59:00.000Z",
-        "dischargeDate": null,
+        "admissionDate": "2026-07-20T03:59:00.000Z",
+        "dischargeDate": "2026-08-04T07:04:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -1358,37 +2248,22 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "ĐÈO VĂN SINH": [
+    "LÒ VĂN NỌI": [
       {
-        "id": "p_nid3tu4j7",
-        "dob": "1965-01-01",
-        "code": "ĐVS-300726-LAO",
-        "name": "Đèo Văn Sinh",
+        "id": "p_o5iknqk86",
+        "dob": "1955-01-01",
+        "code": "LVN-170726-LAO",
+        "name": "Lò Văn Nọi",
         "note": "",
         "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "423",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-30T02:22:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      },
-      {
-        "id": "p_48gnjk4f6",
-        "dob": "1965-01-01",
-        "code": "ĐVS-200526-LAO",
-        "name": "Đèo Văn Sinh",
-        "gender": "Nữ",
         "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "402B",
+        "bedNumber": "462",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-05-20T01:59:00.000Z",
-        "dischargeDate": "2026-06-05T07:06:00.000Z",
+        "admissionDate": "2026-07-17T03:00:00.000Z",
+        "dischargeDate": "2026-07-31T07:10:00.000Z",
+        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -1411,6 +2286,25 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "LÒ THỊ HẶC": [
+      {
+        "id": "p_x1fi4gewf",
+        "dob": "1962-01-01",
+        "code": "LTH-030826-LAO",
+        "name": "Lò Thị Hặc",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "401",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T03:59:00.000Z",
+        "dischargeDate": "2026-08-14T06:40:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "QUÀNG THỊ SÁCH": [
       {
         "id": "p_ku2puhs82",
@@ -1419,139 +2313,124 @@
         "name": "Quàng Thị Sách",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "421",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-30T02:29:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-11T06:56:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ VĂN NỌI": [
+    "LÒ VĂN THÂN": [
       {
-        "id": "p_o5iknqk86",
-        "dob": "1955-01-01",
-        "code": "LVN-170726-LAO",
-        "name": "Lò Văn Nọi",
-        "note": "",
-        "gender": "Nam",
-        "status": "DISCHARGED",
-        "bedType": "Nội trú",
-        "bedNumber": "462",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-17T03:00:00.000Z",
-        "dischargeDate": "2026-07-31T07:10:00.000Z",
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "LÒ VĂN KHÁNH": [
-      {
-        "id": "p_skt4b97cj",
-        "dob": "1969-01-01",
-        "code": "LVK-300726-LAO",
-        "name": "Lò Văn Khánh",
+        "id": "p_xo81dfndr",
+        "dob": "1963-01-01",
+        "code": "LVT-130826-LAO",
+        "name": "Lò Văn Thân",
         "note": "",
         "gender": "Nam",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "414",
+        "bedNumber": "448",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-30T03:39:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "CÀ VĂN È": [
-      {
-        "id": "p_w5h3h8t7s",
-        "dob": "1962-01-01",
-        "code": "CVE-200726-LAO",
-        "name": "Cà Văn È",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "429",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-20T03:59:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "VÌ VĂN MAY": [
-      {
-        "id": "p_l37wrzi42",
-        "dob": "1961-01-01",
-        "code": "VVM-030826-LAO",
-        "name": "Vì Văn May",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "435B",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-08-03T02:52:00.000Z",
+        "admissionDate": "2026-08-13T02:08:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       },
       {
-        "id": "p_yjxopbjrr",
-        "dob": "1961-01-01",
-        "code": "VVM-080626-LAO",
-        "name": "Vì Văn May",
-        "gender": "Nam",
-        "status": "DISCHARGED",
-        "bedType": "Nội trú",
-        "bedNumber": "434",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-06-08T07:04:00.000Z",
-        "dischargeDate": "2026-06-25T07:06:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      },
-      {
-        "id": "p_a6di9864i",
-        "dob": "1961-01-01",
-        "code": "VVM-100726-LAO",
-        "name": "Vì Văn May",
+        "id": "p_3xfh8a6zi",
+        "dob": "1963-01-01",
+        "code": "LVT-220726-LAO",
+        "name": "Lò Văn Thân",
         "note": "",
         "gender": "Nam",
         "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "434",
+        "bedNumber": "430",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-10T09:21:00.000Z",
-        "dischargeDate": "2026-07-24T07:14:00.000Z",
+        "admissionDate": "2026-07-22T07:41:00.000Z",
+        "dischargeDate": "2026-08-05T06:44:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "ĐINH THỊ DÀNH": [
+    "LÒ THỊ NHÂU": [
       {
-        "id": "p_f380zyais",
-        "dob": "1970-01-01",
-        "code": "ĐTD-210726-LAO",
-        "name": "Đinh Thị Dành",
+        "id": "p_7jtdfrcid",
+        "dob": "1983-01-01",
+        "code": "LTN-200726-LAO",
+        "name": "Lò Thị Nhâu",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "401",
+        "bedNumber": "455",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-21T02:36:00.000Z",
+        "admissionDate": "2026-07-20T03:58:00.000Z",
+        "dischargeDate": "2026-07-31T07:12:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG THỊ THANH": [
+      {
+        "id": "p_70ijcn68t",
+        "dob": "1975-01-01",
+        "code": "QTT-200726-LAO",
+        "name": "Quàng Thị Thanh",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "458",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-20T04:05:00.000Z",
+        "dischargeDate": "2026-07-31T07:16:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "CÀ VĂN CÓN": [
+      {
+        "id": "p_oyw7vut8n",
+        "dob": "1967-01-01",
+        "code": "CVC-060826-LAO",
+        "name": "Cà Văn Cón",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "466B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-06T01:43:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "TÒNG VĂN HOÀ": [
+      {
+        "id": "p_4m32zpyky",
+        "dob": "1956-01-01",
+        "code": "TVH-130826-LAO",
+        "name": "Tòng Văn Hoà",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "413B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-13T01:28:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
@@ -1624,6 +2503,23 @@
         "roomNumber": "",
         "admissionDate": "2026-06-09T02:55:00.000Z",
         "dischargeDate": "2026-06-24T07:16:00.000Z",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_r5cdl1vd4",
+        "dob": "1957-01-01",
+        "code": "CTT-060826-LAO",
+        "name": "Cà Thị Tỏi",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "447B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-06T02:31:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -1716,25 +2612,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "CÀ VĂN PÒ": [
-      {
-        "id": "p_g4shz05ks",
-        "dob": "1971-01-01",
-        "code": "CVP-280726-LAO",
-        "name": "Cà Văn Pò",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "419",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-28T03:32:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "LÈO THỊ THƠI": [
       {
         "id": "p_g70b1i0bk",
@@ -1749,25 +2626,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-01T03:32:00.000Z",
         "dischargeDate": "2026-06-16T07:08:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "LÒ VĂN LOAN": [
-      {
-        "id": "p_gaa5cc6cl",
-        "dob": "1972-01-01",
-        "code": "LVL-270726-LAO",
-        "name": "Lò Văn Loan",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "420",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-27T04:04:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -1796,13 +2654,13 @@
         "name": "Lò Thị Thoại",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "453",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-27T04:08:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-05T06:50:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -1858,37 +2716,92 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ THỊ MAY": [
+    "LÒ VĂN LOAN": [
       {
-        "id": "p_6yurz2z7o",
-        "dob": "1955-01-01",
-        "code": "LTM-030826-LAO",
-        "name": "Lò Thị May",
+        "id": "p_gaa5cc6cl",
+        "dob": "1972-01-01",
+        "code": "LVL-270726-LAO",
+        "name": "Lò Văn Loan",
         "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú ban ngày",
-        "bedNumber": "474",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "420",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-08-03T01:45:00.000Z",
-        "dischargeDate": null,
+        "admissionDate": "2026-07-27T04:04:00.000Z",
+        "dischargeDate": "2026-08-10T06:42:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "CÀ VĂN PÒ": [
+      {
+        "id": "p_g4shz05ks",
+        "dob": "1971-01-01",
+        "code": "CVP-280726-LAO",
+        "name": "Cà Văn Pò",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "419",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-28T03:32:00.000Z",
+        "dischargeDate": "2026-08-10T06:46:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "VÌ VĂN MAY": [
+      {
+        "id": "p_l37wrzi42",
+        "dob": "1961-01-01",
+        "code": "VVM-030826-LAO",
+        "name": "Vì Văn May",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "435B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T02:52:00.000Z",
+        "dischargeDate": "2026-08-14T06:56:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       },
       {
-        "id": "p_6khes6vq1",
-        "dob": "1976-01-01",
-        "code": "LTM-090626-LAO",
-        "name": "Lò Thị May",
-        "gender": "Nữ",
+        "id": "p_yjxopbjrr",
+        "dob": "1961-01-01",
+        "code": "VVM-080626-LAO",
+        "name": "Vì Văn May",
+        "gender": "Nam",
         "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "452",
+        "bedNumber": "434",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-06-09T04:16:00.000Z",
-        "dischargeDate": "2026-06-25T07:10:00.000Z",
+        "admissionDate": "2026-06-08T07:04:00.000Z",
+        "dischargeDate": "2026-06-25T07:06:00.000Z",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_a6di9864i",
+        "dob": "1961-01-01",
+        "code": "VVM-100726-LAO",
+        "name": "Vì Văn May",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "434",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-10T09:21:00.000Z",
+        "dischargeDate": "2026-07-24T07:14:00.000Z",
+        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -1926,25 +2839,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-17T04:06:00.000Z",
         "dischargeDate": "2026-06-30T07:20:00.000Z",
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "HÀ THỊ THIỀN": [
-      {
-        "id": "p_hswtw4mqu",
-        "dob": "1960-01-01",
-        "code": "HTT-230726-LAO",
-        "name": "Hà Thị Thiền",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "405",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-23T04:05:00.000Z",
-        "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -2106,25 +3000,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LƯU THỊ DI": [
-      {
-        "id": "p_jkmn6j51t",
-        "dob": "1935-01-01",
-        "code": "LTD-240726-LAO",
-        "name": "Lưu Thị Di",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "470",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-24T08:11:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "VÌ THỊ CUA": [
       {
         "id": "p_jrk7u2qlc",
@@ -2163,25 +3038,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ VĂN NIÊN": [
-      {
-        "id": "p_jtza6ap8y",
-        "dob": "1977-01-01",
-        "code": "LVN-270726-LAO",
-        "name": "Lò Văn Niên",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "451",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-27T03:54:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "CÀ THỊ OAN": [
       {
         "id": "p_july1_417_7fgln",
@@ -2201,22 +3057,75 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "NGUYỄN VĂN HIỀN": [
+    "LÒ VĂN NIÊN": [
       {
-        "id": "p_cy8qpod1u",
-        "dob": "1959-01-01",
-        "code": "NVH-030826-LAO",
-        "name": "Nguyễn Văn Hiền",
+        "id": "p_jtza6ap8y",
+        "dob": "1977-01-01",
+        "code": "LVN-270726-LAO",
+        "name": "Lò Văn Niên",
         "note": "",
         "gender": "Nam",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "459",
+        "bedNumber": "451",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-08-03T07:05:00.000Z",
-        "dischargeDate": null,
+        "admissionDate": "2026-07-27T03:54:00.000Z",
+        "dischargeDate": "2026-08-05T06:54:00.000Z",
         "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "HÀ THỊ THIỀN": [
+      {
+        "id": "p_hswtw4mqu",
+        "dob": "1960-01-01",
+        "code": "HTT-230726-LAO",
+        "name": "Hà Thị Thiền",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "405",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-23T04:05:00.000Z",
+        "dischargeDate": "2026-08-06T06:38:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ MAY": [
+      {
+        "id": "p_6yurz2z7o",
+        "dob": "1955-01-01",
+        "code": "LTM-030826-LAO",
+        "name": "Lò Thị May",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "474",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-03T01:45:00.000Z",
+        "dischargeDate": "2026-08-14T06:36:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_6khes6vq1",
+        "dob": "1976-01-01",
+        "code": "LTM-090626-LAO",
+        "name": "Lò Thị May",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "452",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-06-09T04:16:00.000Z",
+        "dischargeDate": "2026-06-25T07:10:00.000Z",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -2446,25 +3355,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ THỊ LIÊU": [
-      {
-        "id": "p_keqkzl9qm",
-        "dob": "1980-01-01",
-        "code": "LTL-270726-LAO",
-        "name": "Lò Thị Liêu",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "443",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-27T08:24:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "ĐINH THỊ CHÚC": [
       {
         "id": "p_kl9mbzlnx",
@@ -2501,39 +3391,77 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "QUÀNG THỊ XƯƠNG": [
+    "TÒNG THỊ PÈ": [
       {
-        "id": "p_80jp3tcpl",
-        "dob": "1964-01-01",
-        "code": "QTX-030826-LAO",
-        "name": "Quàng Thị Xương",
+        "id": "p_lawlatkvw",
+        "dob": "1973-01-01",
+        "code": "TTP-060826-LAO",
+        "name": "Tòng Thị Pè",
         "note": "",
         "gender": "Nữ",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "408B",
+        "bedNumber": "418",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-08-03T02:32:00.000Z",
+        "admissionDate": "2026-08-06T01:08:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "NGUYỄN THỊ TẦM": [
+    "NGUYỄN VĂN HIỀN": [
       {
-        "id": "p_kpj96y54y",
-        "dob": "1954-01-01",
-        "code": "NTT-280726-LAO",
-        "name": "Nguyễn Thị Tầm",
+        "id": "p_cy8qpod1u",
+        "dob": "1959-01-01",
+        "code": "NVH-030826-LAO",
+        "name": "Nguyễn Văn Hiền",
         "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
+        "gender": "Nam",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "403",
+        "bedNumber": "459",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-28T01:06:00.000Z",
+        "admissionDate": "2026-08-03T07:05:00.000Z",
+        "dischargeDate": "2026-08-14T07:02:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ LIÊU": [
+      {
+        "id": "p_keqkzl9qm",
+        "dob": "1980-01-01",
+        "code": "LTL-270726-LAO",
+        "name": "Lò Thị Liêu",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "443",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-27T08:24:00.000Z",
+        "dischargeDate": "2026-08-11T06:46:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG VĂN ÂN": [
+      {
+        "id": "p_tq52t66lx",
+        "dob": "1959-01-01",
+        "code": "QVA-130826-LAO",
+        "name": "Quàng Văn Ân",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "435",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-13T01:11:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
@@ -2554,25 +3482,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-19T03:43:00.000Z",
         "dischargeDate": "2026-06-30T07:42:00.000Z",
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "CÀ VĂN TÍNH": [
-      {
-        "id": "p_wv9qb07j3",
-        "dob": "1964-01-01",
-        "code": "CVT-240726-LAO",
-        "name": "Cà Văn Tính",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "435",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-24T02:41:00.000Z",
-        "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -2668,6 +3577,23 @@
         "dischargeDate": "2026-07-23T07:10:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_8gt38vddz",
+        "dob": "1963-01-01",
+        "code": "LTL-070826-LAO",
+        "name": "Lê Thị Lan",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "402B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-07T01:16:00.000Z",
+        "dischargeDate": "2026-08-12T06:42:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
       }
     ],
     "LÒ THỊ THƯƠNG": [
@@ -2685,6 +3611,23 @@
         "roomNumber": "",
         "admissionDate": "2026-07-08T02:08:00.000Z",
         "dischargeDate": "2026-07-22T07:24:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_lh5i4wy39",
+        "dob": "1951-01-01",
+        "code": "LTT-100826-LAO",
+        "name": "Lò Thị Thương",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "419",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T07:50:00.000Z",
+        "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -2778,25 +3721,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "PHẠM VĂN DƯỢC": [
-      {
-        "id": "p_ybhrn4e70",
-        "dob": "1945-01-01",
-        "code": "PVD-210726-LAO",
-        "name": "Phạm Văn Dược",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú ban ngày",
-        "bedNumber": "480",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-21T03:02:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "VÌ VĂN DÂM": [
       {
         "id": "p_yrdaq172h",
@@ -2831,6 +3755,44 @@
         "roomNumber": "",
         "admissionDate": "2026-06-23T09:22:00.000Z",
         "dischargeDate": "2026-07-10T07:12:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "PHẠM VĂN DƯỢC": [
+      {
+        "id": "p_ybhrn4e70",
+        "dob": "1945-01-01",
+        "code": "PVD-210726-LAO",
+        "name": "Phạm Văn Dược",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "480",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-21T03:02:00.000Z",
+        "dischargeDate": "2026-08-05T06:46:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "CÀ VĂN TÍNH": [
+      {
+        "id": "p_wv9qb07j3",
+        "dob": "1964-01-01",
+        "code": "CVT-240726-LAO",
+        "name": "Cà Văn Tính",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "435",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-24T02:41:00.000Z",
+        "dischargeDate": "2026-08-07T06:36:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -3000,41 +3962,22 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "NGÔ THỊ VẺ": [
+    "LÒ THỊ PẤNG": [
       {
-        "id": "p_d4m4nd6wk",
-        "dob": "1948-01-01",
-        "code": "NTV-280726-LAO",
-        "name": "Ngô Thị Vẻ",
+        "id": "p_wc1fha9m3",
+        "dob": "1974-01-01",
+        "code": "LTP-060826-LAO",
+        "name": "Lò Thị Pấng",
         "note": "",
         "gender": "Nữ",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "454",
+        "bedNumber": "432",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-28T01:45:00.000Z",
+        "admissionDate": "2026-08-06T04:14:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "CÀ THỊ HIÊN": [
-      {
-        "id": "p_jlblkn69p",
-        "dob": "1964-01-01",
-        "code": "CTH-200726-LAO",
-        "name": "Cà Thị Hiên",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "413",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-20T03:54:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "95%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -3197,6 +4140,25 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "CÀ THỊ HIÊN": [
+      {
+        "id": "p_jlblkn69p",
+        "dob": "1964-01-01",
+        "code": "CTH-200726-LAO",
+        "name": "Cà Thị Hiên",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "413",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-20T03:54:00.000Z",
+        "dischargeDate": "2026-08-04T06:44:00.000Z",
+        "insuranceLevel": "95%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "LƯỜNG VĂN THU": [
       {
         "id": "p_ditqlp1nk",
@@ -3212,25 +4174,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-23T02:25:00.000Z",
         "dischargeDate": "2026-07-08T07:16:00.000Z",
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "LÒ THỊ HUẤN": [
-      {
-        "id": "p_msuijt8tw",
-        "dob": "1960-01-01",
-        "code": "LTH-200726-LAO",
-        "name": "Lò Thị Huấn",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "438",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-20T09:06:00.000Z",
-        "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -3515,6 +4458,25 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "LÒ THỊ HUẤN": [
+      {
+        "id": "p_msuijt8tw",
+        "dob": "1960-01-01",
+        "code": "LTH-200726-LAO",
+        "name": "Lò Thị Huấn",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "438",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-20T09:06:00.000Z",
+        "dischargeDate": "2026-08-04T06:52:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "HỒ THỊ THI": [
       {
         "id": "p_yz6jndwy6",
@@ -3532,20 +4494,20 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "ĐINH THỊ SỰ": [
+    "HÀ NGỌC DIÊNG": [
       {
-        "id": "p_f2sy24kgg",
-        "dob": "1961-01-01",
-        "code": "ĐTS-210726-LAO",
-        "name": "Đinh Thị Sự",
+        "id": "p_avucrnluj",
+        "dob": "1962-01-01",
+        "code": "HND-130826-LAO",
+        "name": "Hà Ngọc Diêng",
         "note": "",
         "gender": "Nữ",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "410",
+        "bedNumber": "462",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-21T03:03:00.000Z",
+        "admissionDate": "2026-08-13T01:37:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
@@ -3559,12 +4521,50 @@
         "name": "Cà Thị Hiện",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "442",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-20T09:11:00.000Z",
+        "dischargeDate": "2026-08-04T06:54:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "BÙI THỊ NHẬT": [
+      {
+        "id": "p_qkip880zn",
+        "dob": "1953-01-01",
+        "code": "BTN-230726-LAO",
+        "name": "Bùi Thị Nhật",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "439",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-23T03:46:00.000Z",
+        "dischargeDate": "2026-08-06T06:36:00.000Z",
+        "insuranceLevel": "95%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "HÀ THỊ YỆN": [
+      {
+        "id": "p_jh68epbdd",
+        "dob": "1964-01-01",
+        "code": "HTY-060826-LAO",
+        "name": "Hà Thị Yện",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "433",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-06T03:56:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
@@ -3603,25 +4603,6 @@
         "admissionDate": "2026-06-29T07:10:00.000Z",
         "dischargeDate": "2026-07-14T07:10:00.000Z",
         "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "BÙI THỊ NHẬT": [
-      {
-        "id": "p_qkip880zn",
-        "dob": "1953-01-01",
-        "code": "BTN-230726-LAO",
-        "name": "Bùi Thị Nhật",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "439",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-23T03:46:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "95%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -3682,23 +4663,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "QUÀNG THỊ LẢ": [
-      {
-        "id": "p_rj18enqqv",
-        "dob": "1948-01-01",
-        "code": "QTL-080626-LAO",
-        "name": "Quàng Thị Lả",
-        "gender": "Nữ",
-        "status": "DISCHARGED",
-        "bedType": "Nội trú",
-        "bedNumber": "443",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-06-08T02:55:00.000Z",
-        "dischargeDate": "2026-06-23T07:10:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "PHẠM THỊ HẢI YẾN": [
       {
         "id": "p_rswjf4pdh",
@@ -3713,25 +4677,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-03T03:46:00.000Z",
         "dischargeDate": "2026-06-18T07:06:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "PHẠM THỊ PHỨC": [
-      {
-        "id": "p_rvictqg8w",
-        "dob": "1942-01-01",
-        "code": "PTP-280726-LAO",
-        "name": "Phạm Thị Phức",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "457",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-28T02:00:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -3792,21 +4737,59 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "ĐINH THỊ CHAU": [
+    "ĐINH THỊ SỰ": [
       {
-        "id": "p_8ybktau3v",
-        "dob": "1951-01-01",
-        "code": "ĐTC-210726-LAO",
-        "name": "Đinh Thị Chau",
+        "id": "p_f2sy24kgg",
+        "dob": "1961-01-01",
+        "code": "ĐTS-210726-LAO",
+        "name": "Đinh Thị Sự",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "411",
+        "bedNumber": "410",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-21T02:29:00.000Z",
-        "dischargeDate": null,
+        "admissionDate": "2026-07-21T03:03:00.000Z",
+        "dischargeDate": "2026-08-04T06:50:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "PHẠM THỊ PHỨC": [
+      {
+        "id": "p_rvictqg8w",
+        "dob": "1942-01-01",
+        "code": "PTP-280726-LAO",
+        "name": "Phạm Thị Phức",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "457",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-28T02:00:00.000Z",
+        "dischargeDate": "2026-08-12T06:40:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "TÒNG THỊ THƯỞNG": [
+      {
+        "id": "p_h8js8ik1x",
+        "dob": "1967-01-01",
+        "code": "TTT-230726-LAO",
+        "name": "Tòng Thị Thưởng",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "408",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-23T03:43:00.000Z",
+        "dischargeDate": "2026-08-05T06:40:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -3825,44 +4808,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-08T03:11:00.000Z",
         "dischargeDate": "2026-06-24T07:12:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "TÒNG THỊ THƯỞNG": [
-      {
-        "id": "p_h8js8ik1x",
-        "dob": "1967-01-01",
-        "code": "TTT-230726-LAO",
-        "name": "Tòng Thị Thưởng",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "408",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-23T03:43:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "HOÀNG THỊ LƯU": [
-      {
-        "id": "p_s9c9eqrsw",
-        "dob": "1959-01-01",
-        "code": "HTL-220726-LAO",
-        "name": "Hoàng Thị Lưu",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "412",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-22T03:58:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "80%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -3989,25 +4934,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ VĂN DÂU": [
-      {
-        "id": "p_u67hev91h",
-        "dob": "1974-01-01",
-        "code": "LVD-290726-LAO",
-        "name": "Lò Văn Dâu",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "415",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-29T02:15:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "LÒ THỊ NGOAI": [
       {
         "id": "p_ubseh8p0a",
@@ -4023,6 +4949,63 @@
         "roomNumber": "",
         "admissionDate": "2026-07-07T04:20:00.000Z",
         "dischargeDate": "2026-07-22T07:10:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐINH THỊ CHAU": [
+      {
+        "id": "p_8ybktau3v",
+        "dob": "1951-01-01",
+        "code": "ĐTC-210726-LAO",
+        "name": "Đinh Thị Chau",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "411",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-21T02:29:00.000Z",
+        "dischargeDate": "2026-08-04T06:46:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "HOÀNG THỊ LƯU": [
+      {
+        "id": "p_s9c9eqrsw",
+        "dob": "1959-01-01",
+        "code": "HTL-220726-LAO",
+        "name": "Hoàng Thị Lưu",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "412",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-22T03:58:00.000Z",
+        "dischargeDate": "2026-08-05T06:38:00.000Z",
+        "insuranceLevel": "80%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ VĂN DÂU": [
+      {
+        "id": "p_u67hev91h",
+        "dob": "1974-01-01",
+        "code": "LVD-290726-LAO",
+        "name": "Lò Văn Dâu",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "415",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-29T02:15:00.000Z",
+        "dischargeDate": "2026-08-07T06:40:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -4046,21 +5029,21 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "NGUYỄN THỊ SƠN": [
+    "BẠC CẦM NA": [
       {
-        "id": "p_pe3bleljj",
-        "dob": "1965-01-01",
-        "code": "NTS-240726-LAO",
-        "name": "Nguyễn Thị Sơn",
+        "id": "p_v5obvtkb1",
+        "dob": "1947-01-01",
+        "code": "BCN-220726-LAO",
+        "name": "Bạc Cầm Na",
         "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
+        "gender": "Nam",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
-        "bedNumber": "450",
+        "bedNumber": "422",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-24T09:04:00.000Z",
-        "dischargeDate": null,
+        "admissionDate": "2026-07-22T03:07:00.000Z",
+        "dischargeDate": "2026-08-05T06:36:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -4151,44 +5134,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-01T02:49:00.000Z",
         "dischargeDate": "2026-06-17T07:18:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "BẠC CẦM NA": [
-      {
-        "id": "p_v5obvtkb1",
-        "dob": "1947-01-01",
-        "code": "BCN-220726-LAO",
-        "name": "Bạc Cầm Na",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "422",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-22T03:07:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "LÒ VĂN BÓNG": [
-      {
-        "id": "p_v6alkyjjt",
-        "dob": "1959-01-01",
-        "code": "LVB-290726-LAO",
-        "name": "Lò Văn Bóng",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "444",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-29T03:55:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -4283,25 +5228,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ THỊ MUÔN": [
-      {
-        "id": "p_w9igvifhq",
-        "dob": "1961-01-01",
-        "code": "LTM-290726-LAO",
-        "name": "Lò Thị Muôn",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "446",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-29T02:05:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "QUÀNG VĂN HOÀN": [
       {
         "id": "p_welxcfqeg",
@@ -4321,6 +5247,25 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "NGUYỄN THỊ SƠN": [
+      {
+        "id": "p_pe3bleljj",
+        "dob": "1965-01-01",
+        "code": "NTS-240726-LAO",
+        "name": "Nguyễn Thị Sơn",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "450",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-24T09:04:00.000Z",
+        "dischargeDate": "2026-08-04T06:56:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "NGUYỄN HỮU KIÊM": [
       {
         "id": "p_wnv1lmtk9",
@@ -4335,6 +5280,63 @@
         "roomNumber": "",
         "admissionDate": "2026-05-18T02:10:00.000Z",
         "dischargeDate": "2026-06-03T07:14:00.000Z",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ MUÔN": [
+      {
+        "id": "p_w9igvifhq",
+        "dob": "1961-01-01",
+        "code": "LTM-290726-LAO",
+        "name": "Lò Thị Muôn",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "446",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-29T02:05:00.000Z",
+        "dischargeDate": "2026-08-10T06:38:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ VĂN BÓNG": [
+      {
+        "id": "p_v6alkyjjt",
+        "dob": "1959-01-01",
+        "code": "LVB-290726-LAO",
+        "name": "Lò Văn Bóng",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "444",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-29T03:55:00.000Z",
+        "dischargeDate": "2026-08-10T06:40:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "NGÔ THỊ LIÊN": [
+      {
+        "id": "p_qk4qi6hwn",
+        "dob": "1966-01-01",
+        "code": "NTL-060826-LAO",
+        "name": "Ngô Thị Liên",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "409",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-06T08:15:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -4494,103 +5496,31 @@
         "name": "Tòng Văn Tối",
         "note": "",
         "gender": "Nam",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "424",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-24T07:02:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-04T06:42:00.000Z",
         "insuranceLevel": "95%",
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "ĐIÊU THỊ PHÁ": [
+    "QUÀNG THỊ HOA": [
       {
-        "id": "p_hm0p5xlje",
-        "dob": "1964-01-01",
-        "code": "ĐTP-240726-LAO",
-        "name": "Điêu Thị Phá",
+        "id": "p_v68m6uzfk",
+        "dob": "1957-01-01",
+        "code": "QTH-060826-LAO",
+        "name": "Quàng Thị Hoa",
         "note": "",
         "gender": "Nữ",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "433",
+        "bedNumber": "407",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-24T07:08:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "BÀN THỊ XINH": [
-      {
-        "id": "p_zb2e0wctm",
-        "dob": "1978-01-01",
-        "code": "BTX-270726-LAO",
-        "name": "Bàn Thị Xinh",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "409",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-27T01:52:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "PHẠM THỊ HUÊ": [
-      {
-        "id": "p_zh4ldiwb1",
-        "dob": "1963-01-01",
-        "code": "PTH-020626-LAO",
-        "name": "Phạm Thị Huê",
-        "gender": "Nữ",
-        "status": "DISCHARGED",
-        "bedType": "Nội trú",
-        "bedNumber": "447",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-06-02T08:13:00.000Z",
-        "dischargeDate": "2026-06-18T07:08:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      },
-      {
-        "id": "p_dtt146iov",
-        "dob": "1963-01-01",
-        "code": "PTH-060726-LAO",
-        "name": "Phạm Thị Huê",
-        "note": "",
-        "gender": "Nữ",
-        "status": "DISCHARGED",
-        "bedType": "Nội trú",
-        "bedNumber": "421",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-06T01:21:00.000Z",
-        "dischargeDate": "2026-07-21T07:08:00.000Z",
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "QUÀNG THỊ BINH": [
-      {
-        "id": "p_zivoukuz0",
-        "dob": "1966-01-01",
-        "code": "QTB-240726-LAO",
-        "name": "Quàng Thị Binh",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "434",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-24T02:47:00.000Z",
+        "admissionDate": "2026-08-06T03:24:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
@@ -4649,20 +5579,96 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "NGUYỄN THỊ TÁM": [
+    "ĐIÊU THỊ PHÁ": [
       {
-        "id": "p_07kawwq1b",
-        "dob": "1942-01-01",
-        "code": "NTT-280726-LAO",
-        "name": "Nguyễn Thị Tám",
+        "id": "p_hm0p5xlje",
+        "dob": "1964-01-01",
+        "code": "ĐTP-240726-LAO",
+        "name": "Điêu Thị Phá",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "433",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-24T07:08:00.000Z",
+        "dischargeDate": "2026-08-04T06:36:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "BÀN THỊ XINH": [
+      {
+        "id": "p_zb2e0wctm",
+        "dob": "1978-01-01",
+        "code": "BTX-270726-LAO",
+        "name": "Bàn Thị Xinh",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "409",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-27T01:52:00.000Z",
+        "dischargeDate": "2026-08-07T06:44:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG THỊ BINH": [
+      {
+        "id": "p_zivoukuz0",
+        "dob": "1966-01-01",
+        "code": "QTB-240726-LAO",
+        "name": "Quàng Thị Binh",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "434",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-24T02:47:00.000Z",
+        "dischargeDate": "2026-08-07T06:38:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ HỊA": [
+      {
+        "id": "p_twwnw5wk9",
+        "dob": "1963-01-01",
+        "code": "LTH-060826-LAO",
+        "name": "Lò Thị Hịa",
         "note": "",
         "gender": "Nữ",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "404",
+        "bedNumber": "444B",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-28T01:38:00.000Z",
+        "admissionDate": "2026-08-06T02:05:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG THỊ ÂN": [
+      {
+        "id": "p_hhlwjgr9e",
+        "dob": "1958-01-01",
+        "code": "QTA-060826-LAO",
+        "name": "Quàng Thị Ân",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "476",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-06T04:26:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
@@ -4797,42 +5803,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "ĐOÀN NGỌC MINH": [
-      {
-        "id": "p_2bbwa2ide",
-        "dob": "1951-01-01",
-        "code": "ĐNM-280726-LAO",
-        "name": "Đoàn Ngọc Minh",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "460",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-28T04:00:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      },
-      {
-        "id": "p_9usy29gef",
-        "dob": "1951-01-01",
-        "code": "ĐNM-150626-LAO",
-        "name": "Đoàn Ngọc Minh",
-        "note": "",
-        "gender": "Nam",
-        "status": "DISCHARGED",
-        "bedType": "Nội trú",
-        "bedNumber": "450",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-06-15T03:53:00.000Z",
-        "dischargeDate": "2026-06-30T07:06:00.000Z",
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "HOÀNG THỊ È": [
       {
         "id": "p_2dl7stdmu",
@@ -4867,6 +5837,61 @@
         "roomNumber": "",
         "admissionDate": "2026-06-25T01:17:00.000Z",
         "dischargeDate": "2026-07-08T07:14:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐOÀN NGỌC MINH": [
+      {
+        "id": "p_2bbwa2ide",
+        "dob": "1951-01-01",
+        "code": "ĐNM-280726-LAO",
+        "name": "Đoàn Ngọc Minh",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "460",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-28T04:00:00.000Z",
+        "dischargeDate": "2026-08-10T06:34:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      },
+      {
+        "id": "p_9usy29gef",
+        "dob": "1951-01-01",
+        "code": "ĐNM-150626-LAO",
+        "name": "Đoàn Ngọc Minh",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "450",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-06-15T03:53:00.000Z",
+        "dischargeDate": "2026-06-30T07:06:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "NGUYỄN THỊ TÁM": [
+      {
+        "id": "p_07kawwq1b",
+        "dob": "1942-01-01",
+        "code": "NTT-280726-LAO",
+        "name": "Nguyễn Thị Tám",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "404",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-28T01:38:00.000Z",
+        "dischargeDate": "2026-08-11T06:50:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -4962,63 +5987,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "VÌ THỊ PHỨC": [
-      {
-        "id": "p_3kjktslr0",
-        "dob": "1957-01-01",
-        "code": "VTP-230726-LAO",
-        "name": "Vì Thị Phức",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "418",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-23T04:11:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "CÀ THỊ THOAI": [
-      {
-        "id": "p_3sp7itc72",
-        "dob": "1985-01-01",
-        "code": "CTT-300726-LAO",
-        "name": "Cà Thị Thoai",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "441",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-30T07:26:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "LÒ VĂN THÂN": [
-      {
-        "id": "p_3xfh8a6zi",
-        "dob": "1963-01-01",
-        "code": "LVT-220726-LAO",
-        "name": "Lò Văn Thân",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "430",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-22T07:41:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "VŨ THỊ VÂN": [
       {
         "id": "p_3xrg4xabi",
@@ -5033,25 +6001,6 @@
         "roomNumber": "",
         "admissionDate": "2026-06-01T03:51:00.000Z",
         "dischargeDate": "2026-06-16T07:10:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "VŨ THỊ BÍCH NHƯỢNG": [
-      {
-        "id": "p_42r4hogku",
-        "dob": "1953-01-01",
-        "code": "VTBN-280726-LAO",
-        "name": "Vũ Thị Bích Nhượng",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú ban ngày",
-        "bedNumber": "475",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-28T02:27:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "95%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -5184,21 +6133,59 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ VĂN TIỂN": [
+    "VÌ THỊ PHỨC": [
       {
-        "id": "p_4lx9dlhc2",
-        "dob": "1971-01-01",
-        "code": "LVT-220726-LAO",
-        "name": "Lò Văn Tiển",
+        "id": "p_3kjktslr0",
+        "dob": "1957-01-01",
+        "code": "VTP-230726-LAO",
+        "name": "Vì Thị Phức",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "418",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-23T04:11:00.000Z",
+        "dischargeDate": "2026-08-06T06:40:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG VĂN LÍCH": [
+      {
+        "id": "p_8gp8yggr6",
+        "dob": "1957-01-01",
+        "code": "QVL-070826-LAO",
+        "name": "Quàng Văn Lích",
         "note": "",
         "gender": "Nam",
         "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "465",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "477",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-22T03:44:00.000Z",
+        "admissionDate": "2026-08-07T02:45:00.000Z",
         "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "CÀ THỊ THOAI": [
+      {
+        "id": "p_3sp7itc72",
+        "dob": "1985-01-01",
+        "code": "CTT-300726-LAO",
+        "name": "Cà Thị Thoai",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "441",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-30T07:26:00.000Z",
+        "dischargeDate": "2026-08-11T06:48:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -5217,25 +6204,6 @@
         "roomNumber": "",
         "admissionDate": "2026-05-25T02:16:00.000Z",
         "dischargeDate": "2026-06-11T07:10:00.000Z",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "VÌ THỊ ẤU": [
-      {
-        "id": "p_4ne1l0j31",
-        "dob": "1959-01-01",
-        "code": "VTA-230726-LAO",
-        "name": "Vì Thị Ấu",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "407",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-23T04:18:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -5438,25 +6406,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ VĂN NHƯỢNG": [
-      {
-        "id": "p_6xs1rfucd",
-        "dob": "1964-01-01",
-        "code": "LVN-300726-LAO",
-        "name": "Lò Văn Nhượng",
-        "note": "",
-        "gender": "Nam",
-        "status": "TREATING",
-        "bedType": "Nội trú",
-        "bedNumber": "406",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-30T03:31:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "NÔNG THỊ THƠM": [
       {
         "id": "p_u4ns5zuyt",
@@ -5493,6 +6442,44 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "LÒ VĂN TIỂN": [
+      {
+        "id": "p_4lx9dlhc2",
+        "dob": "1971-01-01",
+        "code": "LVT-220726-LAO",
+        "name": "Lò Văn Tiển",
+        "note": "",
+        "gender": "Nam",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "465",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-22T03:44:00.000Z",
+        "dischargeDate": "2026-08-05T06:48:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "VÌ THỊ ẤU": [
+      {
+        "id": "p_4ne1l0j31",
+        "dob": "1959-01-01",
+        "code": "VTA-230726-LAO",
+        "name": "Vì Thị Ấu",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "407",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-23T04:18:00.000Z",
+        "dischargeDate": "2026-08-06T06:42:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "TRẦN HẢI NGUYÊN": [
       {
         "id": "p_76ujujfgw",
@@ -5508,6 +6495,25 @@
         "roomNumber": "",
         "admissionDate": "2026-07-01T09:47:00.000Z",
         "dischargeDate": "2026-07-15T07:12:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ NGHĨA": [
+      {
+        "id": "p_8na4i3yn7",
+        "dob": "1980-01-01",
+        "code": "LTN-220726-LAO",
+        "name": "Lò Thị Nghĩa",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "477B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-22T03:17:00.000Z",
+        "dischargeDate": "2026-08-04T07:00:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -5654,25 +6660,6 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LÒ THỊ NGHĨA": [
-      {
-        "id": "p_8na4i3yn7",
-        "dob": "1980-01-01",
-        "code": "LTN-220726-LAO",
-        "name": "Lò Thị Nghĩa",
-        "note": "",
-        "gender": "Nữ",
-        "status": "TREATING",
-        "bedType": "Nội trú ban ngày",
-        "bedNumber": "477B",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-22T03:17:00.000Z",
-        "dischargeDate": null,
-        "insuranceLevel": "100%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
     "LƯỜNG VĂN TIM": [
       {
         "id": "p_8nuimlhz7",
@@ -5785,20 +6772,20 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
-    "LƯỜNG THỊ THUẬN": [
+    "HÀ VĂN LẬP": [
       {
-        "id": "p_ys8lcdlcd",
-        "dob": "1983-01-01",
-        "code": "LTT-270726-LAO",
-        "name": "Lường Thị Thuận",
+        "id": "p_z7wrxg3vc",
+        "dob": "1958-01-01",
+        "code": "HVL-100826-LAO",
+        "name": "Hà Văn Lập",
         "note": "",
-        "gender": "Nữ",
+        "gender": "Nam",
         "status": "TREATING",
         "bedType": "Nội trú",
-        "bedNumber": "452",
+        "bedNumber": "437B",
         "referrals": [],
         "roomNumber": "",
-        "admissionDate": "2026-07-27T03:43:00.000Z",
+        "admissionDate": "2026-08-10T03:14:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
@@ -5820,25 +6807,6 @@
         "admissionDate": "2026-06-18T02:30:00.000Z",
         "dischargeDate": "2026-07-03T07:10:00.000Z",
         "insuranceLevel": "95%",
-        "admittedByDeptId": "dept_lao"
-      }
-    ],
-    "VÌ THỊ SAN": [
-      {
-        "id": "p_9s5g2cszh",
-        "dob": "1969-01-01",
-        "code": "VTS-130726-LAO",
-        "name": "Vì Thị San",
-        "note": "",
-        "gender": "Nữ",
-        "status": "DISCHARGED",
-        "bedType": "Nội trú",
-        "bedNumber": "446",
-        "referrals": [],
-        "roomNumber": "",
-        "admissionDate": "2026-07-13T08:29:00.000Z",
-        "dischargeDate": "2026-07-28T07:20:00.000Z",
-        "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -5948,6 +6916,44 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "LƯỜNG THỊ THUẬN": [
+      {
+        "id": "p_ys8lcdlcd",
+        "dob": "1983-01-01",
+        "code": "LTT-270726-LAO",
+        "name": "Lường Thị Thuận",
+        "note": "",
+        "gender": "Nữ",
+        "status": "DISCHARGED",
+        "bedType": "Nội trú",
+        "bedNumber": "452",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-07-27T03:43:00.000Z",
+        "dischargeDate": "2026-08-05T06:52:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ DAN": [
+      {
+        "id": "p_vmab4syyh",
+        "dob": "1958-01-01",
+        "code": "LTD-100826-LAO",
+        "name": "Lò Thị Dan",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "431B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T02:53:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "PHAN MINH CHÂU": [
       {
         "id": "p_k9o65mre4",
@@ -5994,14 +7000,90 @@
         "name": "Cà Thị Đoàn",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "416",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-27T03:04:00.000Z",
+        "dischargeDate": "2026-08-07T06:42:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LỪ THỊ MÁY": [
+      {
+        "id": "p_1gxqqn6yk",
+        "dob": "1953-01-01",
+        "code": "LTM-100826-LAO",
+        "name": "Lừ Thị Máy",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "457B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T07:23:00.000Z",
         "dischargeDate": null,
         "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ LƯƠNG": [
+      {
+        "id": "p_729xx5flz",
+        "dob": "1974-01-01",
+        "code": "LTL-100826-LAO",
+        "name": "Lò Thị Lương",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "443B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T10:00:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "TRƯƠNG THẾ ĐỨC": [
+      {
+        "id": "p_et6v9h2zz",
+        "dob": "1953-01-01",
+        "code": "TTĐ-100826-LAO",
+        "name": "Trương Thế Đức",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "449",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T07:25:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "ĐINH THỊ NHÂM": [
+      {
+        "id": "p_7l0f25s8m",
+        "dob": "1982-01-01",
+        "code": "ĐTN-100826-LAO",
+        "name": "Đinh Thị Nhâm",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú ban ngày",
+        "bedNumber": "478",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T03:21:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "80%",
         "admittedByDeptId": "dept_lao"
       }
     ],
@@ -6013,13 +7095,13 @@
         "name": "Sồng Thị Cha",
         "note": "",
         "gender": "Nữ",
-        "status": "TREATING",
+        "status": "DISCHARGED",
         "bedType": "Nội trú",
         "bedNumber": "431",
         "referrals": [],
         "roomNumber": "",
         "admissionDate": "2026-07-27T03:50:00.000Z",
-        "dischargeDate": null,
+        "dischargeDate": "2026-08-11T06:36:00.000Z",
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -6204,6 +7286,63 @@
         "admittedByDeptId": "dept_lao"
       }
     ],
+    "LÒ THỊ LÉ": [
+      {
+        "id": "p_yrehyn1no",
+        "dob": "1972-01-01",
+        "code": "LTL-100826-LAO",
+        "name": "Lò Thị Lé",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "441B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T10:07:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "VÌ VĂN DOAN": [
+      {
+        "id": "p_z50a35vln",
+        "dob": "1980-01-01",
+        "code": "VVD-100826-LAO",
+        "name": "Vì Văn Doan",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "423B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T09:54:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "LÒ THỊ MẮN": [
+      {
+        "id": "p_l66drhpsq",
+        "dob": "1965-01-01",
+        "code": "LTM-100826-LAO",
+        "name": "Lò Thị Mắn",
+        "note": "",
+        "gender": "Nữ",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "406B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T08:47:00.000Z",
+        "dischargeDate": null,
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
     "LÈO THỊ XIÊN": [
       {
         "id": "p_wtfo776ar",
@@ -6219,6 +7358,25 @@
         "roomNumber": "",
         "admissionDate": "2026-06-24T04:11:00.000Z",
         "dischargeDate": "2026-07-08T07:08:00.000Z",
+        "insuranceLevel": "100%",
+        "admittedByDeptId": "dept_lao"
+      }
+    ],
+    "QUÀNG VĂN BAN": [
+      {
+        "id": "p_zpdx0ddt4",
+        "dob": "1955-01-01",
+        "code": "QVB-100826-LAO",
+        "name": "Quàng Văn Ban",
+        "note": "",
+        "gender": "Nam",
+        "status": "TREATING",
+        "bedType": "Nội trú",
+        "bedNumber": "454B",
+        "referrals": [],
+        "roomNumber": "",
+        "admissionDate": "2026-08-10T07:31:00.000Z",
+        "dischargeDate": null,
         "insuranceLevel": "100%",
         "admittedByDeptId": "dept_lao"
       }
@@ -6671,6 +7829,49 @@
         ]
       }
     ],
+    "VŨ THỊ HƯƠNG LAN": [
+      {
+        "id": "s_hdvlre3q6",
+        "name": "Vũ Thị Hương Lan",
+        "role": "Doctor",
+        "deptId": "dept_lao",
+        "capabilityIds": [
+          "pr_4rtcdwupd",
+          "pr_8pbn13l8b",
+          "pr_lao_cuu",
+          "pr_lao_diencham",
+          "pr_lao_thuycham",
+          "pr_lao_xoa_bop",
+          "pr_e6ohrvx7y",
+          "pr_eqnn4i152",
+          "pr_fm25wiv60",
+          "pr_rj91ghjep",
+          "pr_yosjw3y2w"
+        ],
+        "mainCapabilityIds": [
+          "pr_eqnn4i152",
+          "pr_yosjw3y2w",
+          "pr_rj91ghjep",
+          "pr_8pbn13l8b",
+          "pr_fm25wiv60",
+          "pr_4rtcdwupd",
+          "pr_e6ohrvx7y",
+          "pr_lao_cuu",
+          "pr_lao_diencham",
+          "pr_lao_thuycham",
+          "pr_lao_xoa_bop",
+          "pr_fdmxn9vp6"
+        ],
+        "assistantCapabilityIds": [
+          "pr_4rtcdwupd",
+          "pr_lao_cuu",
+          "pr_lao_diencham",
+          "pr_lao_thuycham",
+          "pr_lao_xoa_bop",
+          "pr_8pbn13l8b"
+        ]
+      }
+    ],
     "NGUYỄN THỊ HUYỀN TRANG": [
       {
         "id": "s_j70mhmvcl",
@@ -6835,48 +8036,6 @@
           "pr_hongngoai",
           "pr_laser",
           "pr_xoa_bop"
-        ]
-      }
-    ],
-    "VŨ THỊ HƯƠNG LAN": [
-      {
-        "id": "s_hdvlre3q6",
-        "name": "Vũ Thị Hương Lan",
-        "role": "Doctor",
-        "deptId": "dept_lao",
-        "capabilityIds": [
-          "pr_4rtcdwupd",
-          "pr_8pbn13l8b",
-          "pr_lao_cuu",
-          "pr_lao_diencham",
-          "pr_lao_thuycham",
-          "pr_lao_xoa_bop",
-          "pr_e6ohrvx7y",
-          "pr_eqnn4i152",
-          "pr_fm25wiv60",
-          "pr_rj91ghjep",
-          "pr_yosjw3y2w"
-        ],
-        "mainCapabilityIds": [
-          "pr_eqnn4i152",
-          "pr_yosjw3y2w",
-          "pr_rj91ghjep",
-          "pr_8pbn13l8b",
-          "pr_fm25wiv60",
-          "pr_4rtcdwupd",
-          "pr_e6ohrvx7y",
-          "pr_lao_cuu",
-          "pr_lao_diencham",
-          "pr_lao_thuycham",
-          "pr_lao_xoa_bop"
-        ],
-        "assistantCapabilityIds": [
-          "pr_4rtcdwupd",
-          "pr_lao_cuu",
-          "pr_lao_diencham",
-          "pr_lao_thuycham",
-          "pr_lao_xoa_bop",
-          "pr_8pbn13l8b"
         ]
       }
     ],
@@ -7907,42 +9066,6 @@
       "selectedDurationOptionId": "opt_sfh8r5rb9"
     },
     {
-      "id": "appt_jul31_am_p_o5iknqk86_2",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:45",
-      "staffId": "s_j70mhmvcl",
-      "patientId": "p_o5iknqk86",
-      "startTime": "09:20",
-      "procedureId": "pr_eqnn4i152",
-      "assistant1Id": "s_tppw9td1m",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Máy L-32 đang được sử dụng bởi BN \"Điêu Thị Hà\" trong khung giờ này."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Nguyễn Thị Sơn\" (09:26-09:32)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Thị Nhâu\" (09:15-09:21)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Trần Thị Thành\" (09:19-09:25)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Trần Thị Thành\" (09:24-09:29)."
-        }
-      ],
-      "assignedMachineId": "L-32"
-    },
-    {
       "id": "appt_1785369157899_bp25vemu6",
       "date": "2026-07-31",
       "notes": null,
@@ -7992,42 +9115,6 @@
       "asst2BusyStart": 25,
       "conflictDetails": [],
       "assignedMachineId": "L-18"
-    },
-    {
-      "id": "appt_jul31_am_p_88ipn1c3r_3",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "10:00",
-      "staffId": "s_c025m4y4p",
-      "patientId": "p_88ipn1c3r",
-      "startTime": "09:30",
-      "procedureId": "pr_rj91ghjep",
-      "assistant1Id": null,
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Thị Nhâu\" (09:45-10:15)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Quàng Thị Thanh\" (09:40-10:10)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Cà Thị Hiện\" (09:15-09:45)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Minh Chấn\" (09:35-10:05)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Văn Dâu\" (09:47-10:17)."
-        }
-      ],
-      "assignedMachineId": null
     },
     {
       "id": "appt_1785368817812_niaz22sg3",
@@ -8341,42 +9428,6 @@
       "assignedMachineId": null
     },
     {
-      "id": "appt_jul31_am_p_7jtdfrcid_3",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "10:15",
-      "staffId": "s_c025m4y4p",
-      "patientId": "p_7jtdfrcid",
-      "startTime": "09:45",
-      "procedureId": "pr_rj91ghjep",
-      "assistant1Id": null,
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Điêu Thị Hà\" (09:30-10:00)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Quàng Thị Thanh\" (09:40-10:10)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Cà Thị Hiện\" (09:15-09:45)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Minh Chấn\" (09:35-10:05)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Văn Dâu\" (09:47-10:17)."
-        }
-      ],
-      "assignedMachineId": null
-    },
-    {
       "id": "appt_1785378026965_4c7c52ahp",
       "date": "2026-07-31",
       "notes": null,
@@ -8408,58 +9459,6 @@
         }
       ],
       "assignedMachineId": "L-47"
-    },
-    {
-      "id": "appt_jul31_am_p_7jtdfrcid_2",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:40",
-      "staffId": "s_j70mhmvcl",
-      "patientId": "p_7jtdfrcid",
-      "startTime": "09:15",
-      "procedureId": "pr_eqnn4i152",
-      "assistant1Id": "s_hpvg4qt7q",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Máy L-32 đang được sử dụng bởi BN \"Lò Văn Nọi\" trong khung giờ này."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Văn Nọi\" (09:20-09:26)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Quàng Thị Thanh\" (09:10-09:16)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Quàng Thị Thanh\" (09:15-09:20)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lò Văn Loan\" (09:17-09:22)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Quàng Thị Sách\" (09:24-09:29)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Thị Hiền\" (09:12-09:18)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Trần Thị Thành\" (09:19-09:25)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Phạm Văn Dược\" (09:23-09:23)."
-        }
-      ],
-      "assignedMachineId": "L-32"
     },
     {
       "id": "appt_4w0ilnt2g",
@@ -8502,114 +9501,6 @@
         }
       ],
       "assignedMachineId": null
-    },
-    {
-      "id": "appt_jul31_am_p_7jtdfrcid_1",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:10",
-      "staffId": "s_1yclzxcef",
-      "patientId": "p_7jtdfrcid",
-      "startTime": "08:45",
-      "procedureId": "pr_yosjw3y2w",
-      "assistant1Id": "s_1xca9gdv3",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Cà Thị Đoàn\" (08:44-08:50)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Quàng Thị Thanh\" (08:40-08:45)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lò Văn Nọi\" (08:50-08:55)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Hà Văn Huấn\" (08:51-08:57)."
-        }
-      ],
-      "assignedMachineId": null
-    },
-    {
-      "id": "appt_jul31_am_p_70ijcn68t_3",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "10:10",
-      "staffId": "s_c025m4y4p",
-      "patientId": "p_70ijcn68t",
-      "startTime": "09:40",
-      "procedureId": "pr_rj91ghjep",
-      "assistant1Id": null,
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Thị Nhâu\" (09:45-10:15)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Điêu Thị Hà\" (09:30-10:00)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Cà Thị Hiện\" (09:15-09:45)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Minh Chấn\" (09:35-10:05)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Văn Dâu\" (09:47-10:17)."
-        }
-      ],
-      "assignedMachineId": null
-    },
-    {
-      "id": "appt_jul31_am_p_f3gqhd716_2",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:30",
-      "staffId": "s_j70mhmvcl",
-      "patientId": "p_f3gqhd716",
-      "startTime": "09:05",
-      "procedureId": "pr_eqnn4i152",
-      "assistant1Id": "s_tppw9td1m",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Máy L-32 đang được sử dụng bởi BN \"Lò Văn Nọi\" trong khung giờ này."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Điêu Thị Hà\" (09:00-09:06)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Điêu Thị Hà\" (09:05-09:10)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Quàng Thị Thanh\" (09:10-09:16)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Nguyễn Văn Chi\" (09:05-09:11)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Nguyễn Văn Chi\" (09:10-09:15)."
-        }
-      ],
-      "assignedMachineId": "L-32"
     },
     {
       "id": "appt_1785415872466_jmaji6wpa",
@@ -8808,94 +9699,6 @@
       "selectedDurationOptionId": "opt_default25"
     },
     {
-      "id": "appt_jul31_am_p_70ijcn68t_2",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:35",
-      "staffId": "s_j70mhmvcl",
-      "patientId": "p_70ijcn68t",
-      "startTime": "09:10",
-      "procedureId": "pr_eqnn4i152",
-      "assistant1Id": "s_hpvg4qt7q",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Máy L-32 đang được sử dụng bởi BN \"Lò Văn Nọi\" trong khung giờ này."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Cà Văn Pò\" (09:10-09:15)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lò Văn Loan\" (09:17-09:22)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Nguyễn Văn Chi\" (09:05-09:11)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Thị Nhâu\" (09:15-09:21)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lò Thị Nhâu\" (09:20-09:25)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Thị Hiền\" (09:12-09:18)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Minh Chấn\" (09:05-09:11)."
-        }
-      ],
-      "assignedMachineId": "L-32"
-    },
-    {
-      "id": "appt_jul31_am_p_f3gqhd716_1",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:00",
-      "staffId": "s_1yclzxcef",
-      "patientId": "p_f3gqhd716",
-      "startTime": "08:35",
-      "procedureId": "pr_yosjw3y2w",
-      "assistant1Id": "s_1xca9gdv3",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Cà Thị Đoàn\" (08:44-08:50)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Quàng Thị Thanh\" (08:40-08:45)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Cà Văn Pò\" (08:42-08:48)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Nguyễn Thị Sơn\" (08:33-08:38)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Văn Dâu\" (08:37-08:43)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Điêu Thị Hà\" (08:30-08:35)."
-        }
-      ],
-      "assignedMachineId": null
-    },
-    {
       "id": "appt_3x4lcoat4",
       "date": "2026-07-31",
       "notes": null,
@@ -8954,30 +9757,6 @@
       "assignedMachineId": null
     },
     {
-      "id": "appt_jul31_am_p_70ijcn68t_1",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:05",
-      "staffId": "s_hdvlre3q6",
-      "patientId": "p_70ijcn68t",
-      "startTime": "08:40",
-      "procedureId": "pr_yosjw3y2w",
-      "assistant1Id": "s_1xca9gdv3",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lò Thị Nhâu\" (08:45-08:50)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lò Minh Chấn\" (08:35-08:40)."
-        }
-      ],
-      "assignedMachineId": null
-    },
-    {
       "id": "appt_1785378026965_cuwths7gd",
       "date": "2026-07-31",
       "notes": null,
@@ -9024,50 +9803,6 @@
       "asst2BusyStart": null,
       "conflictDetails": [],
       "assignedMachineId": null
-    },
-    {
-      "id": "appt_jul31_am_p_88ipn1c3r_2",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:25",
-      "staffId": "s_j70mhmvcl",
-      "patientId": "p_88ipn1c3r",
-      "startTime": "09:00",
-      "procedureId": "pr_eqnn4i152",
-      "assistant1Id": "s_tppw9td1m",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Máy L-32 đang được sử dụng bởi BN \"Lò Văn Nọi\" trong khung giờ này."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Nguyễn Văn Chi\" (09:05-09:11)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Nguyễn Văn Chi\" (09:10-09:15)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Phạm Văn Dược\" (08:58-09:04)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Phạm Văn Dược\" (09:03-09:08)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Minh Chấn\" (09:05-09:11)."
-        },
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lò Minh Chấn\" (09:10-09:15)."
-        }
-      ],
-      "assignedMachineId": "L-32"
     },
     {
       "id": "appt_1785415649561_smfvfsfkb",
@@ -9248,26 +9983,6 @@
       "asst2BusyStart": 25,
       "conflictDetails": [],
       "assignedMachineId": "L-17"
-    },
-    {
-      "id": "appt_jul31_am_p_o5iknqk86_1",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "09:15",
-      "staffId": "s_hdvlre3q6",
-      "patientId": "p_o5iknqk86",
-      "startTime": "08:50",
-      "procedureId": "pr_yosjw3y2w",
-      "assistant1Id": "s_1xca9gdv3",
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lò Thị Nhâu\" (08:45-08:50)."
-        }
-      ],
-      "assignedMachineId": null
     },
     {
       "id": "appt_1785415763581_cgl9mmdvj",
@@ -9616,13 +10331,14 @@
       "patientId": "p_o5iknqk86",
       "startTime": "14:10",
       "mainBusyEnd": 1,
-      "procedureId": "pr_4rtcdwupd",
+      "procedureId": "pr_fdmxn9vp6",
       "restMinutes": 0,
       "assistant1Id": null,
       "assistant2Id": null,
       "asst1BusyEnd": 0,
       "asst2BusyEnd": 0,
       "mainBusyStart": 0,
+      "procedureName": "Khám ra viện",
       "asst1BusyStart": 0,
       "asst2BusyStart": 0,
       "machineShiftId": null,
@@ -9849,42 +10565,6 @@
         {
           "level": 1,
           "message": "Người phụ 1 đang bận thực hiện thủ thuật cho BN \"Lưu Thị Di\" (09:40-09:45)."
-        }
-      ],
-      "assignedMachineId": null
-    },
-    {
-      "id": "appt_jul31_am_p_f3gqhd716_3",
-      "date": "2026-07-31",
-      "deptId": "dept_lao",
-      "status": "CONFLICT",
-      "endTime": "10:05",
-      "staffId": "s_c025m4y4p",
-      "patientId": "p_f3gqhd716",
-      "startTime": "09:35",
-      "procedureId": "pr_rj91ghjep",
-      "assistant1Id": null,
-      "assistant2Id": null,
-      "conflictDetails": [
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Thị Nhâu\" (09:45-10:15)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Điêu Thị Hà\" (09:30-10:00)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Quàng Thị Thanh\" (09:40-10:10)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Cà Thị Hiện\" (09:15-09:45)."
-        },
-        {
-          "level": 1,
-          "message": "Nhân sự chính đang bận thực hiện thủ thuật cho BN \"Lò Văn Dâu\" (09:47-10:17)."
         }
       ],
       "assignedMachineId": null
