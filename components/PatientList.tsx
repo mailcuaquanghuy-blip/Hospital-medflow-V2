@@ -67,7 +67,7 @@ export const PatientList: React.FC<PatientListProps> = ({
   onCancelReferral,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'TREATING' | 'DISCHARGED'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'TREATING' | 'DISCHARGED'>('TREATING');
   const [bedTypeFilter, setBedTypeFilter] = useState<string>('ALL');
   const [referringDeptFilter, setReferringDeptFilter] = useState<string>('ALL');
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([{ field: 'ADMISSION', direction: 'ASC' }]);
