@@ -126,18 +126,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const eligibleStaff = useMemo(() => {
     let deptStaff = staff.filter(s => s.deptId === currentDept.id);
     if (formData.date) {
-      const parts = formData.date.split('-');
-      const isWeekendDay = (() => {
-        if (parts.length !== 3) return false;
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        const d = new Date(year, month, day);
-        const dOfWeek = d.getDay();
-        return dOfWeek === 0 || dOfWeek === 6;
-      })();
+      const isHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) && r.date === formData.date && r.status === AttendanceStatus.OFF_FULL);
 
-      if (isWeekendDay) {
+      if (isHoliday) {
         deptStaff = deptStaff.filter(s => 
           attendanceRecords.some(r => r.staffId === s.id && r.date === formData.date && r.status === AttendanceStatus.DUTY)
         );
@@ -155,18 +146,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const eligibleAssistants = useMemo(() => {
     let deptStaff = staff.filter(s => s.deptId === currentDept.id);
     if (formData.date) {
-      const parts = formData.date.split('-');
-      const isWeekendDay = (() => {
-        if (parts.length !== 3) return false;
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        const d = new Date(year, month, day);
-        const dOfWeek = d.getDay();
-        return dOfWeek === 0 || dOfWeek === 6;
-      })();
+      const isHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) && r.date === formData.date && r.status === AttendanceStatus.OFF_FULL);
 
-      if (isWeekendDay) {
+      if (isHoliday) {
         deptStaff = deptStaff.filter(s => 
           attendanceRecords.some(r => r.staffId === s.id && r.date === formData.date && r.status === AttendanceStatus.DUTY)
         );
@@ -680,7 +662,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
 
     // Attendance check
-    const isHoliday = attendanceRecords.some(r => r.staffId === `holiday_dept_${shift.deptId}` && r.date === shift.date && r.status === AttendanceStatus.OFF_FULL);
+    const isHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${shift.deptId}` || r.staffId === `holiday_${shift.deptId}`) && r.date === shift.date && r.status === AttendanceStatus.OFF_FULL);
     const staffMember = staff.find(s => s.id === shift.staffId);
     
     if (isHoliday) {

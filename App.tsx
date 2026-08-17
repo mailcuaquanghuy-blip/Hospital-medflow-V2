@@ -1063,7 +1063,7 @@ const App: React.FC = () => {
     if (targetDeptId) {
       dateRange = dateRange.filter(targetDate => {
         const isDeptHoliday = attendanceRecords.some(r => 
-          r.staffId === `holiday_dept_${targetDeptId}` && 
+          (r.staffId === `holiday_dept_${targetDeptId}` || r.staffId === `holiday_${targetDeptId}`) && 
           r.date === targetDate && 
           r.status === AttendanceStatus.OFF_FULL
         );

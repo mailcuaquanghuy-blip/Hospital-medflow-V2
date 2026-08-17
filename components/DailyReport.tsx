@@ -407,7 +407,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     const isSunday = dayOfWeek === 0;
 
     // Kiểm tra ngày nghỉ toàn khoa (department-wide holiday)
-    const isDeptHoliday = attendanceRecords.some(r => r.staffId === `holiday_dept_${deptIdToCheck}` && r.date === activeDate && r.status === AttendanceStatus.OFF_FULL);
+    const isDeptHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${deptIdToCheck}` || r.staffId === `holiday_${deptIdToCheck}`) && r.date === activeDate && r.status === AttendanceStatus.OFF_FULL);
 
     // Lọc nhân sự theo lịch trực và đi làm
     return baseStaff.filter(s => {
@@ -424,17 +424,12 @@ export const DailyReport: React.FC<DailyReportProps> = ({
         // Loại bỏ nếu nghỉ cả ngày
         if (att.status === AttendanceStatus.OFF_FULL) return false;
         
-        // Nếu là ngày Chủ nhật, chỉ hiện những người có lịch TRỰC (DUTY)
-        if (isSunday) return att.status === AttendanceStatus.DUTY;
-        
         // Các ngày khác, có đi làm (PRESENT) hoặc trực (DUTY) hoặc nghỉ nửa buổi thì vẫn hiện
         return true;
       }
       
-      // Nếu không có bản ghi điểm danh:
-      // - Ngày Chủ nhật: Mặc định là nghỉ, ẩn đi
-      // - Các ngày trong tuần: Mặc định là đi làm, hiện lên
-      return !isSunday;
+      // Nếu không có bản ghi điểm danh và không phải ngày nghỉ toàn khoa: Mặc định là đi làm, hiện lên
+      return true;
     });
   }, [staff, filterDeptId, currentDept, activeDate, attendanceRecords]);
 

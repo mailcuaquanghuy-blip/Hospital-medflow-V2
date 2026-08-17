@@ -256,7 +256,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   // --- Attendance Logic ---
   const isHoliday = (day: number) => {
     const dateStr = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-    const holidayRecord = attendanceRecords.find(r => r.staffId === `holiday_dept_${department.id}` && r.date === dateStr);
+    const holidayRecord = attendanceRecords.find(r => (r.staffId === `holiday_dept_${department.id}` || r.staffId === `holiday_${department.id}`) && r.date === dateStr);
     return !!holidayRecord && holidayRecord.status === AttendanceStatus.OFF_FULL;
   };
 

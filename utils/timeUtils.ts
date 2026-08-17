@@ -290,29 +290,12 @@ export const checkConflict = (
   const checkStaffAttendance = (id: string, name: string, role: string) => {
     const sMember = getStaffFromCache(staffList, id);
     const deptId = sMember?.deptId || currentProc?.deptId;
-    const isHoliday = attendanceRecords.some(r => r.staffId === `holiday_dept_${deptId}` && r.date === newDate && r.status === AttendanceStatus.OFF_FULL);
-
-    const isWeekendDay = (() => {
-      if (!newDate) return false;
-      const parts = newDate.split('-');
-      if (parts.length !== 3) return false;
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const d = new Date(year, month, day);
-      const dOfWeek = d.getDay();
-      return dOfWeek === 0 || dOfWeek === 6;
-    })();
+    const isHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${deptId}` || r.staffId === `holiday_${deptId}`) && r.date === newDate && r.status === AttendanceStatus.OFF_FULL);
 
     if (isHoliday) {
       const attendance = attendanceRecords.find(r => r.staffId === id && r.date === newDate);
       if (!attendance || attendance.status !== AttendanceStatus.DUTY) {
         conflictDetails.push({ message: `Ngày ${formatDate(newDate)} là ngày nghỉ toàn khoa. ${getRoleLabel(role)} ${name} không có lịch trực nên không thể thực hiện thủ thuật.`, level: 1 });
-      }
-    } else if (isWeekendDay) {
-      const attendance = attendanceRecords.find(r => r.staffId === id && r.date === newDate);
-      if (!attendance || attendance.status !== AttendanceStatus.DUTY) {
-        conflictDetails.push({ message: `Ngày cuối tuần ${formatDate(newDate)}. ${getRoleLabel(role)} ${name} không có lịch trực nên không thể thực hiện thủ thuật.`, level: 1 });
       }
     } else {
       const attendance = attendanceRecords.find(r => r.staffId === id && r.date === newDate);

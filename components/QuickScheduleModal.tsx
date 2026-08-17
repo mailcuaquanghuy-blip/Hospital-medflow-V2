@@ -57,23 +57,11 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     return staff.filter(s => {
       if (s.deptId !== currentDept.id) return false;
       
-      const isHoliday = attendanceRecords.some(r => r.staffId === `holiday_dept_${currentDept.id}` && r.date === currentDate && r.status === AttendanceStatus.OFF_FULL);
-      
-      const isWeekendDay = (() => {
-        if (!currentDate) return false;
-        const parts = currentDate.split('-');
-        if (parts.length !== 3) return false;
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1;
-        const day = parseInt(parts[2], 10);
-        const d = new Date(year, month, day);
-        const dOfWeek = d.getDay();
-        return dOfWeek === 0 || dOfWeek === 6;
-      })();
+      const isHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) && r.date === currentDate && r.status === AttendanceStatus.OFF_FULL);
 
       const rec = attendanceRecords.find(r => r.staffId === s.id && r.date === currentDate);
 
-      if (isHoliday || isWeekendDay) {
+      if (isHoliday) {
         return rec ? rec.status === AttendanceStatus.DUTY : false;
       } else {
         return rec ? rec.status !== AttendanceStatus.OFF_FULL : true;
