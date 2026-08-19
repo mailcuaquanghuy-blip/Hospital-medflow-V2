@@ -131,7 +131,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [...prev, data];
@@ -143,7 +143,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [...prev, data];
@@ -156,7 +156,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [...prev, data];
@@ -168,7 +168,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [...prev, data];
@@ -180,7 +180,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [data, ...prev];
@@ -192,7 +192,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [...prev, data];
@@ -204,7 +204,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [...prev, data];
@@ -216,7 +216,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [...prev, data];
@@ -228,7 +228,7 @@ const App: React.FC = () => {
             const idx = prev.findIndex(item => item.id === docId);
             if (idx > -1) {
               const copy = [...prev];
-              copy[idx] = data;
+              copy[idx] = { ...copy[idx], ...data };
               return copy;
             }
             return [...prev, data];

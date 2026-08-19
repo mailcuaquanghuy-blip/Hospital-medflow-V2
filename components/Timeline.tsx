@@ -3,7 +3,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString } from '../utils/timeUtils';
-import { Zap, User, UserCog, Monitor, Filter, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown } from 'lucide-react';
+import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
 
 
@@ -375,6 +375,58 @@ export const Timeline: React.FC<TimelineProps> = ({
     headerDeptFilters, headerProcedureStatusFilters, headerProcedureFilters, headerStaffRoleFilters,
     headerStaffIdFilters, headerTimeShiftFilters, headerMachineFilters
   ]);
+
+  const activeFiltersCount = useMemo(() => {
+    return (
+      headerPatientStatusFilters.length +
+      headerPatientFilters.length +
+      headerBedTypeFilters.length +
+      headerDeptFilters.length +
+      headerProcedureStatusFilters.length +
+      headerProcedureFilters.length +
+      headerStaffRoleFilters.length +
+      headerStaffIdFilters.length +
+      headerTimeShiftFilters.length +
+      headerMachineFilters.length
+    );
+  }, [
+    headerPatientStatusFilters,
+    headerPatientFilters,
+    headerBedTypeFilters,
+    headerDeptFilters,
+    headerProcedureStatusFilters,
+    headerProcedureFilters,
+    headerStaffRoleFilters,
+    headerStaffIdFilters,
+    headerTimeShiftFilters,
+    headerMachineFilters
+  ]);
+
+  const handleClearAllFilters = () => {
+    setHeaderPatientStatusFilters([]);
+    setHeaderPatientFilters([]);
+    setHeaderBedTypeFilters([]);
+    setHeaderDeptFilters([]);
+    setHeaderProcedureStatusFilters([]);
+    setHeaderProcedureFilters([]);
+    setHeaderStaffRoleFilters([]);
+    setHeaderStaffIdFilters([]);
+    setHeaderTimeShiftFilters([]);
+    setHeaderMachineFilters([]);
+    setOpenFilterId(null);
+
+    // Clear session storage for this department
+    sessionStorage.removeItem(`medflow_tl_pStatus_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_pFilter_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_bedType_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_dept_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_procStatus_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_proc_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_staffRole_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_staffId_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_timeShift_${deptKey}`);
+    sessionStorage.removeItem(`medflow_tl_machine_${deptKey}`);
+  };
 
   // Derived helper lists to prevent virtual filtering data
   const dayAppointments = useMemo(() => {
@@ -994,15 +1046,41 @@ export const Timeline: React.FC<TimelineProps> = ({
                        Timeline Khoa
                    </h2>
                </div>
-               <button onClick={handlePrintTimeline} className="md:hidden p-3 bg-white border border-slate-200 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
-                 <Printer size={20} />
-               </button>
-               <button onClick={handleExportCSVTimeline} className="md:hidden p-3 bg-white border border-slate-200 rounded-2xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm ml-2">
-                 <FileText size={20} />
-               </button>
+               <div className="flex items-center gap-2 md:hidden">
+                 {activeFiltersCount > 0 && (
+                   <button 
+                     onClick={handleClearAllFilters} 
+                     className="px-2.5 py-2 bg-amber-50 border border-amber-300 text-amber-700 rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm active:scale-95"
+                     title="Bỏ tất cả bộ lọc"
+                   >
+                     <FilterX size={16} />
+                     <span>Bỏ lọc ({activeFiltersCount})</span>
+                   </button>
+                 )}
+                 <button onClick={handlePrintTimeline} className="p-3 bg-white border border-slate-200 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
+                   <Printer size={20} />
+                 </button>
+                 <button onClick={handleExportCSVTimeline} className="p-3 bg-white border border-slate-200 rounded-2xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">
+                   <FileText size={20} />
+                 </button>
+               </div>
            </div>
 
            <div className="flex-1 w-full flex items-center justify-end gap-3 flex-wrap">
+               {activeFiltersCount > 0 && (
+                 <button 
+                   onClick={handleClearAllFilters} 
+                   className="h-[40px] px-3.5 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded-xl flex items-center gap-2 font-bold text-sm shrink-0 transition-all shadow-sm active:scale-95 cursor-pointer"
+                   title="Bỏ tất cả các bộ lọc đang kích hoạt"
+                 >
+                   <FilterX size={16} className="text-amber-600" />
+                   <span>Bỏ lọc tất cả</span>
+                   <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-black bg-amber-200 text-amber-900 rounded-full min-w-[20px]">
+                     {activeFiltersCount}
+                   </span>
+                 </button>
+               )}
+
                <button onClick={handlePrintTimeline} className="hidden md:flex h-[40px] px-4 bg-white border border-slate-200 rounded-xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm items-center gap-2 font-bold text-sm shrink-0">
                  <Printer size={16} /> In báo cáo
                </button>

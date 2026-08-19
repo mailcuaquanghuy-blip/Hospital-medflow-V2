@@ -50,6 +50,31 @@ export async function saveSupabaseItem(tableName: string, id: string, itemData: 
   }
 }
 
+export async function saveSupabaseBatch(tableName: string, items: Array<{ id: string; data: any }>): Promise<boolean> {
+  if (!items || items.length === 0) return true;
+  try {
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+      const chunk = items.slice(i, i + CHUNK_SIZE).map(item => ({
+        id: item.id,
+        data: item.data
+      }));
+      const { error } = await supabase.from(tableName).upsert(chunk);
+      if (error) {
+        console.warn(`Supabase batch upsert note on ${tableName} (chunk ${i}): ${error.message}`);
+        // Fallback to individual upsert if chunk failed
+        for (const singleItem of chunk) {
+          await supabase.from(tableName).upsert(singleItem);
+        }
+      }
+    }
+    return true;
+  } catch (err: any) {
+    console.warn(`Supabase batch save catch note on ${tableName}:`, err);
+    return false;
+  }
+}
+
 export async function deleteSupabaseItem(tableName: string, id: string): Promise<boolean> {
   try {
     const { error } = await supabase.from(tableName).delete().eq('id', id);
@@ -60,6 +85,24 @@ export async function deleteSupabaseItem(tableName: string, id: string): Promise
     return true;
   } catch (err: any) {
     console.warn(`Supabase delete note for ${tableName}: ${err?.message || err}`);
+    return false;
+  }
+}
+
+export async function deleteSupabaseBatch(tableName: string, ids: string[]): Promise<boolean> {
+  if (!ids || ids.length === 0) return true;
+  try {
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunkIds = ids.slice(i, i + CHUNK_SIZE);
+      const { error } = await supabase.from(tableName).delete().in('id', chunkIds);
+      if (error) {
+        console.warn(`Supabase batch delete note on ${tableName}: ${error.message}`);
+      }
+    }
+    return true;
+  } catch (err: any) {
+    console.warn(`Supabase batch delete catch note on ${tableName}:`, err);
     return false;
   }
 }
