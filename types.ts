@@ -96,6 +96,9 @@ export interface Patient {
   note?: string | null;
 }
 
+export type ProcedureCategory = 'Lâm sàng' | 'Cận lâm sàng' | 'Hành chính' | 'Khác';
+export const PROCEDURE_CATEGORIES: ProcedureCategory[] = ['Lâm sàng', 'Cận lâm sàng', 'Hành chính', 'Khác'];
+
 export interface ProcedureDurationOption {
   id: string;
   name: string; // Tên cấu hình, ví dụ: "Điều trị chuẩn (20p)", "Điều trị kéo dài (30p)"
@@ -113,6 +116,7 @@ export interface ProcedureDurationOption {
 export interface Procedure {
   id: string;
   name: string;
+  category?: ProcedureCategory;
   durationMinutes: number;
   durationOptions?: ProcedureDurationOption[];
   // New flexible busy times

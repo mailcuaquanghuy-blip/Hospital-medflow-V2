@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel } from '../types';
+import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel, ProcedureCategory, PROCEDURE_CATEGORIES } from '../types';
 import { Button } from './Button';
 
 import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
@@ -88,8 +88,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   });
   const [isProcDropdownOpen, setIsProcDropdownOpen] = useState(false);
   const [procSearchTerm, setProcSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<ProcedureCategory>(() => {
+    if (initialData?.procedureId) {
+      const proc = procedures.find(p => p.id === initialData.procedureId);
+      return proc?.category || 'Lâm sàng';
+    }
+    return 'Lâm sàng';
+  });
 
   const currentProc = useMemo(() => procedures.find(p => p.id === formData.procedureId), [formData.procedureId, procedures]);
+
+  // Sync category when procedure changes from initialData
+  useEffect(() => {
+    if (formData.procedureId) {
+      const proc = procedures.find(p => p.id === formData.procedureId);
+      if (proc?.category) {
+        setSelectedCategory(proc.category);
+      }
+    }
+  }, [formData.procedureId, procedures]);
   
   const isMachineShiftRequired = useMemo(() => {
     return currentProc?.requireMachine && (currentProc.machineCapacity || 1) > 1;
@@ -1125,8 +1142,68 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       </div>
                     </div>
 
+                    {/* Chọn Nhóm Danh Mục */}
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tên thủ thuật</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nhóm danh mục</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {PROCEDURE_CATEGORIES.map(cat => {
+                          const isSelected = selectedCategory === cat;
+                          const count = filteredProcedures.filter(p => p.deptId === currentDept.id && (p.category || 'Lâm sàng') === cat).length;
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCategory(cat);
+                                // If current selected procedure doesn't belong to this category, reset procedure
+                                if (currentProc && (currentProc.category || 'Lâm sàng') !== cat) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    procedureId: '',
+                                    staffId: '',
+                                    assistant1Id: '',
+                                    assistant2Id: '',
+                                    assignedMachineId: '',
+                                    machineShiftId: undefined,
+                                    selectedDurationOptionId: 'default',
+                                    mainBusyStart: undefined,
+                                    mainBusyEnd: undefined,
+                                    asst1BusyStart: undefined,
+                                    asst1BusyEnd: undefined,
+                                    asst2BusyStart: undefined,
+                                    asst2BusyEnd: undefined
+                                  }));
+                                }
+                              }}
+                              className={`py-2.5 px-2 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-0.5 border-2 ${
+                                isSelected
+                                  ? cat === 'Lâm sàng' ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                  : cat === 'Cận lâm sàng' ? 'bg-purple-50 border-purple-600 text-purple-700 shadow-sm'
+                                  : cat === 'Hành chính' ? 'bg-amber-50 border-amber-600 text-amber-700 shadow-sm'
+                                  : 'bg-slate-100 border-slate-700 text-slate-800 shadow-sm'
+                                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1">
+                                {isSelected && <Check size={12} strokeWidth={3} className="shrink-0" />}
+                                <span className="truncate">{cat}</span>
+                              </div>
+                              <span className={`text-[10px] font-normal ${isSelected ? 'opacity-90 font-bold' : 'text-slate-400'}`}>
+                                ({count})
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center ml-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tên thủ thuật ({selectedCategory})</label>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {filteredProcedures.filter(p => p.deptId === currentDept.id && (p.category || 'Lâm sàng') === selectedCategory).length} thủ thuật
+                        </span>
+                      </div>
                       <div className="relative">
                         <button
                           type="button"
@@ -1140,7 +1217,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 <span>{currentProc.name}</span>
                               </>
                             ) : (
-                              <span className="text-slate-400">-- Chọn thủ thuật --</span>
+                              <span className="text-slate-400">-- Chọn thủ thuật nhóm {selectedCategory} --</span>
                             )}
                           </div>
                           <ChevronDown size={18} className={`text-slate-400 transition-transform ${isProcDropdownOpen ? 'rotate-180' : ''}`} />
@@ -1160,15 +1237,29 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   <input
                                     autoFocus
                                     className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all"
-                                    placeholder="Tìm thủ thuật..."
+                                    placeholder={`Tìm thủ thuật trong ${selectedCategory}...`}
                                     value={procSearchTerm}
                                     onChange={e => setProcSearchTerm(e.target.value)}
                                   />
                                 </div>
                               </div>
                               <div className="overflow-y-auto scrollbar-thin">
-                                {filteredProcedures.filter(p => p.deptId === currentDept.id && p.name.toLowerCase().includes(procSearchTerm.toLowerCase())).length > 0 ? (
-                                  filteredProcedures.filter(p => p.deptId === currentDept.id && p.name.toLowerCase().includes(procSearchTerm.toLowerCase())).map(p => (
+                                {(() => {
+                                  const matchingProcs = filteredProcedures.filter(p => 
+                                    p.deptId === currentDept.id && 
+                                    (p.category || 'Lâm sàng') === selectedCategory && 
+                                    p.name.toLowerCase().includes(procSearchTerm.toLowerCase())
+                                  );
+
+                                  if (matchingProcs.length === 0) {
+                                    return (
+                                      <div className="p-8 text-center text-slate-400 italic text-xs font-bold">
+                                        Không tìm thấy thủ thuật nào thuộc nhóm {selectedCategory}
+                                      </div>
+                                    );
+                                  }
+
+                                  return matchingProcs.map(p => (
                                     <button
                                       key={p.id}
                                       type="button"
@@ -1199,10 +1290,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                       </div>
                                       <span className="text-sm font-bold">{p.name}</span>
                                     </button>
-                                  ))
-                                ) : (
-                                  <div className="p-8 text-center text-slate-400 italic text-xs font-bold">Không tìm thấy thủ thuật</div>
-                                )}
+                                  ));
+                                })()}
                               </div>
                             </motion.div>
                           )}

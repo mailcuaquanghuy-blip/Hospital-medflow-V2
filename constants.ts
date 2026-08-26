@@ -35,28 +35,28 @@ export const DEFAULT_ADMIN: UserAccount = {
 };
 
 export const MOCK_PROCEDURES: Procedure[] = [
-  { id: 'pr_kham', name: 'Khám bệnh', durationMinutes: 10, mainBusyStart: 0, mainBusyEnd: 10, isPreRequisite: true, deptId: 'dept_phcn' },
-  { id: 'pr_diencham', name: 'Điện châm', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 5, asst1BusyStart: 0, asst1BusyEnd: 5, asst2BusyStart: 0, asst2BusyEnd: 5, requireMachine: true, availableMachines: ['DC-01', 'DC-02', 'DC-03', 'DC-04', 'DC-05'], deptId: 'dept_phcn' },
-  { id: 'pr_thuycham', name: 'Thủy châm', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 5, asst1BusyStart: 0, asst1BusyEnd: 5, deptId: 'dept_phcn' },
-  { id: 'pr_cuu', name: 'Cứu ngải', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, deptId: 'dept_phcn' },
-  { id: 'pr_hongngoai', name: 'Hồng ngoại', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['HN-01', 'HN-02', 'HN-03'], deptId: 'dept_phcn' },
-  { id: 'pr_dienxung', name: 'Điện xung', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['DX-01', 'DX-02'], deptId: 'dept_phcn' },
-  { id: 'pr_xoa_bop', name: 'Xoa bóp bấm huyệt', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 30, deptId: 'dept_phcn' },
-  { id: 'pr_keo_gian', name: 'Kéo giãn cột sống', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['KG-01', 'KG-02'], deptId: 'dept_phcn' },
-  { id: 'pr_sieu_am_tt', name: 'Siêu âm trị liệu', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 15, requireMachine: true, availableMachines: ['SA-TT-01', 'SA-TT-02'], deptId: 'dept_phcn' },
-  { id: 'pr_song_ngan', name: 'Sóng ngắn', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['SN-01', 'SN-02'], deptId: 'dept_phcn' },
-  { id: 'pr_tap_vd', name: 'Tập vận động', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 30, deptId: 'dept_phcn' },
-  { id: 'pr_paraffin', name: 'Paraffin', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, deptId: 'dept_phcn' },
-  { id: 'pr_laser', name: 'Laser trị liệu', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['LS-01'], deptId: 'dept_phcn' },
-  { id: 'pr4', name: 'Siêu âm', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 20, requireMachine: true, availableMachines: ['SA-01', 'SA-02'], deptId: 'dept_cdha' },
-  { id: 'pr5', name: 'Xét nghiệm máu', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 15, deptId: 'dept_xetnghiem' },
-  { id: 'pr6', name: 'Sắc thuốc', durationMinutes: 120, mainBusyStart: 0, mainBusyEnd: 0, isIndependent: true, deptId: 'dept_duoc' },
+  { id: 'pr_kham', name: 'Khám bệnh', category: 'Lâm sàng', durationMinutes: 10, mainBusyStart: 0, mainBusyEnd: 10, isPreRequisite: true, deptId: 'dept_phcn' },
+  { id: 'pr_diencham', name: 'Điện châm', category: 'Lâm sàng', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 5, asst1BusyStart: 0, asst1BusyEnd: 5, asst2BusyStart: 0, asst2BusyEnd: 5, requireMachine: true, availableMachines: ['DC-01', 'DC-02', 'DC-03', 'DC-04', 'DC-05'], deptId: 'dept_phcn' },
+  { id: 'pr_thuycham', name: 'Thủy châm', category: 'Lâm sàng', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 5, asst1BusyStart: 0, asst1BusyEnd: 5, deptId: 'dept_phcn' },
+  { id: 'pr_cuu', name: 'Cứu ngải', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, deptId: 'dept_phcn' },
+  { id: 'pr_hongngoai', name: 'Hồng ngoại', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['HN-01', 'HN-02', 'HN-03'], deptId: 'dept_phcn' },
+  { id: 'pr_dienxung', name: 'Điện xung', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['DX-01', 'DX-02'], deptId: 'dept_phcn' },
+  { id: 'pr_xoa_bop', name: 'Xoa bóp bấm huyệt', category: 'Lâm sàng', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 30, deptId: 'dept_phcn' },
+  { id: 'pr_keo_gian', name: 'Kéo giãn cột sống', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['KG-01', 'KG-02'], deptId: 'dept_phcn' },
+  { id: 'pr_sieu_am_tt', name: 'Siêu âm trị liệu', category: 'Lâm sàng', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 15, requireMachine: true, availableMachines: ['SA-TT-01', 'SA-TT-02'], deptId: 'dept_phcn' },
+  { id: 'pr_song_ngan', name: 'Sóng ngắn', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['SN-01', 'SN-02'], deptId: 'dept_phcn' },
+  { id: 'pr_tap_vd', name: 'Tập vận động', category: 'Lâm sàng', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 30, deptId: 'dept_phcn' },
+  { id: 'pr_paraffin', name: 'Paraffin', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, deptId: 'dept_phcn' },
+  { id: 'pr_laser', name: 'Laser trị liệu', category: 'Lâm sàng', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 5, requireMachine: true, availableMachines: ['LS-01'], deptId: 'dept_phcn' },
+  { id: 'pr4', name: 'Siêu âm', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 20, requireMachine: true, availableMachines: ['SA-01', 'SA-02'], deptId: 'dept_cdha' },
+  { id: 'pr5', name: 'Xét nghiệm máu', category: 'Lâm sàng', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 15, deptId: 'dept_xetnghiem' },
+  { id: 'pr6', name: 'Sắc thuốc', category: 'Lâm sàng', durationMinutes: 120, mainBusyStart: 0, mainBusyEnd: 0, isIndependent: true, deptId: 'dept_duoc' },
   
   // Các thủ thuật của Khoa Lão (dept_lao)
-  { id: 'pr_lao_diencham', name: 'Điện châm', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 6, asst1BusyStart: 0, asst1BusyEnd: 5, asst2BusyStart: 0, asst2BusyEnd: 5, requireMachine: true, availableMachines: ['DC-L01', 'DC-L02', 'DC-L03', 'DC-L04', 'DC-L05'], deptId: 'dept_lao' },
-  { id: 'pr_lao_thuycham', name: 'Thủy châm', durationMinutes: 15, mainBusyStart: 5, mainBusyEnd: 11, asst1BusyStart: 0, asst1BusyEnd: 5, deptId: 'dept_lao' },
-  { id: 'pr_lao_cuu', name: 'Cứu ngải', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, deptId: 'dept_lao' },
-  { id: 'pr_lao_xoa_bop', name: 'Xoa bóp bấm huyệt', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 30, deptId: 'dept_lao' }
+  { id: 'pr_lao_diencham', name: 'Điện châm', category: 'Lâm sàng', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 6, asst1BusyStart: 0, asst1BusyEnd: 5, asst2BusyStart: 0, asst2BusyEnd: 5, requireMachine: true, availableMachines: ['DC-L01', 'DC-L02', 'DC-L03', 'DC-L04', 'DC-L05'], deptId: 'dept_lao' },
+  { id: 'pr_lao_thuycham', name: 'Thủy châm', category: 'Lâm sàng', durationMinutes: 15, mainBusyStart: 5, mainBusyEnd: 11, asst1BusyStart: 0, asst1BusyEnd: 5, deptId: 'dept_lao' },
+  { id: 'pr_lao_cuu', name: 'Cứu ngải', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, deptId: 'dept_lao' },
+  { id: 'pr_lao_xoa_bop', name: 'Xoa bóp bấm huyệt', category: 'Lâm sàng', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 30, deptId: 'dept_lao' }
 ];
 
 export const MOCK_STAFF: Staff[] = [];

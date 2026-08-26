@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Staff, Procedure, ProcedureDurationOption, AttendanceRecord, AttendanceStatus, Department, Patient, Appointment, UserAccount, UserRole } from '../types';
+import { Staff, Procedure, ProcedureCategory, PROCEDURE_CATEGORIES, ProcedureDurationOption, AttendanceRecord, AttendanceStatus, Department, Patient, Appointment, UserAccount, UserRole } from '../types';
 import { 
   UserCog, Check, X, Settings2, CalendarOff, Save, Briefcase, Plus, Trash2, User, Stethoscope, Pencil, 
   UserPlus, Users, Search, ArrowLeft, Bed, Clock, LogOut, Activity, Zap, Lock, Info, Printer, ChevronDown,
@@ -60,6 +60,8 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   const [editingProcedure, setEditingProcedure] = useState<Procedure | null>(null);
   const [showOptForm, setShowOptForm] = useState(false);
   const [editingOptId, setEditingOptId] = useState<string | null>(null);
+  const [procCategoryFilter, setProcCategoryFilter] = useState<string>('ALL');
+  const [procSearchTerm, setProcSearchTerm] = useState<string>('');
 
   // Trạng thái cấu hình thêm thời lượng lựa chọn cho thủ thuật
   const [newOpt, setNewOpt] = useState<{
@@ -140,6 +142,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     const newProc: Procedure = {
         id: `pr_${Math.random().toString(36).substr(2, 9)}`,
         name: 'Thủ thuật mới',
+        category: (procCategoryFilter !== 'ALL' && PROCEDURE_CATEGORIES.includes(procCategoryFilter as any)) ? (procCategoryFilter as ProcedureCategory) : 'Lâm sàng',
         durationMinutes: 30,
         restMinutes: 0,
         deptId: department.id,
@@ -748,10 +751,14 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
         )}
 
         {activeTab === 'PROCEDURES' && (
-            <div className="p-6 overflow-y-auto">
-                 <div className="flex justify-between items-center mb-6">
-                    <p className="text-gray-500 text-sm italic">Mẹo: "Chặn trước" chặn các thủ thuật trước nó. "Chặn sau" chặn các thủ thuật sau nó.</p>
-                    <div className="flex gap-2">
+            <div className="p-6 overflow-y-auto space-y-6">
+                 {/* Header controls & tips */}
+                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Danh mục thủ thuật ({procedures.filter(p => p.deptId === department.id).length})</h3>
+                        <p className="text-gray-500 text-xs mt-0.5 italic">Mẹo: "Chặn trước" chặn các thủ thuật trước nó. "Chặn sau" chặn các thủ thuật sau nó.</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button size="sm" variant="danger" onClick={() => {
                             if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ thủ thuật của khoa này? Hành động này không thể hoàn tác.')) {
                                 onUpdateProcedures(procedures.filter(p => p.deptId !== department.id));
@@ -759,113 +766,196 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                         }}>
                             <Trash2 size={16} /> Xóa tất cả
                         </Button>
-                        <Button size="sm" onClick={handleAddProcedure}>
+                        <Button size="sm" onClick={handleAddProcedure} className="shadow-sm">
                             <Plus size={16} /> Thêm thủ thuật
                         </Button>
                     </div>
                  </div>
 
+                 {/* Search & Category Filter Pills */}
+                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 flex flex-col md:flex-row items-stretch md:items-center gap-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                            type="text"
+                            placeholder="Tìm kiếm theo tên thủ thuật..."
+                            value={procSearchTerm}
+                            onChange={e => setProcSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors"
+                        />
+                        {procSearchTerm && (
+                            <button onClick={() => setProcSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 border-t md:border-t-0 md:border-l border-slate-200 pt-2 md:pt-0 md:pl-3">
+                        <button
+                            type="button"
+                            onClick={() => setProcCategoryFilter('ALL')}
+                            className={`px-3 py-1.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 ${
+                                procCategoryFilter === 'ALL'
+                                    ? 'bg-slate-900 text-white shadow-sm'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                            }`}
+                        >
+                            <span>Tất cả</span>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${procCategoryFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                {procedures.filter(p => p.deptId === department.id).length}
+                            </span>
+                        </button>
+                        {PROCEDURE_CATEGORIES.map(cat => {
+                            const count = procedures.filter(p => p.deptId === department.id && (p.category || 'Lâm sàng') === cat).length;
+                            const isSelected = procCategoryFilter === cat;
+                            return (
+                                <button
+                                    key={cat}
+                                    type="button"
+                                    onClick={() => setProcCategoryFilter(cat)}
+                                    className={`px-3 py-1.5 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 ${
+                                        isSelected
+                                            ? cat === 'Lâm sàng' ? 'bg-blue-600 text-white shadow-sm'
+                                            : cat === 'Cận lâm sàng' ? 'bg-purple-600 text-white shadow-sm'
+                                            : cat === 'Hành chính' ? 'bg-amber-600 text-white shadow-sm'
+                                            : 'bg-slate-700 text-white shadow-sm'
+                                            : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    <span>{cat}</span>
+                                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                 </div>
+
+                 {/* Procedure Cards Grid */}
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {procedures
                         .filter(proc => proc.deptId === department.id)
+                        .filter(proc => {
+                            if (procCategoryFilter === 'ALL') return true;
+                            return (proc.category || 'Lâm sàng') === procCategoryFilter;
+                        })
+                        .filter(proc => {
+                            if (!procSearchTerm.trim()) return true;
+                            return proc.name.toLowerCase().includes(procSearchTerm.toLowerCase());
+                        })
                         .sort((a, b) => a.name.localeCompare(b.name))
-                        .map(proc => (
-                        <div 
-                            key={proc.id} 
-                            onClick={() => {
-                                let updatedProc = { ...proc };
-                                if (!updatedProc.durationOptions || updatedProc.durationOptions.length === 0) {
-                                    updatedProc.durationOptions = [{
-                                        id: `opt_${Math.random().toString(36).substr(2, 9)}`,
-                                        name: 'Mặc định',
-                                        durationMinutes: updatedProc.durationMinutes || 30,
-                                        restMinutes: updatedProc.restMinutes || 0,
-                                        mainBusyStart: updatedProc.mainBusyStart ?? 0,
-                                        mainBusyEnd: updatedProc.mainBusyEnd ?? (updatedProc.durationMinutes || 30),
-                                        asst1BusyStart: updatedProc.asst1BusyStart,
-                                        asst1BusyEnd: updatedProc.asst1BusyEnd,
-                                        asst2BusyStart: updatedProc.asst2BusyStart,
-                                        asst2BusyEnd: updatedProc.asst2BusyEnd,
-                                        isDefault: true
-                                    }];
-                                } else {
-                                    // Đảm bảo có ít nhất một phương án được đặt làm mặc định
-                                    const hasDefault = updatedProc.durationOptions.some(o => o.isDefault);
-                                    if (!hasDefault && updatedProc.durationOptions.length > 0) {
-                                        updatedProc.durationOptions = updatedProc.durationOptions.map((o, idx) => ({
-                                            ...o,
-                                            isDefault: idx === 0
-                                        }));
+                        .map(proc => {
+                            const procCat = proc.category || 'Lâm sàng';
+                            return (
+                            <div 
+                                key={proc.id} 
+                                onClick={() => {
+                                    let updatedProc = { ...proc };
+                                    if (!updatedProc.durationOptions || updatedProc.durationOptions.length === 0) {
+                                        updatedProc.durationOptions = [{
+                                            id: `opt_${Math.random().toString(36).substr(2, 9)}`,
+                                            name: 'Mặc định',
+                                            durationMinutes: updatedProc.durationMinutes || 30,
+                                            restMinutes: updatedProc.restMinutes || 0,
+                                            mainBusyStart: updatedProc.mainBusyStart ?? 0,
+                                            mainBusyEnd: updatedProc.mainBusyEnd ?? (updatedProc.durationMinutes || 30),
+                                            asst1BusyStart: updatedProc.asst1BusyStart,
+                                            asst1BusyEnd: updatedProc.asst1BusyEnd,
+                                            asst2BusyStart: updatedProc.asst2BusyStart,
+                                            asst2BusyEnd: updatedProc.asst2BusyEnd,
+                                            isDefault: true
+                                        }];
+                                    } else {
+                                        // Đảm bảo có ít nhất một phương án được đặt làm mặc định
+                                        const hasDefault = updatedProc.durationOptions.some(o => o.isDefault);
+                                        if (!hasDefault && updatedProc.durationOptions.length > 0) {
+                                            updatedProc.durationOptions = updatedProc.durationOptions.map((o, idx) => ({
+                                                ...o,
+                                                isDefault: idx === 0
+                                            }));
+                                        }
                                     }
-                                }
-                                setEditingProcedure(updatedProc);
-                            }} 
-                            className={`bg-white border rounded-2xl p-4 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group flex flex-col gap-3 ${proc.deptId === department.id ? 'border-blue-500 shadow-sm shadow-blue-100' : 'border-slate-200 opacity-40 grayscale-[0.5]'}`}
-                        >
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors font-black text-xs">
-                                        {getAbbreviation(proc.name)}
+                                    setEditingProcedure(updatedProc);
+                                }} 
+                                className={`bg-white border rounded-2xl p-4 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group flex flex-col gap-3 ${proc.deptId === department.id ? 'border-blue-500/80 shadow-sm shadow-blue-50' : 'border-slate-200 opacity-40 grayscale-[0.5]'}`}
+                            >
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors font-black text-xs shrink-0">
+                                            {getAbbreviation(proc.name)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h4 className="font-black text-slate-800 text-sm group-hover:text-primary transition-colors truncate">{proc.name}</h4>
+                                            <span className={`inline-block mt-0.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                                                procCat === 'Lâm sàng' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                                procCat === 'Cận lâm sàng' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                                                procCat === 'Hành chính' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                                'bg-slate-100 text-slate-600 border border-slate-200'
+                                            }`}>
+                                                {procCat}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <h4 className="font-black text-slate-800 text-sm group-hover:text-primary transition-colors">{proc.name}</h4>
-                                </div>
-                                <div className="flex gap-2">
-                                    <div className="flex gap-1">
+                                    <div className="flex gap-1.5 shrink-0 items-center">
                                         {proc.isPreRequisite && <span title="Chặn trước" className="flex items-center"><Lock size={14} className="text-amber-500" /></span>}
                                         {proc.isPostRequisite && <span title="Chặn sau" className="flex items-center"><Lock size={14} className="text-rose-500" /></span>}
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteProcedure(proc.id);
+                                            }}
+                                            className="p-1.5 bg-slate-50 rounded-lg text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all"
+                                            title="Xóa thủ thuật"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
                                     </div>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteProcedure(proc.id);
-                                        }}
-                                        className="p-1.5 bg-slate-50 rounded-lg text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all"
-                                        title="Xóa thủ thuật"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
+                                </div>
+                                
+                                <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                                    <Clock size={14} className="text-slate-400" /> {proc.durationMinutes} phút
+                                    {proc.restMinutes ? (
+                                        <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 ml-1">
+                                            + {proc.restMinutes}p nghỉ
+                                        </span>
+                                    ) : null}
+                                </div>
+                                
+                                <div className="flex flex-wrap gap-2 mt-auto pt-3 border-t border-slate-100">
+                                    <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-black uppercase">
+                                        <User size={12} /> Chính
+                                    </div>
+                                    {(proc.asst1BusyEnd || 0) > 0 && (
+                                        <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-black uppercase">
+                                            <Users size={12} /> Phụ 1
+                                        </div>
+                                    )}
+                                    {(proc.asst2BusyEnd || 0) > 0 && (
+                                        <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-black uppercase">
+                                            <Users size={12} /> Phụ 2
+                                        </div>
+                                    )}
+                                    {proc.isIndependent && (
+                                        <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-lg text-[10px] font-black uppercase">
+                                            Độc lập
+                                        </div>
+                                    )}
+                                    {proc.requireMachine && (
+                                        <div className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black uppercase ml-auto">
+                                            <Zap size={12} /> Máy ({proc.availableMachines?.length || 0})
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                                <Clock size={14} className="text-slate-400" /> {proc.durationMinutes} phút
-                                {proc.restMinutes ? (
-                                    <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 ml-1">
-                                        + {proc.restMinutes}p nghỉ
-                                    </span>
-                                ) : null}
-                            </div>
-                            
-                            <div className="flex flex-wrap gap-2 mt-auto pt-3 border-t border-slate-100">
-                                <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-black uppercase">
-                                    <User size={12} /> Chính
-                                </div>
-                                {(proc.asst1BusyEnd || 0) > 0 && (
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-black uppercase">
-                                        <Users size={12} /> Phụ 1
-                                    </div>
-                                )}
-                                {(proc.asst2BusyEnd || 0) > 0 && (
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-black uppercase">
-                                        <Users size={12} /> Phụ 2
-                                    </div>
-                                )}
-                                {proc.isIndependent && (
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-lg text-[10px] font-black uppercase">
-                                        Độc lập
-                                    </div>
-                                )}
-                                {proc.requireMachine && (
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black uppercase ml-auto">
-                                        <Zap size={12} /> Máy ({proc.availableMachines?.length || 0})
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                        )})}
                  </div>
                  {procedures.filter(p => p.deptId === department.id).length === 0 && (
                      <div className="p-8 text-center text-gray-400">Chưa có thủ thuật nào.</div>
+                 )}
+                 {procedures.filter(p => p.deptId === department.id).length > 0 && 
+                  procedures.filter(p => p.deptId === department.id && (procCategoryFilter === 'ALL' || (p.category || 'Lâm sàng') === procCategoryFilter) && (!procSearchTerm.trim() || p.name.toLowerCase().includes(procSearchTerm.toLowerCase()))).length === 0 && (
+                     <div className="p-8 text-center text-gray-400">Không tìm thấy thủ thuật nào phù hợp với bộ lọc.</div>
                  )}
             </div>
         )}
@@ -900,6 +990,33 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                   onChange={e => setEditingProcedure({...editingProcedure, name: e.target.value})}
                                   placeholder="Nhập tên thủ thuật..."
                               />
+                          </div>
+
+                          <div className="space-y-1.5">
+                              <label className="text-xs font-black text-slate-500 uppercase tracking-wide">Nhóm danh mục</label>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                  {PROCEDURE_CATEGORIES.map(cat => {
+                                      const isSelected = (editingProcedure.category || 'Lâm sàng') === cat;
+                                      return (
+                                          <button
+                                              key={cat}
+                                              type="button"
+                                              onClick={() => setEditingProcedure({ ...editingProcedure, category: cat })}
+                                              className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 border-2 ${
+                                                  isSelected
+                                                      ? cat === 'Lâm sàng' ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                                                      : cat === 'Cận lâm sàng' ? 'bg-purple-50 border-purple-600 text-purple-700 shadow-sm'
+                                                      : cat === 'Hành chính' ? 'bg-amber-50 border-amber-600 text-amber-700 shadow-sm'
+                                                      : 'bg-slate-100 border-slate-700 text-slate-800 shadow-sm'
+                                                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                              }`}
+                                          >
+                                              {isSelected && <Check size={14} strokeWidth={3} className="shrink-0" />}
+                                              <span>{cat}</span>
+                                          </button>
+                                      );
+                                  })}
+                              </div>
                           </div>
 
                           {/* Tích chọn thủ thuật chặn trước, chặn sau, độc lập */}
@@ -1451,6 +1568,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                   finalProc.asst2BusyStart = defaultOpt.asst2BusyStart;
                                   finalProc.asst2BusyEnd = defaultOpt.asst2BusyEnd;
                               }
+                              finalProc.category = finalProc.category || 'Lâm sàng';
                               if (procedures.some(p => p.id === finalProc.id)) {
                                   onUpdateProcedures(procedures.map(p => p.id === finalProc.id ? finalProc : p));
                               } else {
