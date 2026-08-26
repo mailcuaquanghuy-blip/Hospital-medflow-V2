@@ -1521,7 +1521,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                             {hasConflict && (!appt.conflictDetails || appt.conflictDetails.length === 0) && (
                                 <div className="flex items-start gap-1.5 text-[10px] font-semibold p-1.5 px-2 rounded-lg border bg-rose-50/90 border-rose-200 text-rose-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)] mt-1 leading-normal">
                                     <AlertTriangle size={11} className="text-rose-500 shrink-0 mt-0.5" strokeWidth={2.5} />
-                                    <span>Có lỗi xung đột</span>
+                                    <span>Có xung đột lịch trình</span>
                                 </div>
                             )}
                         </div>

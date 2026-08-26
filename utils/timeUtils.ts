@@ -181,7 +181,7 @@ export const checkConflict = (
           // Check if designated
           const allowedIds = referral.procedureIds || [];
           if (!allowedIds.includes(procedureId)) {
-            conflictDetails.push({ message: `Thủ thuật này chưa được khoa lâm sàng chỉ định cho chuyên khoa này.`, level: 1 });
+            conflictDetails.push({ message: `Lịch trình này chưa được khoa lâm sàng chỉ định cho chuyên khoa này.`, level: 1 });
           }
           
           // Check if performed more than once on this date
@@ -192,13 +192,13 @@ export const checkConflict = (
             appt.id !== excludeAppointmentId
           );
           if (alreadyExists) {
-            conflictDetails.push({ message: `Thủ thuật này chỉ được thực hiện tối đa 1 lần.`, level: 1 });
+            conflictDetails.push({ message: `Lịch trình này chỉ được thực hiện tối đa 1 lần trong ngày.`, level: 1 });
           }
           
           // Check after referral time
           const refMin = timeStringToMinutes(referral.timestamp || '07:00');
           if (startMin < refMin) {
-            conflictDetails.push({ message: `Thời gian thực hiện thủ thuật phải sau thời gian gửi khám (${referral.timestamp}).`, level: 1 });
+            conflictDetails.push({ message: `Thời gian thực hiện lịch trình phải sau thời gian gửi khám (${referral.timestamp}).`, level: 1 });
           }
         }
       }
@@ -242,13 +242,13 @@ export const checkConflict = (
   const isOutsideOfficeHours = !isInsideOfficeHours(startMin, endMin);
 
   if (isOutsideOfficeHours) {
-    conflictDetails.push({ message: `Thực hiện thủ thuật ngoài giờ hành chính (7:30-11:30 hoặc 13:30-17:30).`, level: 2 });
+    conflictDetails.push({ message: `Thực hiện lịch trình ngoài giờ hành chính (7:30-11:30 hoặc 13:30-17:30).`, level: 2 });
   }
 
   if (!staffId) {
     conflictDetails.push({ message: `Chưa chọn người thực hiện.`, level: 1 });
   } else if (staff && procedureId && !staff.mainCapabilityIds?.includes(procedureId)) {
-    conflictDetails.push({ message: `${getRoleLabel(staff.role)} ${staff.name} không có kỹ năng thực hiện chính thủ thuật này.`, level: 1 });
+    conflictDetails.push({ message: `${getRoleLabel(staff.role)} ${staff.name} không có chuyên môn thực hiện chính lịch trình này.`, level: 1 });
   }
 
   // Check if assistants are required but not specified
@@ -266,24 +266,24 @@ export const checkConflict = (
          (currentProc.assistant2BusyMinutes !== undefined && currentProc.assistant2BusyMinutes > 0));
 
     if (hasAsst1Config && !assistant1Id) {
-      conflictDetails.push({ message: `Chưa chọn người phụ 1 cho thủ thuật này.`, level: 1 });
+      conflictDetails.push({ message: `Chưa chọn người phụ 1 cho lịch trình này.`, level: 1 });
     }
     if (hasAsst2Config && !assistant2Id) {
-      conflictDetails.push({ message: `Chưa chọn người phụ 2 cho thủ thuật này.`, level: 1 });
+      conflictDetails.push({ message: `Chưa chọn người phụ 2 cho lịch trình này.`, level: 1 });
     }
   }
 
   if (assistant1Id && procedureId) {
     const a1 = getStaffFromCache(staffList, assistant1Id);
     if (a1 && !a1.assistantCapabilityIds?.includes(procedureId)) {
-      conflictDetails.push({ message: `Người phụ 1 (${getRoleLabel(a1.role)} ${a1.name}) không có kỹ năng phụ thủ thuật này.`, level: 1 });
+      conflictDetails.push({ message: `Người phụ 1 (${getRoleLabel(a1.role)} ${a1.name}) không có chuyên môn phụ lịch trình này.`, level: 1 });
     }
   }
 
   if (assistant2Id && procedureId) {
     const a2 = getStaffFromCache(staffList, assistant2Id);
     if (a2 && !a2.assistantCapabilityIds?.includes(procedureId)) {
-      conflictDetails.push({ message: `Người phụ 2 (${getRoleLabel(a2.role)} ${a2.name}) không có kỹ năng phụ thủ thuật này.`, level: 1 });
+      conflictDetails.push({ message: `Người phụ 2 (${getRoleLabel(a2.role)} ${a2.name}) không có chuyên môn phụ lịch trình này.`, level: 1 });
     }
   }
 
@@ -295,7 +295,7 @@ export const checkConflict = (
     if (isHoliday) {
       const attendance = attendanceRecords.find(r => r.staffId === id && r.date === newDate);
       if (!attendance || attendance.status !== AttendanceStatus.DUTY) {
-        conflictDetails.push({ message: `Ngày ${formatDate(newDate)} là ngày nghỉ toàn khoa. ${getRoleLabel(role)} ${name} không có lịch trực nên không thể thực hiện thủ thuật.`, level: 1 });
+        conflictDetails.push({ message: `Ngày ${formatDate(newDate)} là ngày nghỉ toàn khoa. ${getRoleLabel(role)} ${name} không có lịch trực nên không thể thực hiện lịch trình.`, level: 1 });
       }
     } else {
       const attendance = attendanceRecords.find(r => r.staffId === id && r.date === newDate);
@@ -338,7 +338,7 @@ export const checkConflict = (
       // If a specific machine is requested (from UI), check only that machine
       if (assignedMachineId) {
          if (!currentProc.availableMachines.includes(assignedMachineId)) {
-            conflictDetails.push({ message: `Máy ${assignedMachineId} không phù hợp cho thủ thuật này.`, level: 1 });
+            conflictDetails.push({ message: `Máy ${assignedMachineId} không phù hợp cho lịch trình này.`, level: 1 });
          }
 
          const machineApps = dayAppointments.filter(appt => 
@@ -416,7 +416,7 @@ export const checkConflict = (
          }
       }
     } else {
-      conflictDetails.push({ message: `Thủ thuật yêu cầu máy nhưng chưa có máy nào được cấu hình.`, level: 1 });
+      conflictDetails.push({ message: `Lịch trình yêu cầu máy nhưng chưa có máy nào được cấu hình.`, level: 1 });
     }
   }
 
@@ -430,7 +430,7 @@ export const checkConflict = (
 
     if (existingBlockingInDept) {
         const proc = getProcFromCache(procedures, existingBlockingInDept.procedureId);
-        conflictDetails.push({ message: `Bệnh nhân đã có thủ thuật chặn trước "${proc?.name}" thuộc khoa này. Mỗi bệnh nhân chỉ được tối đa 1 thủ thuật chặn trước/khoa trong ngày.`, level: 1 });
+        conflictDetails.push({ message: `Bệnh nhân đã có lịch trình chặn trước "${proc?.name}" thuộc khoa này. Mỗi bệnh nhân chỉ được tối đa 1 lịch trình chặn trước/khoa trong ngày.`, level: 1 });
     }
 
     // 2. Check if this blocking procedure is placed after any non-independent procedure in the same department
@@ -443,7 +443,7 @@ export const checkConflict = (
     });
 
     if (hasPriorInDept) {
-      conflictDetails.push({ message: `Thủ thuật chặn trước này bắt buộc phải là thủ thuật đầu tiên của khoa ${DEPARTMENTS.find(d => d.id === currentProc.deptId)?.name || ''} trong ngày.`, level: 1 });
+      conflictDetails.push({ message: `Lịch trình chặn trước này bắt buộc phải là lịch trình đầu tiên của khoa ${DEPARTMENTS.find(d => d.id === currentProc.deptId)?.name || ''} trong ngày.`, level: 1 });
     }
   }
 
@@ -456,7 +456,7 @@ export const checkConflict = (
       return apptStart > startMin;
     });
     if (hasSubsequentInDept) {
-      conflictDetails.push({ message: `Thủ thuật này bắt buộc phải thực hiện sau cùng trong khoa.`, level: 1 });
+      conflictDetails.push({ message: `Lịch trình này bắt buộc phải thực hiện sau cùng trong khoa.`, level: 1 });
     }
   }
 
@@ -472,9 +472,9 @@ export const checkConflict = (
     }
 
     if (patientId && appt.patientId === patientId) {
-      // Cảnh báo nếu chỉ định cùng một thủ thuật 2 lần trong ngày
+      // Cảnh báo nếu chỉ định cùng một lịch trình 2 lần trong ngày
       if (appt.procedureId === procedureId) {
-        conflictDetails.push({ message: `Bệnh nhân đã được chỉ định thủ thuật "${apptProc?.name}" vào lúc ${appt.startTime}.`, level: 1 });
+        conflictDetails.push({ message: `Bệnh nhân đã có lịch trình "${apptProc?.name}" vào lúc ${appt.startTime}.`, level: 1 });
       }
 
       // Bỏ qua kiểm tra trùng lịch bệnh nhân nếu một trong hai thủ thuật là độc lập, nhưng vẫn cảnh báo nếu cả hai đều là độc lập
@@ -487,24 +487,24 @@ export const checkConflict = (
 
         if (Math.max(startMin, apptStart) <= Math.min(currentPatientEnd, apptPatientEnd)) {
           if (Math.max(startMin, apptStart) <= Math.min(endMin, apptEnd)) {
-            conflictDetails.push({ message: `Bệnh nhân đang có thủ thuật "${apptProc?.name}" (${appt.startTime}-${appt.endTime}).`, level: 1 });
+            conflictDetails.push({ message: `Bệnh nhân đang có lịch trình "${apptProc?.name}" (${appt.startTime}-${appt.endTime}).`, level: 1 });
           } else if (startMin >= apptEnd && startMin <= apptPatientEnd) {
-            conflictDetails.push({ message: `Bệnh nhân đang trong thời gian nghỉ của thủ thuật "${apptProc?.name}".`, level: 1 });
+            conflictDetails.push({ message: `Bệnh nhân đang trong thời gian nghỉ của lịch trình "${apptProc?.name}".`, level: 1 });
           } else if (apptStart >= endMin && apptStart <= currentPatientEnd) {
-            conflictDetails.push({ message: `Thời gian nghỉ của thủ thuật này trùng với thủ thuật "${apptProc?.name}".`, level: 1 });
+            conflictDetails.push({ message: `Thời gian nghỉ của lịch trình này trùng với lịch trình "${apptProc?.name}".`, level: 1 });
           } else {
-            conflictDetails.push({ message: `Xung đột thời gian nghỉ với thủ thuật "${apptProc?.name}".`, level: 1 });
+            conflictDetails.push({ message: `Xung đột thời gian nghỉ với lịch trình "${apptProc?.name}".`, level: 1 });
           }
         }
       }
       
       if (!currentProc?.isIndependent && !apptProc?.isIndependent && apptProc?.deptId === currentProc?.deptId) {
         if (apptProc?.isPreRequisite && startMin < apptStart) {
-          conflictDetails.push({ message: `Khoa này đã có thủ thuật chặn trước "${apptProc?.name}" (${appt.startTime}). Thủ thuật này phải thực hiện sau "${apptProc?.name}".`, level: 1 });
+          conflictDetails.push({ message: `Khoa này đã có lịch trình chặn trước "${apptProc?.name}" (${appt.startTime}). Lịch trình này phải thực hiện sau "${apptProc?.name}".`, level: 1 });
         }
 
         if (apptProc?.isPostRequisite && startMin > apptStart) {
-          conflictDetails.push({ message: `Khoa này đã có thủ thuật "${apptProc?.name}" bắt buộc phải làm sau cùng.`, level: 1 });
+          conflictDetails.push({ message: `Khoa này đã có lịch trình "${apptProc?.name}" bắt buộc phải làm sau cùng.`, level: 1 });
         }
       }
     }
@@ -565,7 +565,7 @@ export const checkConflict = (
         
         if (isOverlap) {
           const otherPatient = getPatientFromCache(patients, appt.patientId);
-          conflictDetails.push({ message: `${label} đang bận thực hiện thủ thuật cho BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(apptInterval.start)}-${minutesToTimeString(apptInterval.end)}).`, level: 1 });
+          conflictDetails.push({ message: `${label} đang bận lịch trình "${apptProc?.name || 'khác'}" cho BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(apptInterval.start)}-${minutesToTimeString(apptInterval.end)}).`, level: 1 });
         }
       }
     };

@@ -1126,11 +1126,11 @@ const App: React.FC = () => {
 
     if (duplicateWarnings.length > 0) {
       const confirmOverwrite = window.confirm(
-        `CẢNH BÁO TRÙNG LẶP THỦ THUẬT:\nMột số thủ thuật đã tồn tại ở các ngày đích trong khoa:\n` +
+        `CẢNH BÁO TRÙNG LẶP LỊCH TRÌNH:\nMột số lịch trình đã tồn tại ở các ngày đích trong khoa:\n` +
         duplicateWarnings.slice(0, 8).join('\n') +
         (duplicateWarnings.length > 8 ? `\n... và ${duplicateWarnings.length - 8} trùng lặp khác.` : '') +
-        `\n\nBạn có muốn XÓA CÁC THỦ THUẬT CŨ BỊ TRÙNG ở ngày đích để GHI ĐÈ bằng các thủ thuật mới không?\n` +
-        `- Bấm [OK]: Xóa thủ thuật trùng ở ngày đích và ghi đè thủ thuật mới.\n` +
+        `\n\nBạn có muốn XÓA CÁC LỊCH TRÌNH CŨ BỊ TRÙNG ở ngày đích để GHI ĐÈ bằng các lịch trình mới không?\n` +
+        `- Bấm [OK]: Xóa lịch trình trùng ở ngày đích và ghi đè lịch trình mới.\n` +
         `- Bấm [Cancel]: Hủy thao tác sao chép.`
       );
 

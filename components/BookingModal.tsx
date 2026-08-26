@@ -1103,12 +1103,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               ) : (
                                 <div className="p-5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl text-xs font-medium flex items-center gap-3 shadow-sm">
                                   <CheckCircle2 size={20} className="shrink-0" /> 
-                                  <span>Hệ thống không phát hiện xung đột. Có thể thực hiện chỉ định.</span>
+                                  <span>Hệ thống không phát hiện xung đột lịch trình.</span>
                                 </div>
                               )}
                               {conflictData.isOutsideOfficeHours && (
                                 <div className="p-4 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl text-xs font-medium flex items-center gap-3 shadow-sm">
-                                  <Clock size={18} className="shrink-0" /> Thực hiện thủ thuật ngoài giờ hành chính.
+                                  <Clock size={18} className="shrink-0" /> Thực hiện lịch trình ngoài giờ hành chính.
                                 </div>
                               )}
                               {conflictData.isOvertime && (
