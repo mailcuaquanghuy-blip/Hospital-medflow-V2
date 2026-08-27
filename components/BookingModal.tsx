@@ -1229,21 +1229,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: 10 }}
-                              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 z-[60] overflow-hidden flex flex-col max-h-[300px]"
+                              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[80] overflow-hidden flex flex-col max-h-[380px] max-h-[50vh]"
                             >
-                              <div className="p-3 border-b border-slate-50 sticky top-0 bg-white z-10">
+                              <div className="p-3 border-b border-slate-100 bg-slate-50/90 backdrop-blur-sm shrink-0 z-10">
                                 <div className="relative">
                                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                   <input
                                     autoFocus
-                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all"
+                                    className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all shadow-sm"
                                     placeholder={`Tìm thủ thuật trong ${selectedCategory}...`}
                                     value={procSearchTerm}
                                     onChange={e => setProcSearchTerm(e.target.value)}
                                   />
                                 </div>
                               </div>
-                              <div className="overflow-y-auto scrollbar-thin">
+                              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-thin p-1.5 space-y-1 pb-4">
                                 {(() => {
                                   const matchingProcs = filteredProcedures.filter(p => 
                                     p.deptId === currentDept.id && 
@@ -1283,12 +1283,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                         setIsProcDropdownOpen(false);
                                         setProcSearchTerm('');
                                       }}
-                                      className={`w-full p-4 text-left hover:bg-slate-50 flex items-center gap-3 transition-all ${formData.procedureId === p.id ? 'bg-primary/5 text-primary' : 'text-slate-700'}`}
+                                      className={`w-full p-3 rounded-xl text-left hover:bg-slate-50 flex items-center gap-3 transition-all ${formData.procedureId === p.id ? 'bg-primary/5 text-primary border border-primary/20' : 'text-slate-700 hover:border hover:border-slate-100'}`}
                                     >
-                                      <div className={`p-2 rounded-lg flex items-center justify-center text-[10px] font-black w-8 h-8 ${formData.procedureId === p.id ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'}`}>
+                                      <div className={`p-2 rounded-lg flex items-center justify-center text-[10px] font-black w-8 h-8 shrink-0 ${formData.procedureId === p.id ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'}`}>
                                         {getAbbreviation(p.name)}
                                       </div>
-                                      <span className="text-sm font-bold">{p.name}</span>
+                                      <span className="text-sm font-bold truncate">{p.name}</span>
                                     </button>
                                   ));
                                 })()}
