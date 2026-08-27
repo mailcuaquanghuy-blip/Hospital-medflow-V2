@@ -67,6 +67,7 @@ interface HeaderMultiSelectProps {
   showSearch?: boolean;
   openFilterId?: string | null;
   setOpenFilterId?: React.Dispatch<React.SetStateAction<string | null>>;
+  align?: 'left' | 'right';
 }
 
 const HeaderMultiSelect: React.FC<HeaderMultiSelectProps> = ({ 
@@ -78,7 +79,8 @@ const HeaderMultiSelect: React.FC<HeaderMultiSelectProps> = ({
   className = "",
   showSearch = false,
   openFilterId,
-  setOpenFilterId
+  setOpenFilterId,
+  align = 'left'
 }) => {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = (openFilterId !== undefined && setOpenFilterId) ? openFilterId === id : internalIsOpen;
@@ -118,75 +120,6 @@ const HeaderMultiSelect: React.FC<HeaderMultiSelectProps> = ({
       ref={wrapperRef}
       onClick={(e) => e.stopPropagation()}
     >
-       {/*
-       <div 
-         className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm cursor-pointer flex items-center justify-between shadow-sm transition-all h-[40px] ${isOpen ? 'ring-2 ring-primary/20 border-primary' : 'border-slate-200 bg-white hover:border-primary/50'}`}
-         onClick={() => setIsOpen(!isOpen)}
-       >
-         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-             {icon}
-         </div>
-         <div className="flex-1 truncate select-none">
-             <span className={`${selectedIds.length === 0 ? 'text-slate-400' : 'text-slate-800 font-bold'}`}>
-                 {selectedIds.length === 0 
-                    ? placeholder 
-                    : `Đã chọn (${selectedIds.length})`}
-             </span>
-         </div>
-         <ChevronDown size={14} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-       </div>
-
-       {isOpen && (
-         <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-[100] max-h-[300px] flex flex-col p-2 animate-in fade-in zoom-in-95 duration-100 origin-top">
-             <div className="relative mb-2 shrink-0">
-                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                    className="w-full border border-slate-200 rounded-lg pl-7 pr-2 py-1.5 text-xs focus:ring-2 focus:ring-primary/20 outline-none"
-                    placeholder="Tìm kiếm..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    autoFocus
-                    onClick={e => e.stopPropagation()}
-                />
-             </div>
-             <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-slate-200 pr-1">
-                 {filteredOptions.length === 0 ? (
-                     <div className="text-center text-xs text-slate-400 py-4">Không tìm thấy dữ liệu</div>
-                 ) : (
-                     filteredOptions.map(opt => (
-                         <div 
-                            key={opt.id} 
-                            className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${selectedIds.includes(opt.id) ? 'bg-primary/5' : 'hover:bg-slate-50'}`}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                toggleOption(opt.id);
-                            }}
-                         >
-                            <div className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center transition-all shrink-0 ${selectedIds.includes(opt.id) ? 'bg-primary border-primary shadow-sm' : 'border-slate-300 bg-white'}`}>
-                                {selectedIds.includes(opt.id) && <Check size={10} className="text-white" />}
-                            </div>
-                            <span className={`text-xs leading-tight ${selectedIds.includes(opt.id) ? 'text-slate-900 font-semibold' : 'text-slate-600'}`}>{opt.label}</span>
-                         </div>
-                     ))
-                 )}
-             </div>
-             {selectedIds.length > 0 && (
-                 <div className="pt-2 mt-2 border-t border-slate-100 flex justify-end shrink-0">
-                     <button 
-                        className="text-[10px] font-bold text-red-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onChange([]);
-                        }}
-                     >
-                         Xóa bộ lọc
-                     </button>
-                 </div>
-             )}
-         </div>
-       )}
-       */}
-
        <div 
          className={`w-full px-2 py-1 bg-white text-slate-700 border border-slate-200 rounded text-[11px] font-bold cursor-pointer flex items-center justify-between shadow-sm transition-all h-7.5 ${isOpen ? 'ring-2 ring-primary/20 border-primary' : 'hover:border-primary/50'}`}
          onClick={() => {
@@ -208,7 +141,7 @@ const HeaderMultiSelect: React.FC<HeaderMultiSelectProps> = ({
        </div>
 
        {isOpen && (
-         <div className="absolute top-full left-0 mt-1 min-w-[210px] w-full max-w-[280px] bg-white border border-slate-200 rounded-xl shadow-xl z-[100] max-h-[260px] flex flex-col p-2 animate-in fade-in duration-75">
+         <div className={`absolute top-full ${align === 'right' ? 'right-0' : 'left-0'} mt-1 min-w-[210px] w-full max-w-[280px] bg-white border border-slate-200 rounded-xl shadow-2xl z-[100] max-h-[260px] flex flex-col p-2 animate-in fade-in duration-75`}>
              {showSearch && (
                <div className="relative mb-1.5 shrink-0">
                   <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1105,331 +1038,343 @@ export const Timeline: React.FC<TimelineProps> = ({
         </div>
 
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-300 relative">
-          <table className="min-w-max w-full text-sm border-collapse">
-            <thead className="bg-slate-50 text-slate-600 font-bold sticky top-0 z-50 shadow-sm border-b border-slate-200 uppercase text-xs tracking-wider">
-              <tr className="divide-x divide-slate-200 h-12 select-none">
-                <th 
-                  onClick={() => {
-                    if (sortBy === 'PATIENT_GROUP') {
-                      setSortBy('PATIENT_NAME');
-                      setSortDir('asc');
-                    } else if (sortBy === 'PATIENT_NAME' && sortDir === 'asc') {
-                      setSortBy('PATIENT_NAME');
-                      setSortDir('desc');
-                    } else if (sortBy === 'PATIENT_NAME' && sortDir === 'desc') {
-                      setSortBy('PATIENT_GROUP');
-                      setSortDir('asc');
-                    } else {
-                      setSortBy('PATIENT_NAME');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="p-3 w-[220px] min-w-[220px] max-w-[220px] sticky left-0 bg-slate-50 z-50 text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200"
-                >
-                  <div className="flex flex-col items-start gap-1">
-                    <div className="flex items-center gap-2">
-                      <span>Bệnh nhân</span>
-                      <span className="text-slate-400 group-hover:text-slate-600 transition-colors">
-                        {sortBy === 'PATIENT_GROUP' ? (
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded">
-                            Nhóm
+          {(() => {
+            const isPatientFilterOpen = openFilterId === 'pStatus' || openFilterId === 'patient';
+            const isBedFilterOpen = openFilterId === 'bedType';
+            const isDeptFilterOpen = openFilterId === 'dept';
+            const isProcFilterOpen = openFilterId === 'procStatus' || openFilterId === 'procedure';
+            const isStaffFilterOpen = openFilterId === 'staffRole' || openFilterId === 'staff';
+            const isTimeFilterOpen = openFilterId === 'timeShift';
+            const isMachineFilterOpen = openFilterId === 'machine';
+
+            return (
+              <table className="min-w-max w-full text-sm border-collapse">
+                <thead className="bg-slate-50 text-slate-600 font-bold sticky top-0 z-50 shadow-sm border-b border-slate-200 uppercase text-xs tracking-wider">
+                  <tr className="divide-x divide-slate-200 h-12 select-none">
+                    <th 
+                      onClick={() => {
+                        if (sortBy === 'PATIENT_GROUP') {
+                          setSortBy('PATIENT_NAME');
+                          setSortDir('asc');
+                        } else if (sortBy === 'PATIENT_NAME' && sortDir === 'asc') {
+                          setSortBy('PATIENT_NAME');
+                          setSortDir('desc');
+                        } else if (sortBy === 'PATIENT_NAME' && sortDir === 'desc') {
+                          setSortBy('PATIENT_GROUP');
+                          setSortDir('asc');
+                        } else {
+                          setSortBy('PATIENT_NAME');
+                          setSortDir('asc');
+                        }
+                      }}
+                      className={`p-3 w-[220px] min-w-[220px] max-w-[220px] sticky left-0 bg-slate-50 ${isPatientFilterOpen ? 'z-[80]' : 'z-50'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                    >
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-2">
+                          <span>Bệnh nhân</span>
+                          <span className="text-slate-400 group-hover:text-slate-600 transition-colors">
+                            {sortBy === 'PATIENT_GROUP' ? (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-primary uppercase bg-primary/10 px-1.5 py-0.5 rounded">
+                                Nhóm
+                              </span>
+                            ) : sortBy === 'PATIENT_NAME' ? (
+                              sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
+                            )}
                           </span>
-                        ) : sortBy === 'PATIENT_NAME' ? (
-                          sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
-                        ) : (
-                          <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1 w-full" onClick={(e) => e.stopPropagation()}>
-                      <HeaderMultiSelect
-                        id="pStatus"
-                        openFilterId={openFilterId}
-                        setOpenFilterId={setOpenFilterId}
-                        placeholder="Trạng thái..."
-                        options={[
-                          { id: 'TREATING', label: 'Đang điều trị' },
-                          { id: 'DISCHARGED', label: 'Đã ra viện' }
-                        ]}
-                        selectedIds={headerPatientStatusFilters}
-                        onChange={setHeaderPatientStatusFilters}
-                      />
-                      <HeaderMultiSelect
-                        id="patient"
-                        openFilterId={openFilterId}
-                        setOpenFilterId={setOpenFilterId}
-                        placeholder="Lọc bệnh nhân..."
-                        options={activePatients.map(p => ({
-                          id: p.id,
-                          label: p.name
-                        }))}
-                        selectedIds={headerPatientFilters}
-                        onChange={setHeaderPatientFilters}
-                        showSearch={true}
-                      />
-                    </div>
-                  </div>
-                </th>
-                <th 
-                  onClick={() => {
-                    if (sortBy === 'BED') {
-                      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortBy('BED');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="p-3 w-[140px] min-w-[140px] max-w-[140px] sticky left-[220px] bg-slate-50 z-50 text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200"
-                >
-                  <div className="flex flex-col items-center justify-center gap-1">
-                    <div className="flex items-center gap-1">
-                      <span>Giường/Phòng</span>
-                      <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
-                        {sortBy === 'BED' ? (
-                          sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
-                        ) : (
-                          <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
-                        )}
-                      </span>
-                    </div>
-                    <HeaderMultiSelect
-                      id="bedType"
-                      openFilterId={openFilterId}
-                      setOpenFilterId={setOpenFilterId}
-                      placeholder="Lọc giường..."
-                      options={[
-                        { id: 'Nội trú', label: 'Nội trú' },
-                        { id: 'Nội trú ban ngày', label: 'Nội trú ban ngày' },
-                        { id: 'Khác', label: 'Khác' }
-                      ]}
-                      selectedIds={headerBedTypeFilters}
-                      onChange={setHeaderBedTypeFilters}
-                    />
-                  </div>
-                </th>
-                <th 
-                  onClick={() => {
-                    if (sortBy === 'DEPT') {
-                      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortBy('DEPT');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="p-3 w-[140px] min-w-[140px] max-w-[140px] sticky left-[360px] bg-slate-50 z-50 text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200"
-                >
-                  <div className="flex flex-col items-start gap-1">
-                    <div className="flex items-center gap-1">
-                      <span>Khoa thực hiện</span>
-                      <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
-                        {sortBy === 'DEPT' ? (
-                          sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
-                        ) : (
-                          <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
-                        )}
-                      </span>
-                    </div>
-                    <HeaderMultiSelect
-                      id="dept"
-                      openFilterId={openFilterId}
-                      setOpenFilterId={setOpenFilterId}
-                      placeholder="Lọc khoa..."
-                      options={activeDepartments.map(d => ({
-                        id: d.id,
-                        label: d.name
-                      }))}
-                      selectedIds={headerDeptFilters}
-                      onChange={setHeaderDeptFilters}
-                      showSearch={true}
-                    />
-                  </div>
-                </th>
-                <th 
-                  onClick={() => {
-                    if (sortBy === 'PROCEDURE') {
-                      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortBy('PROCEDURE');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="p-3 w-[220px] min-w-[220px] max-w-[220px] sticky left-[500px] bg-slate-50 z-50 text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200"
-                >
-                  <div className="flex flex-col items-start gap-1">
-                    <div className="flex items-center gap-1">
-                      <span>Thủ thuật & Cảnh báo</span>
-                      <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
-                        {sortBy === 'PROCEDURE' ? (
-                          sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
-                        ) : (
-                          <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1 w-full" onClick={(e) => e.stopPropagation()}>
-                      <HeaderMultiSelect
-                        id="procStatus"
-                        openFilterId={openFilterId}
-                        setOpenFilterId={setOpenFilterId}
-                        placeholder="Cảnh báo..."
-                        options={[
-                          { id: 'ERROR', label: 'Thủ thuật lỗi ⚠️' },
-                          { id: 'NO_ERROR', label: 'Thủ thuật an toàn ✅' }
-                        ]}
-                        selectedIds={headerProcedureStatusFilters}
-                        onChange={setHeaderProcedureStatusFilters}
-                      />
-                      <HeaderMultiSelect
-                        id="procedure"
-                        openFilterId={openFilterId}
-                        setOpenFilterId={setOpenFilterId}
-                        placeholder="Lọc thủ thuật..."
-                        options={activeProcedures.map(p => ({
-                          id: p.id,
-                          label: p.name
-                        }))}
-                        selectedIds={headerProcedureFilters}
-                        onChange={setHeaderProcedureFilters}
-                        showSearch={true}
-                      />
-                    </div>
-                  </div>
-                </th>
-                <th 
-                  onClick={() => {
-                    if (sortBy === 'STAFF') {
-                      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortBy('STAFF');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="p-3 w-[200px] min-w-[200px] max-w-[200px] sticky left-[720px] bg-slate-50 z-50 text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200"
-                >
-                  <div className="flex flex-col items-start gap-1">
-                    <div className="flex items-center gap-1">
-                      <span>Nhân viên</span>
-                      <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
-                        {sortBy === 'STAFF' ? (
-                          sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
-                        ) : (
-                          <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1 w-full">
-                      <HeaderMultiSelect
-                        id="staffRole"
-                        openFilterId={openFilterId}
-                        setOpenFilterId={setOpenFilterId}
-                        placeholder="Lọc vai trò..."
-                        options={[
-                          { id: 'MAIN', label: 'Người chính' },
-                          { id: 'ASST1', label: 'Phụ 1' },
-                          { id: 'ASST2', label: 'Phụ 2' }
-                        ]}
-                        selectedIds={headerStaffRoleFilters}
-                        onChange={setHeaderStaffRoleFilters}
-                      />
-                      <HeaderMultiSelect
-                        id="staff"
-                        openFilterId={openFilterId}
-                        setOpenFilterId={setOpenFilterId}
-                        placeholder="Lọc nhân viên..."
-                        options={activeStaff.map(s => ({
-                          id: s.id,
-                          label: s.name
-                        }))}
-                        selectedIds={headerStaffIdFilters}
-                        onChange={setHeaderStaffIdFilters}
-                        showSearch={true}
-                      />
-                    </div>
-                  </div>
-                </th>
-                <th 
-                  onClick={() => {
-                    if (sortBy === 'TIME') {
-                      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortBy('TIME');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="p-3 w-[110px] min-w-[110px] max-w-[110px] sticky left-[920px] bg-slate-50 z-50 text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200"
-                >
-                  <div className="flex flex-col items-center justify-center gap-1">
-                    <div className="flex items-center gap-1">
-                      <span>Thời gian</span>
-                      <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
-                        {sortBy === 'TIME' ? (
-                          sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
-                        ) : (
-                          <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
-                        )}
-                      </span>
-                    </div>
-                    <HeaderMultiSelect
-                      id="timeShift"
-                      openFilterId={openFilterId}
-                      setOpenFilterId={setOpenFilterId}
-                      placeholder="Lọc ca..."
-                      options={[
-                        { id: 'MORNING', label: 'Sáng (0h-12h)' },
-                        { id: 'AFTERNOON', label: 'Chiều (12h-24h)' }
-                      ]}
-                      selectedIds={headerTimeShiftFilters}
-                      onChange={setHeaderTimeShiftFilters}
-                    />
-                  </div>
-                </th>
-                <th 
-                  onClick={() => {
-                    if (sortBy === 'MACHINE') {
-                      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortBy('MACHINE');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="p-3 w-[110px] min-w-[110px] max-w-[110px] sticky left-[1030px] bg-slate-50 z-50 text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200 shadow-[2px_0_5px_rgba(0,0,0,0.05)]"
-                >
-                  <div className="flex flex-col items-center justify-center gap-1">
-                    <div className="flex items-center gap-1">
-                      <span>Máy</span>
-                      <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
-                        {sortBy === 'MACHINE' ? (
-                          sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
-                        ) : (
-                          <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
-                        )}
-                      </span>
-                    </div>
-                    <HeaderMultiSelect
-                      id="machine"
-                      openFilterId={openFilterId}
-                      setOpenFilterId={setOpenFilterId}
-                      placeholder="Lọc máy..."
-                      options={[
-                        { id: 'NoMachine', label: 'Không dùng máy' },
-                        ...activeMachines.map(m => ({
-                          id: m,
-                          label: m
-                        }))
-                      ]}
-                      selectedIds={headerMachineFilters}
-                      onChange={setHeaderMachineFilters}
-                    />
-                  </div>
-                </th>
-                <th className="p-0 min-w-[800px] relative bg-slate-100/50">
-                   <div className="h-full w-full relative" style={{ width: timelineWidth }}>
-                        {renderTimeRuler(true)}
-                   </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-slate-100">
+                        </div>
+                        <div className="flex flex-col gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+                          <HeaderMultiSelect
+                            id="pStatus"
+                            openFilterId={openFilterId}
+                            setOpenFilterId={setOpenFilterId}
+                            placeholder="Trạng thái..."
+                            options={[
+                              { id: 'TREATING', label: 'Đang điều trị' },
+                              { id: 'DISCHARGED', label: 'Đã ra viện' }
+                            ]}
+                            selectedIds={headerPatientStatusFilters}
+                            onChange={setHeaderPatientStatusFilters}
+                          />
+                          <HeaderMultiSelect
+                            id="patient"
+                            openFilterId={openFilterId}
+                            setOpenFilterId={setOpenFilterId}
+                            placeholder="Lọc bệnh nhân..."
+                            options={activePatients.map(p => ({
+                              id: p.id,
+                              label: p.name
+                            }))}
+                            selectedIds={headerPatientFilters}
+                            onChange={setHeaderPatientFilters}
+                            showSearch={true}
+                          />
+                        </div>
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => {
+                        if (sortBy === 'BED') {
+                          setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortBy('BED');
+                          setSortDir('asc');
+                        }
+                      }}
+                      className={`p-3 w-[140px] min-w-[140px] max-w-[140px] sticky left-[220px] bg-slate-50 ${isBedFilterOpen ? 'z-[80]' : 'z-50'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <span>Giường/Phòng</span>
+                          <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
+                            {sortBy === 'BED' ? (
+                              sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
+                            )}
+                          </span>
+                        </div>
+                        <HeaderMultiSelect
+                          id="bedType"
+                          openFilterId={openFilterId}
+                          setOpenFilterId={setOpenFilterId}
+                          placeholder="Lọc giường..."
+                          options={[
+                            { id: 'Nội trú', label: 'Nội trú' },
+                            { id: 'Nội trú ban ngày', label: 'Nội trú ban ngày' },
+                            { id: 'Khác', label: 'Khác' }
+                          ]}
+                          selectedIds={headerBedTypeFilters}
+                          onChange={setHeaderBedTypeFilters}
+                        />
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => {
+                        if (sortBy === 'DEPT') {
+                          setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortBy('DEPT');
+                          setSortDir('asc');
+                        }
+                      }}
+                      className={`p-3 w-[140px] min-w-[140px] max-w-[140px] sticky left-[360px] bg-slate-50 ${isDeptFilterOpen ? 'z-[80]' : 'z-50'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                    >
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-1">
+                          <span>Khoa thực hiện</span>
+                          <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
+                            {sortBy === 'DEPT' ? (
+                              sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
+                            )}
+                          </span>
+                        </div>
+                        <HeaderMultiSelect
+                          id="dept"
+                          openFilterId={openFilterId}
+                          setOpenFilterId={setOpenFilterId}
+                          placeholder="Lọc khoa..."
+                          options={activeDepartments.map(d => ({
+                            id: d.id,
+                            label: d.name
+                          }))}
+                          selectedIds={headerDeptFilters}
+                          onChange={setHeaderDeptFilters}
+                          showSearch={true}
+                        />
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => {
+                        if (sortBy === 'PROCEDURE') {
+                          setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortBy('PROCEDURE');
+                          setSortDir('asc');
+                        }
+                      }}
+                      className={`p-3 w-[220px] min-w-[220px] max-w-[220px] sticky left-[500px] bg-slate-50 ${isProcFilterOpen ? 'z-[80]' : 'z-50'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                    >
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-1">
+                          <span>Thủ thuật & Cảnh báo</span>
+                          <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
+                            {sortBy === 'PROCEDURE' ? (
+                              sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+                          <HeaderMultiSelect
+                            id="procStatus"
+                            openFilterId={openFilterId}
+                            setOpenFilterId={setOpenFilterId}
+                            placeholder="Cảnh báo..."
+                            options={[
+                              { id: 'ERROR', label: 'Thủ thuật lỗi ⚠️' },
+                              { id: 'NO_ERROR', label: 'Thủ thuật an toàn ✅' }
+                            ]}
+                            selectedIds={headerProcedureStatusFilters}
+                            onChange={setHeaderProcedureStatusFilters}
+                          />
+                          <HeaderMultiSelect
+                            id="procedure"
+                            openFilterId={openFilterId}
+                            setOpenFilterId={setOpenFilterId}
+                            placeholder="Lọc thủ thuật..."
+                            options={activeProcedures.map(p => ({
+                              id: p.id,
+                              label: p.name
+                            }))}
+                            selectedIds={headerProcedureFilters}
+                            onChange={setHeaderProcedureFilters}
+                            showSearch={true}
+                          />
+                        </div>
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => {
+                        if (sortBy === 'STAFF') {
+                          setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortBy('STAFF');
+                          setSortDir('asc');
+                        }
+                      }}
+                      className={`p-3 w-[200px] min-w-[200px] max-w-[200px] sticky left-[720px] bg-slate-50 ${isStaffFilterOpen ? 'z-[80]' : 'z-50'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                    >
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-1">
+                          <span>Nhân viên</span>
+                          <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
+                            {sortBy === 'STAFF' ? (
+                              sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1 w-full">
+                          <HeaderMultiSelect
+                            id="staffRole"
+                            openFilterId={openFilterId}
+                            setOpenFilterId={setOpenFilterId}
+                            placeholder="Lọc vai trò..."
+                            options={[
+                              { id: 'MAIN', label: 'Người chính' },
+                              { id: 'ASST1', label: 'Phụ 1' },
+                              { id: 'ASST2', label: 'Phụ 2' }
+                            ]}
+                            selectedIds={headerStaffRoleFilters}
+                            onChange={setHeaderStaffRoleFilters}
+                          />
+                          <HeaderMultiSelect
+                            id="staff"
+                            openFilterId={openFilterId}
+                            setOpenFilterId={setOpenFilterId}
+                            placeholder="Lọc nhân viên..."
+                            options={activeStaff.map(s => ({
+                              id: s.id,
+                              label: s.name
+                            }))}
+                            selectedIds={headerStaffIdFilters}
+                            onChange={setHeaderStaffIdFilters}
+                            showSearch={true}
+                          />
+                        </div>
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => {
+                        if (sortBy === 'TIME') {
+                          setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortBy('TIME');
+                          setSortDir('asc');
+                        }
+                      }}
+                      className={`p-3 w-[110px] min-w-[110px] max-w-[110px] sticky left-[920px] bg-slate-50 ${isTimeFilterOpen ? 'z-[80]' : 'z-50'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <span>Thời gian</span>
+                          <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
+                            {sortBy === 'TIME' ? (
+                              sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
+                            )}
+                          </span>
+                        </div>
+                        <HeaderMultiSelect
+                          id="timeShift"
+                          openFilterId={openFilterId}
+                          setOpenFilterId={setOpenFilterId}
+                          placeholder="Lọc ca..."
+                          align="right"
+                          options={[
+                            { id: 'MORNING', label: 'Sáng (0h-12h)' },
+                            { id: 'AFTERNOON', label: 'Chiều (12h-24h)' }
+                          ]}
+                          selectedIds={headerTimeShiftFilters}
+                          onChange={setHeaderTimeShiftFilters}
+                        />
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => {
+                        if (sortBy === 'MACHINE') {
+                          setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortBy('MACHINE');
+                          setSortDir('asc');
+                        }
+                      }}
+                      className={`p-3 w-[110px] min-w-[110px] max-w-[110px] sticky left-[1030px] bg-slate-50 ${isMachineFilterOpen ? 'z-[80]' : 'z-50'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200 shadow-[2px_0_5px_rgba(0,0,0,0.05)]`}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <span>Máy</span>
+                          <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
+                            {sortBy === 'MACHINE' ? (
+                              sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
+                            ) : (
+                              <ArrowUpDown size={12} className="opacity-45 group-hover:opacity-100 inline-block" />
+                            )}
+                          </span>
+                        </div>
+                        <HeaderMultiSelect
+                          id="machine"
+                          openFilterId={openFilterId}
+                          setOpenFilterId={setOpenFilterId}
+                          placeholder="Lọc máy..."
+                          align="right"
+                          options={[
+                            { id: 'NoMachine', label: 'Không dùng máy' },
+                            ...activeMachines.map(m => ({
+                              id: m,
+                              label: m
+                            }))
+                          ]}
+                          selectedIds={headerMachineFilters}
+                          onChange={setHeaderMachineFilters}
+                        />
+                      </div>
+                    </th>
+                    <th className="p-0 min-w-[800px] relative bg-slate-100/50">
+                       <div className="h-full w-full relative" style={{ width: timelineWidth }}>
+                            {renderTimeRuler(true)}
+                       </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-100">
               {filteredAppointments.map((appt, idx) => {
                 const patient = patients.find(p => p.id === appt.patientId);
                 const staffMember = staff.find(s => s.id === appt.staffId);
@@ -1574,6 +1519,8 @@ export const Timeline: React.FC<TimelineProps> = ({
               })}
             </tbody>
           </table>
+          );
+        })()}
         </div>
       </div>
     );
