@@ -105,7 +105,7 @@ export const PatientModal: React.FC<PatientModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
         <div className="bg-primary p-6 text-white flex justify-between items-center">
           <div>

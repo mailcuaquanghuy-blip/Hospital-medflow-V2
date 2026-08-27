@@ -2233,6 +2233,8 @@ const App: React.FC = () => {
     }
   };
 
+  const isAnyModalOpen = isModalOpen || isPatientEditModalOpen || isStaffModalOpen || isDeptBackupModalOpen || isVerificationModalOpen || !!referralModal;
+
   return (
     <div className="h-screen bg-slate-50 flex flex-col font-sans overflow-hidden">
       {isQuotaExceeded && (
@@ -2246,10 +2248,21 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-[110]">
+      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-30">
           <div className="px-6 py-3 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                  <button onClick={() => { setCurrentDept(null); setActiveTab('PATIENT_RECORDS'); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><Home size={20} /></button>
+                  <button 
+                    disabled={isAnyModalOpen}
+                    onClick={() => { 
+                      if (isAnyModalOpen) return;
+                      setCurrentDept(null); 
+                      setActiveTab('PATIENT_RECORDS'); 
+                    }} 
+                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Về danh sách khoa"
+                  >
+                    <Home size={20} />
+                  </button>
                   <div className="h-6 w-px bg-slate-200"></div>
                   {currentDept ? (
                     <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{currentDept.name}</h2>
@@ -2263,14 +2276,20 @@ const App: React.FC = () => {
                   {currentDept && (
                     <>
                       <button 
-                        onClick={() => setActiveTab('DEPT_MANAGER')}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border ${activeTab === 'DEPT_MANAGER' ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        disabled={isAnyModalOpen}
+                        onClick={() => {
+                          if (isAnyModalOpen) return;
+                          setActiveTab('DEPT_MANAGER');
+                        }}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'DEPT_MANAGER' ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                       >
                         <Building2 size={16} />
                         Quản lý Khoa
                       </button>
                       <button 
+                        disabled={isAnyModalOpen}
                         onClick={() => {
+                          if (isAnyModalOpen) return;
                           if (!currentDept) {
                             alert('Lỗi: Bạn chưa chọn khoa làm việc.');
                             return;
@@ -2282,7 +2301,7 @@ const App: React.FC = () => {
                           }
                           setIsDeptBackupModalOpen(true);
                         }}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                         title="Sao lưu / Khôi phục dữ liệu khoa"
                       >
                         <Database size={16} className="text-sky-500" />
@@ -2290,7 +2309,7 @@ const App: React.FC = () => {
                       </button>
                       <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
                           <span className="text-[10px] font-black text-slate-400 px-2 uppercase tracking-widest">Làm việc ngày:</span>
-                          <DateInput value={activeDate} onChange={(val) => setActiveDate(val)} className="bg-white border-none rounded shadow-sm text-sm font-bold text-slate-700 px-2 py-1 outline-none focus:ring-2 focus:ring-primary/20" />
+                          <DateInput value={activeDate} onChange={(val) => { if (!isAnyModalOpen) setActiveDate(val); }} className="bg-white border-none rounded shadow-sm text-sm font-bold text-slate-700 px-2 py-1 outline-none focus:ring-2 focus:ring-primary/20" />
                       </div>
                     </>
                   )}
@@ -2298,7 +2317,14 @@ const App: React.FC = () => {
                     <div className="text-right hidden sm:block">
                       <p className="text-xs font-black text-slate-800 uppercase tracking-tight leading-none">{currentUser.fullName}</p>
                     </div>
-                    <button onClick={handleLogout} className="p-2.5 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-xl transition-all" title="Đăng xuất"><LogOut size={20} /></button>
+                    <button 
+                      disabled={isAnyModalOpen}
+                      onClick={() => { if (!isAnyModalOpen) handleLogout(); }} 
+                      className="p-2.5 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed" 
+                      title="Đăng xuất"
+                    >
+                      <LogOut size={20} />
+                    </button>
                   </div>
               </div>
           </div>
@@ -2315,8 +2341,12 @@ const App: React.FC = () => {
                    return (
                      <button 
                        key={tab.id} 
-                       onClick={() => setActiveTab(tab.id as MainTab)} 
-                       className={`group flex items-center gap-2.5 px-5.5 py-2.5 rounded-2xl text-[12px] font-extrabold uppercase tracking-widest transition-all duration-300 relative whitespace-nowrap overflow-hidden ${
+                       disabled={isAnyModalOpen}
+                       onClick={() => {
+                         if (isAnyModalOpen) return;
+                         setActiveTab(tab.id as MainTab);
+                       }} 
+                       className={`group flex items-center gap-2.5 px-5.5 py-2.5 rounded-2xl text-[12px] font-extrabold uppercase tracking-widest transition-all duration-300 relative whitespace-nowrap overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed ${
                          isActive 
                            ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25 scale-[1.02]' 
                            : 'text-slate-500 hover:text-slate-800 bg-white border border-slate-200 hover:border-slate-350 shadow-sm'
@@ -2445,7 +2475,7 @@ const App: React.FC = () => {
       )}
 
       {isStaffModalOpen && editingStaff && (
-          <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90%] animate-in zoom-in-95 duration-200">
                   <div className="bg-primary p-6 text-white flex justify-between items-center shrink-0">
                       <div>
@@ -2567,7 +2597,7 @@ const App: React.FC = () => {
       )}
 
       {referralModal && currentDept && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[2rem] p-8 max-w-lg w-full shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
             <div className="shrink-0">
               <h3 className="text-lg font-black text-slate-800 text-center uppercase tracking-tighter leading-tight">

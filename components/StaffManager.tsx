@@ -963,7 +963,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
       </div>
 
       {editingProcedure && (
-          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">

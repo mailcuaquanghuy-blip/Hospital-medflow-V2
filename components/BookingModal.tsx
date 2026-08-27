@@ -799,7 +799,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1944,7 +1944,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </form>
 
           {isShiftModalOpen && isMachineShiftRequired && (
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] z-[220] flex items-center justify-center p-4">
                <motion.div 
                  initial={{ opacity: 0, scale: 0.98, y: 10 }}
                  animate={{ opacity: 1, scale: 1, y: 0 }}

@@ -311,7 +311,7 @@ export const MachineShiftManager: React.FC<MachineShiftManagerProps> = ({
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <h3 className="text-lg font-black text-slate-800">{editingShift ? 'Sửa Ca Máy' : 'Thêm Ca Máy Mới'}</h3>
@@ -341,7 +341,7 @@ export const MachineShiftManager: React.FC<MachineShiftManagerProps> = ({
                 {machineId && (
                   <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Ca đã có của máy {machineId}:</p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex wrap gap-2">
                       {shifts.filter(s => s.machineId === machineId && s.date === activeDate && s.id !== editingShift?.id).length > 0 ? (
                         shifts.filter(s => s.machineId === machineId && s.date === activeDate && s.id !== editingShift?.id).map(s => (
                           <span key={s.id} className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-600">
@@ -422,7 +422,7 @@ export const MachineShiftManager: React.FC<MachineShiftManagerProps> = ({
       )}
 
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-amber-50/50">
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">

@@ -219,7 +219,7 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
       <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}

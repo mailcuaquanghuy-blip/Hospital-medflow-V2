@@ -618,7 +618,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
       <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-[95vw] xl:max-w-7xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
         
         {/* Header */}

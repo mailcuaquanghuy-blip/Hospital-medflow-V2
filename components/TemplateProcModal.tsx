@@ -70,7 +70,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-slate-50 w-full max-w-4xl h-[700px] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-6 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">

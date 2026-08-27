@@ -87,7 +87,7 @@ export const CopyRangeModal: React.FC<CopyRangeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         <div className="bg-indigo-600 p-6 text-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">

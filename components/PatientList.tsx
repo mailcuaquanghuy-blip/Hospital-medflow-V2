@@ -1131,7 +1131,7 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       {/* Delete Confirmation Modal */}
       {deletingPatient && (
-        <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[2rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center space-y-6">
               <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
@@ -1156,7 +1156,7 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       {/* Discharge Confirmation Modal */}
       {dischargingPatient && (
-        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-2">
@@ -1212,7 +1212,7 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       {/* Finish Referral Modal */}
       {finishingReferral && (
-        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[2rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center space-y-6">
               <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center">
@@ -1234,7 +1234,7 @@ export const PatientList: React.FC<PatientListProps> = ({
       )}
       {/* Print Modal */}
       {printingPatient && (
-        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center space-y-6">
               <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center">
@@ -1304,7 +1304,7 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       {/* CSV Import Modal */}
       {isCsvImportModalOpen && (
-        <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-[95vw] 2xl:max-w-7xl w-full shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
             <div className="flex justify-between items-center mb-6 border-b border-slate-50 pb-4">
               <div>
