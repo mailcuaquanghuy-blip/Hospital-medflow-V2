@@ -846,7 +846,13 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                   <select
                                     disabled={!needsAsst1}
                                     value={needsAsst1 ? group.assistant1Id : ''}
-                                    onChange={e => handleUpdateGroup(group.id, 'assistant1Id', e.target.value)}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      handleUpdateGroup(group.id, 'assistant1Id', val);
+                                      if (proc?.allowSameAssistant) {
+                                        handleUpdateGroup(group.id, 'assistant2Id', val);
+                                      }
+                                    }}
                                     className={`w-full text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-1.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all ${!needsAsst1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >
                                     {!needsAsst1 ? (
@@ -866,15 +872,19 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
                                 {/* Asst 2 */}
                                 <div>
-                                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Người phụ 2</label>
+                                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">
+                                    Người phụ 2 {proc?.allowSameAssistant && <span className="text-amber-600 font-semibold lowercase">(Đồng bộ Phụ 1)</span>}
+                                  </label>
                                   <select
-                                    disabled={!needsAsst2}
-                                    value={needsAsst2 ? group.assistant2Id : ''}
+                                    disabled={!needsAsst2 || !!proc?.allowSameAssistant}
+                                    value={proc?.allowSameAssistant ? (group.assistant1Id || '') : (needsAsst2 ? group.assistant2Id : '')}
                                     onChange={e => handleUpdateGroup(group.id, 'assistant2Id', e.target.value)}
-                                    className={`w-full text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-1.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all ${!needsAsst2 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`w-full text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-1.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all ${(!needsAsst2 || proc?.allowSameAssistant) ? 'opacity-70 bg-amber-50/50 cursor-not-allowed border-amber-200' : ''}`}
                                   >
                                     {!needsAsst2 ? (
                                       <option value="">Không yêu cầu</option>
+                                    ) : proc?.allowSameAssistant ? (
+                                      <option value="">-- Đồng bộ theo Phụ 1 --</option>
                                     ) : (
                                       <>
                                         <option value="">-- Tự động --</option>

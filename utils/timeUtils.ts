@@ -253,23 +253,41 @@ export const checkConflict = (
 
   // Check if assistants are required but not specified
   if (currentProc) {
-    const isExistingAppt = !!(newApptData && newApptData.id);
+    let option = currentProc.durationOptions?.find(o => o.id === newApptData?.selectedDurationOptionId);
+    if (!option && (!newApptData?.selectedDurationOptionId || newApptData?.selectedDurationOptionId === 'default')) {
+      option = currentProc.durationOptions?.find(o => o.isDefault);
+    }
+    const allowSame = newApptData?.allowSameAssistant !== undefined 
+      ? newApptData.allowSameAssistant 
+      : (option?.allowSameAssistant !== undefined ? option.allowSameAssistant : (currentProc.allowSameAssistant || false));
 
-    const hasAsst1Config = isExistingAppt
-      ? (newApptData?.asst1BusyEnd !== undefined && newApptData.asst1BusyEnd > 0)
-      : ((currentProc.asst1BusyEnd !== undefined && currentProc.asst1BusyEnd > 0) ||
-         (currentProc.assistant1BusyMinutes !== undefined && currentProc.assistant1BusyMinutes > 0));
+    const asst1EndVal = newApptData?.asst1BusyEnd !== undefined 
+      ? newApptData.asst1BusyEnd 
+      : (option?.asst1BusyEnd !== undefined ? option.asst1BusyEnd : (currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0));
+      
+    const asst2EndVal = newApptData?.asst2BusyEnd !== undefined 
+      ? newApptData.asst2BusyEnd 
+      : (option?.asst2BusyEnd !== undefined ? option.asst2BusyEnd : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0));
 
-    const hasAsst2Config = isExistingAppt
-      ? (newApptData?.asst2BusyEnd !== undefined && newApptData.asst2BusyEnd > 0)
-      : ((currentProc.asst2BusyEnd !== undefined && currentProc.asst2BusyEnd > 0) ||
-         (currentProc.assistant2BusyMinutes !== undefined && currentProc.assistant2BusyMinutes > 0));
+    const hasAsst1Config = asst1EndVal > 0;
+    const hasAsst2Config = asst2EndVal > 0;
 
     if (hasAsst1Config && !assistant1Id) {
       conflictDetails.push({ message: `Chưa chọn người phụ 1 cho lịch trình này.`, level: 1 });
     }
-    if (hasAsst2Config && !assistant2Id) {
+    if (hasAsst2Config && !assistant2Id && !allowSame) {
       conflictDetails.push({ message: `Chưa chọn người phụ 2 cho lịch trình này.`, level: 1 });
+    }
+
+    if (!allowSame && assistant1Id && assistant2Id && assistant1Id === assistant2Id) {
+      conflictDetails.push({ message: `Người phụ 1 và Người phụ 2 không được là cùng một người đối với phương án thời lượng này.`, level: 1 });
+    }
+
+    if (staffId && assistant1Id && staffId === assistant1Id) {
+      conflictDetails.push({ message: `Người thực hiện chính và Người phụ 1 không được là cùng một người.`, level: 1 });
+    }
+    if (staffId && assistant2Id && staffId === assistant2Id) {
+      conflictDetails.push({ message: `Người thực hiện chính và Người phụ 2 không được là cùng một người.`, level: 1 });
     }
   }
 
@@ -515,52 +533,60 @@ export const checkConflict = (
       }
     }
 
-    const getStaffBusyIntervalInAppointment = (
+    const getStaffBusyIntervalsInAppointment = (
       proc: Procedure | undefined, 
       personId: string, 
       baseStart: number, 
       apptData?: Partial<Appointment>
-    ): { start: number; end: number } | null => {
-      if (!proc || !personId) return null;
+    ): { start: number; end: number }[] => {
+      if (!proc || !personId) return [];
 
       let duration = proc.durationMinutes;
       if (apptData?.startTime && apptData?.endTime) {
         duration = timeStringToMinutes(apptData.endTime) - timeStringToMinutes(apptData.startTime);
       }
 
+      let option = proc.durationOptions?.find(o => o.id === apptData?.selectedDurationOptionId);
+      if (!option && (!apptData?.selectedDurationOptionId || apptData?.selectedDurationOptionId === 'default')) {
+        option = proc.durationOptions?.find(o => o.isDefault);
+      }
+
       const isMain = (apptData?.staffId === personId);
       const isAsst1 = (apptData?.assistant1Id === personId);
       const isAsst2 = (apptData?.assistant2Id === personId);
 
-      if (!isMain && !isAsst1 && !isAsst2) return null;
+      if (!isMain && !isAsst1 && !isAsst2) return [];
 
-      let minStartOffset = Infinity;
-      let maxEndOffset = -Infinity;
+      const rawIntervals: { start: number; end: number }[] = [];
 
       if (isMain) {
-        const s = apptData?.mainBusyStart ?? proc.mainBusyStart ?? 0;
-        const e = Math.min(apptData?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? 0, duration);
-        minStartOffset = Math.min(minStartOffset, s);
-        maxEndOffset = Math.max(maxEndOffset, e);
+        const s = apptData?.mainBusyStart ?? option?.mainBusyStart ?? proc.mainBusyStart ?? 0;
+        const e = Math.min(apptData?.mainBusyEnd ?? option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? 0, duration);
+        if (e > s) {
+          rawIntervals.push({ start: baseStart + s, end: baseStart + e });
+        }
       }
       if (isAsst1) {
-        const s = apptData?.asst1BusyStart ?? proc.asst1BusyStart ?? 0;
-        const e = Math.min(apptData?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.busyMinutes ?? proc.durationMinutes ?? 0, duration);
-        minStartOffset = Math.min(minStartOffset, s);
-        maxEndOffset = Math.max(maxEndOffset, e);
+        const s = apptData?.asst1BusyStart ?? option?.asst1BusyStart ?? proc.asst1BusyStart ?? 0;
+        const e = Math.min(apptData?.asst1BusyEnd ?? option?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.busyMinutes ?? proc.durationMinutes ?? 0, duration);
+        if (e > s) {
+          rawIntervals.push({ start: baseStart + s, end: baseStart + e });
+        }
       }
       if (isAsst2) {
-        const s = apptData?.asst2BusyStart ?? proc.asst2BusyStart ?? 0;
-        const e = Math.min(apptData?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0, duration);
-        minStartOffset = Math.min(minStartOffset, s);
-        maxEndOffset = Math.max(maxEndOffset, e);
+        const s = apptData?.asst2BusyStart ?? option?.asst2BusyStart ?? proc.asst2BusyStart ?? 0;
+        const e = Math.min(apptData?.asst2BusyEnd ?? option?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0, duration);
+        if (e > s) {
+          rawIntervals.push({ start: baseStart + s, end: baseStart + e });
+        }
       }
 
-      if (minStartOffset === Infinity || maxEndOffset === -Infinity) return null;
-      return { start: baseStart + minStartOffset, end: baseStart + maxEndOffset };
+      return rawIntervals;
     };
 
     const checkedStaffIdsInAppt = new Set<string>();
+
+    const effectiveAsst2Id = assistant2Id || (newApptData?.allowSameAssistant && assistant1Id ? assistant1Id : undefined);
 
     const checkPersonConflictWithOtherAppt = (personId: string, label: string) => {
       if (!personId || checkedStaffIdsInAppt.has(personId)) return;
@@ -571,33 +597,37 @@ export const checkConflict = (
         endTime: newEnd,
         staffId: staffId,
         assistant1Id: assistant1Id,
-        assistant2Id: assistant2Id,
+        assistant2Id: effectiveAsst2Id,
         ...newApptData
       };
 
-      const currentInterval = getStaffBusyIntervalInAppointment(currentProc, personId, startMin, currentApptData);
-      const apptInterval = getStaffBusyIntervalInAppointment(apptProc, personId, apptStart, appt);
+      const currentIntervals = getStaffBusyIntervalsInAppointment(currentProc, personId, startMin, currentApptData);
+      const apptIntervals = getStaffBusyIntervalsInAppointment(apptProc, personId, apptStart, appt);
 
-      if (currentInterval && apptInterval) {
-        // All procedure types use closed-interval overlap check (<=), meaning touching is considered an overlap.
-        const isOverlap = Math.max(currentInterval.start, apptInterval.start) <= Math.min(currentInterval.end, apptInterval.end);
-        
-        if (isOverlap) {
-          const otherPatient = getPatientFromCache(patients, appt.patientId);
-          conflictDetails.push({ 
-            message: `${label} đang bận lịch trình "${apptProc?.name || 'khác'}" cho BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(apptInterval.start)}-${minutesToTimeString(apptInterval.end)}).`, 
-            level: 1 
-          });
+      if (currentIntervals.length > 0 && apptIntervals.length > 0) {
+        for (const cInt of currentIntervals) {
+          for (const aInt of apptIntervals) {
+            // Closed-interval overlap check (<=), meaning touching is considered an overlap.
+            const isOverlap = Math.max(cInt.start, aInt.start) <= Math.min(cInt.end, aInt.end);
+            if (isOverlap) {
+              const otherPatient = getPatientFromCache(patients, appt.patientId);
+              conflictDetails.push({ 
+                message: `${label} đang bận lịch trình "${apptProc?.name || 'khác'}" cho BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(aInt.start)}-${minutesToTimeString(aInt.end)}).`, 
+                level: 1 
+              });
+              return;
+            }
+          }
         }
       }
     };
 
     checkPersonConflictWithOtherAppt(staffId, 'Nhân sự chính');
-    if (assistant1Id && assistant2Id && assistant1Id === assistant2Id) {
+    if (assistant1Id && effectiveAsst2Id && assistant1Id === effectiveAsst2Id) {
       checkPersonConflictWithOtherAppt(assistant1Id, 'Người phụ (Phụ 1 & 2)');
     } else {
       if (assistant1Id) checkPersonConflictWithOtherAppt(assistant1Id, 'Người phụ 1');
-      if (assistant2Id) checkPersonConflictWithOtherAppt(assistant2Id, 'Người phụ 2');
+      if (effectiveAsst2Id) checkPersonConflictWithOtherAppt(effectiveAsst2Id, 'Người phụ 2');
     }
   }
 

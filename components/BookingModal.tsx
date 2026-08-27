@@ -363,14 +363,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (!formData.startTime || !formData.date) return list;
     
     return [...list].sort((a, b) => {
-      const aConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, a.id, formData.assistant2Id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
-      const bConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, b.id, formData.assistant2Id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
+      const aAsst2 = allowSameAsst ? a.id : formData.assistant2Id;
+      const bAsst2 = allowSameAsst ? b.id : formData.assistant2Id;
+      const aConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, a.id, aAsst2, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
+      const bConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, b.id, bAsst2, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
       
       if (!aConflict && bConflict) return -1;
       if (aConflict && !bConflict) return 1;
       return 0;
     });
-  }, [eligibleAssistants, formData.staffId, formData.assistant2Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients]);
+  }, [eligibleAssistants, formData.staffId, formData.assistant2Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients, formData]);
 
   const sortedAssistants2 = useMemo(() => {
     const list = eligibleAssistants.filter(s => s.id !== formData.staffId && (allowSameAsst || s.id !== formData.assistant1Id));
@@ -384,7 +386,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       if (aConflict && !bConflict) return 1;
       return 0;
     });
-  }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients]);
+  }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients, formData]);
 
   const availableTimeData = useMemo(() => {
     if (!formData.date || !currentProc || !formData.staffId) return { blocks: [], reason: null };
@@ -495,6 +497,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       });
     }
   }, [lockedStaff]);
+
+  useEffect(() => {
+    if (allowSameAsst) {
+      setFormData(prev => {
+        const expectedAsst2 = prev.assistant1Id || '';
+        if (prev.assistant2Id !== expectedAsst2) {
+          return { ...prev, assistant2Id: expectedAsst2 };
+        }
+        return prev;
+      });
+    }
+  }, [allowSameAsst, formData.assistant1Id]);
 
   useEffect(() => {
     // CRITICAL: Only auto-find slot for NEW appointments (no ID) 
@@ -1477,12 +1491,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 <select 
                                   className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-50 transition-all hover:border-slate-300 appearance-none shadow-sm" 
                                   value={formData.assistant1Id || ''} 
-                                  onChange={e => setFormData({ ...formData, assistant1Id: e.target.value })} 
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      assistant1Id: val,
+                                      ...(allowSameAsst ? { assistant2Id: val } : {})
+                                    }));
+                                  }} 
                                   disabled={!formData.procedureId || !!lockedStaff?.assistant1Id || isMachineShiftRequired}
                                 >
                                   <option value="">-- Chọn người phụ 1 --</option>
                                   {sortedAssistants1.map(s => {
-                                    const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, s.id, formData.assistant2Id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
+                                    const asst2ToCheck = allowSameAsst ? s.id : formData.assistant2Id;
+                                    const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, s.id, asst2ToCheck, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
                                     let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}
@@ -1499,17 +1521,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           )}
                           {needsAssistant2 && (
                             <div className="space-y-2">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-                                <User size={14} className="text-primary" /> Người phụ 2
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
+                                <span className="flex items-center gap-1.5"><User size={14} className="text-primary" /> Người phụ 2</span>
+                                {allowSameAsst && <span className="text-amber-600 font-bold lowercase tracking-normal text-[11px]">(Đồng bộ theo Phụ 1)</span>}
                               </label>
                               <div className="relative group">
                                 <select 
-                                  className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-50 transition-all hover:border-slate-300 appearance-none shadow-sm" 
-                                  value={formData.assistant2Id || ''} 
+                                  className={`w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed transition-all hover:border-slate-300 appearance-none shadow-sm ${allowSameAsst ? 'bg-amber-50/50 border-amber-200' : ''}`}
+                                  value={allowSameAsst ? (formData.assistant1Id || '') : (formData.assistant2Id || '')} 
                                   onChange={e => setFormData({ ...formData, assistant2Id: e.target.value })} 
-                                  disabled={!formData.procedureId || !!lockedStaff?.assistant2Id || isMachineShiftRequired}
+                                  disabled={!formData.procedureId || !!lockedStaff?.assistant2Id || isMachineShiftRequired || allowSameAsst}
                                 >
-                                  <option value="">-- Chọn người phụ 2 --</option>
+                                  <option value="">{allowSameAsst ? '-- Tự động đồng bộ Người phụ 1 --' : '-- Chọn người phụ 2 --'}</option>
                                   {sortedAssistants2.map(s => {
                                     const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, s.id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
                                     let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
@@ -1519,9 +1542,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors">
                                   <User size={18} />
                                 </div>
-                                {(lockedStaff?.assistant2Id || isMachineShiftRequired) && (
+                                {allowSameAsst ? (
+                                  <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md text-[9px] font-black tracking-tight border border-amber-300">Đồng bộ Phụ 1 (Khóa)</div>
+                                ) : (lockedStaff?.assistant2Id || isMachineShiftRequired) ? (
                                   <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
-                                )}
+                                ) : null}
                               </div>
                               {renderFieldWarnings(['người phụ 2', 'assistant 2'])}
                             </div>
