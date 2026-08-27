@@ -141,7 +141,7 @@ const HeaderMultiSelect: React.FC<HeaderMultiSelectProps> = ({
        </div>
 
        {isOpen && (
-         <div className={`absolute top-full ${align === 'right' ? 'right-0' : 'left-0'} mt-1 min-w-[210px] w-full max-w-[280px] bg-white border border-slate-200 rounded-xl shadow-2xl z-[100] max-h-[260px] flex flex-col p-2 animate-in fade-in duration-75`}>
+         <div className={`absolute top-full ${align === 'right' ? 'right-0' : 'left-0'} mt-1 min-w-[220px] w-full max-w-[290px] bg-white border border-slate-200 rounded-xl shadow-2xl z-[300] max-h-[280px] flex flex-col p-2 animate-in fade-in duration-75`}>
              {showSearch && (
                <div className="relative mb-1.5 shrink-0">
                   <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1067,7 +1067,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           setSortDir('asc');
                         }
                       }}
-                      className={`p-3 w-[220px] min-w-[220px] max-w-[220px] sticky left-0 bg-slate-50 ${isPatientFilterOpen ? 'z-[80]' : 'z-50'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                      className={`p-3 w-[220px] min-w-[220px] max-w-[220px] sticky left-0 bg-slate-50 ${isPatientFilterOpen ? 'z-[150]' : 'z-30'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
                     >
                       <div className="flex flex-col items-start gap-1">
                         <div className="flex items-center gap-2">
@@ -1122,7 +1122,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           setSortDir('asc');
                         }
                       }}
-                      className={`p-3 w-[140px] min-w-[140px] max-w-[140px] sticky left-[220px] bg-slate-50 ${isBedFilterOpen ? 'z-[80]' : 'z-50'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                      className={`p-3 w-[140px] min-w-[140px] max-w-[140px] sticky left-[220px] bg-slate-50 ${isBedFilterOpen ? 'z-[150]' : 'z-30'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
                     >
                       <div className="flex flex-col items-center justify-center gap-1">
                         <div className="flex items-center gap-1">
@@ -1159,7 +1159,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           setSortDir('asc');
                         }
                       }}
-                      className={`p-3 w-[140px] min-w-[140px] max-w-[140px] sticky left-[360px] bg-slate-50 ${isDeptFilterOpen ? 'z-[80]' : 'z-50'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                      className={`p-3 w-[140px] min-w-[140px] max-w-[140px] sticky left-[360px] bg-slate-50 ${isDeptFilterOpen ? 'z-[150]' : 'z-30'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
                     >
                       <div className="flex flex-col items-start gap-1">
                         <div className="flex items-center gap-1">
@@ -1196,7 +1196,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           setSortDir('asc');
                         }
                       }}
-                      className={`p-3 w-[220px] min-w-[220px] max-w-[220px] sticky left-[500px] bg-slate-50 ${isProcFilterOpen ? 'z-[80]' : 'z-50'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                      className={`p-3 w-[220px] min-w-[220px] max-w-[220px] sticky left-[500px] bg-slate-50 ${isProcFilterOpen ? 'z-[150]' : 'z-30'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
                     >
                       <div className="flex flex-col items-start gap-1">
                         <div className="flex items-center gap-1">
@@ -1247,7 +1247,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           setSortDir('asc');
                         }
                       }}
-                      className={`p-3 w-[200px] min-w-[200px] max-w-[200px] sticky left-[720px] bg-slate-50 ${isStaffFilterOpen ? 'z-[80]' : 'z-50'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                      className={`p-3 w-[200px] min-w-[200px] max-w-[200px] sticky left-[720px] bg-slate-50 ${isStaffFilterOpen ? 'z-[150]' : 'z-30'} text-left cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
                     >
                       <div className="flex flex-col items-start gap-1">
                         <div className="flex items-center gap-1">
@@ -1299,7 +1299,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           setSortDir('asc');
                         }
                       }}
-                      className={`p-3 w-[110px] min-w-[110px] max-w-[110px] sticky left-[920px] bg-slate-50 ${isTimeFilterOpen ? 'z-[80]' : 'z-50'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
+                      className={`p-3 w-[110px] min-w-[110px] max-w-[110px] sticky left-[920px] bg-slate-50 ${isTimeFilterOpen ? 'z-[150]' : 'z-30'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200`}
                     >
                       <div className="flex flex-col items-center justify-center gap-1">
                         <div className="flex items-center gap-1">
@@ -1336,7 +1336,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           setSortDir('asc');
                         }
                       }}
-                      className={`p-3 w-[110px] min-w-[110px] max-w-[110px] sticky left-[1030px] bg-slate-50 ${isMachineFilterOpen ? 'z-[80]' : 'z-50'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200 shadow-[2px_0_5px_rgba(0,0,0,0.05)]`}
+                      className={`p-3 w-[110px] min-w-[110px] max-w-[110px] sticky left-[1030px] bg-slate-50 ${isMachineFilterOpen ? 'z-[150]' : 'z-30'} text-center cursor-pointer hover:bg-slate-100 transition-colors group border-r border-slate-200 shadow-[2px_0_5px_rgba(0,0,0,0.05)]`}
                     >
                       <div className="flex flex-col items-center justify-center gap-1">
                         <div className="flex items-center gap-1">

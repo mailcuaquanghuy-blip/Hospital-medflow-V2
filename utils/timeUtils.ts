@@ -316,12 +316,18 @@ export const checkConflict = (
     }
   };
 
-  if (staff) checkStaffAttendance(staff.id, staff.name, staff.role);
-  if (assistant1Id) {
+  const checkedAttendanceStaffIds = new Set<string>();
+  if (staff) {
+    checkedAttendanceStaffIds.add(staff.id);
+    checkStaffAttendance(staff.id, staff.name, staff.role);
+  }
+  if (assistant1Id && !checkedAttendanceStaffIds.has(assistant1Id)) {
+    checkedAttendanceStaffIds.add(assistant1Id);
     const a1 = getStaffFromCache(staffList, assistant1Id);
     if (a1) checkStaffAttendance(a1.id, a1.name, a1.role);
   }
-  if (assistant2Id) {
+  if (assistant2Id && !checkedAttendanceStaffIds.has(assistant2Id)) {
+    checkedAttendanceStaffIds.add(assistant2Id);
     const a2 = getStaffFromCache(staffList, assistant2Id);
     if (a2) checkStaffAttendance(a2.id, a2.name, a2.role);
   }
@@ -509,70 +515,90 @@ export const checkConflict = (
       }
     }
 
-    const getBusyInterval = (proc: Procedure | undefined, role: 'main' | 'asst1' | 'asst2', baseStart: number, apptData?: Partial<Appointment>) => {
-      if (!proc) return { start: baseStart, end: baseStart };
-      
-      let startOffset = 0;
-      let endOffset = 0;
+    const getStaffBusyIntervalInAppointment = (
+      proc: Procedure | undefined, 
+      personId: string, 
+      baseStart: number, 
+      apptData?: Partial<Appointment>
+    ): { start: number; end: number } | null => {
+      if (!proc || !personId) return null;
 
-      // Determine actual duration of the appointment to cap busy times dynamically
       let duration = proc.durationMinutes;
       if (apptData?.startTime && apptData?.endTime) {
         duration = timeStringToMinutes(apptData.endTime) - timeStringToMinutes(apptData.startTime);
       }
 
-      if (role === 'main') {
-        startOffset = apptData?.mainBusyStart ?? proc.mainBusyStart ?? 0;
-        const originalEnd = apptData?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? 0;
-        endOffset = Math.min(originalEnd, duration);
-      } else if (role === 'asst1') {
-        startOffset = apptData?.asst1BusyStart ?? proc.asst1BusyStart ?? 0;
-        const originalEnd = apptData?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.busyMinutes ?? proc.durationMinutes ?? 0;
-        endOffset = Math.min(originalEnd, duration);
-      } else if (role === 'asst2') {
-        startOffset = apptData?.asst2BusyStart ?? proc.asst2BusyStart ?? 0;
-        const originalEnd = apptData?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0;
-        endOffset = Math.min(originalEnd, duration);
+      const isMain = (apptData?.staffId === personId);
+      const isAsst1 = (apptData?.assistant1Id === personId);
+      const isAsst2 = (apptData?.assistant2Id === personId);
+
+      if (!isMain && !isAsst1 && !isAsst2) return null;
+
+      let minStartOffset = Infinity;
+      let maxEndOffset = -Infinity;
+
+      if (isMain) {
+        const s = apptData?.mainBusyStart ?? proc.mainBusyStart ?? 0;
+        const e = Math.min(apptData?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? 0, duration);
+        minStartOffset = Math.min(minStartOffset, s);
+        maxEndOffset = Math.max(maxEndOffset, e);
+      }
+      if (isAsst1) {
+        const s = apptData?.asst1BusyStart ?? proc.asst1BusyStart ?? 0;
+        const e = Math.min(apptData?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.busyMinutes ?? proc.durationMinutes ?? 0, duration);
+        minStartOffset = Math.min(minStartOffset, s);
+        maxEndOffset = Math.max(maxEndOffset, e);
+      }
+      if (isAsst2) {
+        const s = apptData?.asst2BusyStart ?? proc.asst2BusyStart ?? 0;
+        const e = Math.min(apptData?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0, duration);
+        minStartOffset = Math.min(minStartOffset, s);
+        maxEndOffset = Math.max(maxEndOffset, e);
       }
 
-      return { start: baseStart + startOffset, end: baseStart + endOffset };
+      if (minStartOffset === Infinity || maxEndOffset === -Infinity) return null;
+      return { start: baseStart + minStartOffset, end: baseStart + maxEndOffset };
     };
 
-    const checkStaffBusyOverlap = (personId: string, roleInCurrent: 'main' | 'asst1' | 'asst2', label: string) => {
-      if (!personId) return;
-      
-      let roleInAppt: 'main' | 'asst1' | 'asst2' | null = null;
-      if (appt.staffId === personId) roleInAppt = 'main';
-      else if (appt.assistant1Id === personId) roleInAppt = 'asst1';
-      else if (appt.assistant2Id === personId) roleInAppt = 'asst2';
-      
-      if (roleInAppt) {
-        const currentInterval = getBusyInterval(currentProc, roleInCurrent, startMin, { startTime: newStart, endTime: newEnd, ...newApptData });
-        const apptInterval = getBusyInterval(apptProc, roleInAppt, apptStart, appt);
+    const checkedStaffIdsInAppt = new Set<string>();
 
-        const isDischargeOrAdmissionExam = (name?: string) => {
-          if (!name) return false;
-          const nameLower = name.toLowerCase();
-          return nameLower.includes('khám ra viện') || nameLower.includes('khám vào viện') || nameLower.includes('kham ra vien') || nameLower.includes('kham vao vien');
-        };
+    const checkPersonConflictWithOtherAppt = (personId: string, label: string) => {
+      if (!personId || checkedStaffIdsInAppt.has(personId)) return;
+      checkedStaffIdsInAppt.add(personId);
 
-        const bothAreDischargeOrAdmission = isDischargeOrAdmissionExam(currentProc?.name) && isDischargeOrAdmissionExam(apptProc?.name);
+      const currentApptData: Partial<Appointment> = {
+        startTime: newStart,
+        endTime: newEnd,
+        staffId: staffId,
+        assistant1Id: assistant1Id,
+        assistant2Id: assistant2Id,
+        ...newApptData
+      };
 
+      const currentInterval = getStaffBusyIntervalInAppointment(currentProc, personId, startMin, currentApptData);
+      const apptInterval = getStaffBusyIntervalInAppointment(apptProc, personId, apptStart, appt);
+
+      if (currentInterval && apptInterval) {
         // All procedure types use closed-interval overlap check (<=), meaning touching is considered an overlap.
-        // This ensures sequential procedures cannot be booked with overlapping boundaries (e.g. 8:50-8:55 and 8:55-9:00).
-        // Sequential bookings can only start at the next minute (e.g. 8:56).
         const isOverlap = Math.max(currentInterval.start, apptInterval.start) <= Math.min(currentInterval.end, apptInterval.end);
         
         if (isOverlap) {
           const otherPatient = getPatientFromCache(patients, appt.patientId);
-          conflictDetails.push({ message: `${label} đang bận lịch trình "${apptProc?.name || 'khác'}" cho BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(apptInterval.start)}-${minutesToTimeString(apptInterval.end)}).`, level: 1 });
+          conflictDetails.push({ 
+            message: `${label} đang bận lịch trình "${apptProc?.name || 'khác'}" cho BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(apptInterval.start)}-${minutesToTimeString(apptInterval.end)}).`, 
+            level: 1 
+          });
         }
       }
     };
 
-    checkStaffBusyOverlap(staffId, 'main', 'Nhân sự chính');
-    checkStaffBusyOverlap(assistant1Id || '', 'asst1', 'Người phụ 1');
-    checkStaffBusyOverlap(assistant2Id || '', 'asst2', 'Người phụ 2');
+    checkPersonConflictWithOtherAppt(staffId, 'Nhân sự chính');
+    if (assistant1Id && assistant2Id && assistant1Id === assistant2Id) {
+      checkPersonConflictWithOtherAppt(assistant1Id, 'Người phụ (Phụ 1 & 2)');
+    } else {
+      if (assistant1Id) checkPersonConflictWithOtherAppt(assistant1Id, 'Người phụ 1');
+      if (assistant2Id) checkPersonConflictWithOtherAppt(assistant2Id, 'Người phụ 2');
+    }
   }
 
   // Filter unique conflict messages

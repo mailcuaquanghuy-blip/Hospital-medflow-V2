@@ -111,6 +111,7 @@ export interface ProcedureDurationOption {
   asst2BusyEnd?: number;
   restMinutes?: number;
   isDefault?: boolean;
+  allowSameAssistant?: boolean; // Tùy chọn: Cho phép người phụ 1 kiêm nhiệm luôn người phụ 2
 }
 
 export interface Procedure {
@@ -126,6 +127,7 @@ export interface Procedure {
   asst1BusyEnd?: number;
   asst2BusyStart?: number;
   asst2BusyEnd?: number;
+  allowSameAssistant?: boolean; // Tùy chọn mặc định cho phép người phụ 1 kiêm phụ 2
   
   // Deprecated but kept for compatibility during transition
   busyMinutes?: number; 
@@ -163,6 +165,7 @@ export interface TemplateProcedure {
   asst2BusyStart?: number;
   asst2BusyEnd?: number;
   restMinutes?: number;
+  allowSameAssistant?: boolean;
 }
 
 export interface AppointmentTemplate {
@@ -217,6 +220,7 @@ export interface Appointment {
   asst2BusyEnd?: number;
   restMinutes?: number;
   selectedDurationOptionId?: string | null;
+  allowSameAssistant?: boolean;
 }
 
 export interface Backup {

@@ -349,33 +349,42 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   }, [machineShifts, formData.machineShiftId, hasManuallySelectedShift, initialData?.id]);
 
+  const allowSameAsst = useMemo(() => {
+    if (formData.allowSameAssistant !== undefined) return formData.allowSameAssistant;
+    if (currentProc?.durationOptions && formData.selectedDurationOptionId) {
+      const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
+      if (opt && opt.allowSameAssistant !== undefined) return opt.allowSameAssistant;
+    }
+    return currentProc?.allowSameAssistant || false;
+  }, [formData.allowSameAssistant, currentProc, formData.selectedDurationOptionId]);
+
   const sortedAssistants1 = useMemo(() => {
-    const list = eligibleAssistants.filter(s => s.id !== formData.staffId && s.id !== formData.assistant2Id);
+    const list = eligibleAssistants.filter(s => s.id !== formData.staffId && (allowSameAsst || s.id !== formData.assistant2Id));
     if (!formData.startTime || !formData.date) return list;
     
     return [...list].sort((a, b) => {
-      const aConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, a.id, formData.assistant2Id, formData).hasConflict;
-      const bConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, b.id, formData.assistant2Id, formData).hasConflict;
+      const aConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, a.id, formData.assistant2Id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
+      const bConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, b.id, formData.assistant2Id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
       
       if (!aConflict && bConflict) return -1;
       if (aConflict && !bConflict) return 1;
       return 0;
     });
-  }, [eligibleAssistants, formData.staffId, formData.assistant2Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, appointments, staff, procedures, attendanceRecords, patients]);
+  }, [eligibleAssistants, formData.staffId, formData.assistant2Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients]);
 
   const sortedAssistants2 = useMemo(() => {
-    const list = eligibleAssistants.filter(s => s.id !== formData.staffId && s.id !== formData.assistant1Id);
-    if (!formData.startTime || !formData.date || !formData.assistant1Id) return list;
+    const list = eligibleAssistants.filter(s => s.id !== formData.staffId && (allowSameAsst || s.id !== formData.assistant1Id));
+    if (!formData.startTime || !formData.date) return list;
 
     return [...list].sort((a, b) => {
-      const aConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, a.id, formData).hasConflict;
-      const bConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, b.id, formData).hasConflict;
+      const aConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, a.id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
+      const bConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, b.id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
       
       if (!aConflict && bConflict) return -1;
       if (aConflict && !bConflict) return 1;
       return 0;
     });
-  }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, appointments, staff, procedures, attendanceRecords, patients]);
+  }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients]);
 
   const availableTimeData = useMemo(() => {
     if (!formData.date || !currentProc || !formData.staffId) return { blocks: [], reason: null };
@@ -1229,7 +1238,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: 10 }}
-                              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[80] overflow-hidden flex flex-col max-h-[380px] max-h-[50vh]"
+                              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[80] overflow-hidden flex flex-col max-h-[360px]"
                             >
                               <div className="p-3 border-b border-slate-100 bg-slate-50/90 backdrop-blur-sm shrink-0 z-10">
                                 <div className="relative">
@@ -1243,7 +1252,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   />
                                 </div>
                               </div>
-                              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-thin p-1.5 space-y-1 pb-4">
+                              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-thin p-2 space-y-1.5 pb-10">
                                 {(() => {
                                   const matchingProcs = filteredProcedures.filter(p => 
                                     p.deptId === currentDept.id && 
@@ -1273,6 +1282,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                           assignedMachineId: '', 
                                           machineShiftId: undefined,
                                           selectedDurationOptionId: 'default',
+                                          allowSameAssistant: p.allowSameAssistant,
                                           mainBusyStart: undefined,
                                           mainBusyEnd: undefined,
                                           asst1BusyStart: undefined,
@@ -1334,6 +1344,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                     asst2BusyStart: defaultOpt ? defaultOpt.asst2BusyStart : currentProc.asst2BusyStart,
                                     asst2BusyEnd: defaultOpt ? defaultOpt.asst2BusyEnd : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes),
                                     restMinutes: defaultOpt ? defaultOpt.restMinutes : currentProc.restMinutes,
+                                    allowSameAssistant: defaultOpt ? defaultOpt.allowSameAssistant : currentProc.allowSameAssistant,
                                     selectedDurationOptionId: defaultOpt ? defaultOpt.id : 'default'
                                   };
                                 });
@@ -1351,7 +1362,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 </span>
                                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                                   isDefaultSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-350'
-                                }`}>
+                                }}`}>
                                   {isDefaultSelected && <Check size={11} strokeWidth={4} />}
                                 </div>
                               </div>
@@ -1385,6 +1396,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                       asst1BusyEnd: opt.asst1BusyEnd,
                                       asst2BusyStart: opt.asst2BusyStart,
                                       asst2BusyEnd: opt.asst2BusyEnd,
+                                      allowSameAssistant: opt.allowSameAssistant,
                                       selectedDurationOptionId: opt.id
                                     };
                                   });
@@ -1408,7 +1420,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 </div>
                                 <span className={`text-sm font-black font-mono px-3 py-1 rounded-lg inline-flex items-center gap-1.5 mt-2.5 w-fit ${
                                   isSelected ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-100 text-slate-700'
-                                }`}>
+                                }}`}>
                                   <Clock size={13} /> {opt.durationMinutes} phút
                                 </span>
                               </button>
@@ -1470,7 +1482,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 >
                                   <option value="">-- Chọn người phụ 1 --</option>
                                   {sortedAssistants1.map(s => {
-                                    const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, s.id, formData.assistant2Id, formData).hasConflict;
+                                    const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, s.id, formData.assistant2Id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
                                     let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}
@@ -1499,7 +1511,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 >
                                   <option value="">-- Chọn người phụ 2 --</option>
                                   {sortedAssistants2.map(s => {
-                                    const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, s.id, formData).hasConflict;
+                                    const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, s.id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
                                     let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}

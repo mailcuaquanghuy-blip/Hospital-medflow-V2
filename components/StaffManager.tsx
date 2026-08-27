@@ -76,6 +76,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     asst2BusyEnd: number;
     asst1Enabled: boolean;
     asst2Enabled: boolean;
+    allowSameAssistant: boolean;
   }>({
     name: '',
     durationMinutes: 30,
@@ -88,6 +89,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     asst2BusyEnd: 0,
     asst1Enabled: false,
     asst2Enabled: false,
+    allowSameAssistant: false,
   });
 
   React.useEffect(() => {
@@ -104,6 +106,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
         asst2BusyEnd: 0,
         asst1Enabled: false,
         asst2Enabled: false,
+        allowSameAssistant: false,
       });
       setShowOptForm(false);
       setEditingOptId(null);
@@ -1169,6 +1172,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                               asst2BusyEnd: 0,
                                               asst1Enabled: false,
                                               asst2Enabled: false,
+                                              allowSameAssistant: false,
                                           });
                                           setEditingOptId(null);
                                           setShowOptForm(true);
@@ -1339,6 +1343,24 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                               )}
                                           </div>
                                       </div>
+
+                                      {/* Tùy chọn Phụ 1 kiêm Phụ 2 khi cả 2 phụ đều được bật */}
+                                      {newOpt.asst1Enabled && newOpt.asst2Enabled && (
+                                          <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl">
+                                              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                                                  <input 
+                                                      type="checkbox" 
+                                                      checked={newOpt.allowSameAssistant || false} 
+                                                      onChange={e => setNewOpt({ ...newOpt, allowSameAssistant: e.target.checked })} 
+                                                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
+                                                  />
+                                                  <span className="text-xs font-black text-amber-900">Cho phép người phụ 1 kiêm nhiệm luôn người phụ 2</span>
+                                              </label>
+                                              <p className="text-[11px] text-amber-800/80 pl-6.5 pt-0.5 font-medium leading-relaxed">
+                                                  Khi kích hoạt tùy chọn này, 1 nhân sự có thể làm cả 2 vị trí phụ trong cùng thủ thuật nếu không bị trùng lịch trình khác.
+                                              </p>
+                                          </div>
+                                      )}
                                   </div>
 
                                   {/* Buttons cho form cấu hình */}
@@ -1377,6 +1399,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                                   asst1BusyEnd: newOpt.asst1Enabled ? newOpt.asst1BusyEnd : undefined,
                                                   asst2BusyStart: newOpt.asst2Enabled ? newOpt.asst2BusyStart : undefined,
                                                   asst2BusyEnd: newOpt.asst2Enabled ? newOpt.asst2BusyEnd : undefined,
+                                                  allowSameAssistant: (newOpt.asst1Enabled && newOpt.asst2Enabled) ? !!newOpt.allowSameAssistant : false,
                                                   isDefault: false, // Để hàm helper xử lý đánh dấu mặc định nếu rỗng
                                               };
 
@@ -1433,6 +1456,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                                       asst2BusyStart: opt.asst2BusyStart ?? 0,
                                                       asst2BusyEnd: opt.asst2BusyEnd ?? 0,
                                                       asst2Enabled: (opt.asst2BusyEnd || 0) > 0,
+                                                      allowSameAssistant: opt.allowSameAssistant || false,
                                                   });
                                                   setEditingOptId(opt.id);
                                                   setShowOptForm(true);
@@ -1532,6 +1556,11 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                                           <span className="font-mono text-slate-700">{opt.asst2BusyStart ?? 0} - {opt.asst2BusyEnd}p</span>
                                                       </div>
                                                   ) : null}
+                                                  {opt.allowSameAssistant ? (
+                                                      <div className="flex items-center gap-1.5 bg-amber-50/70 text-amber-800 border border-amber-200/60 px-2.5 py-1 rounded-lg text-[10px] font-extrabold mt-0.5">
+                                                          <Users size={11} className="text-amber-600" /> Cho phép Phụ 1 kiêm Phụ 2
+                                                      </div>
+                                                  ) : null}
                                               </div>
                                           </div>
                                       ))}
@@ -1567,6 +1596,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                   finalProc.asst1BusyEnd = defaultOpt.asst1BusyEnd;
                                   finalProc.asst2BusyStart = defaultOpt.asst2BusyStart;
                                   finalProc.asst2BusyEnd = defaultOpt.asst2BusyEnd;
+                                  finalProc.allowSameAssistant = defaultOpt.allowSameAssistant;
                               }
                               finalProc.category = finalProc.category || 'Lâm sàng';
                               if (procedures.some(p => p.id === finalProc.id)) {
