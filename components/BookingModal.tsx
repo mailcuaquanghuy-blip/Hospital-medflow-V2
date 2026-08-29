@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel, ProcedureCategory, PROCEDURE_CATEGORIES } from '../types';
 import { Button } from './Button';
@@ -87,6 +87,22 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     note: ''
   });
   const [isProcDropdownOpen, setIsProcDropdownOpen] = useState(false);
+  const procDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (procDropdownRef.current && !procDropdownRef.current.contains(event.target as Node)) {
+        setIsProcDropdownOpen(false);
+      }
+    };
+    if (isProcDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProcDropdownOpen]);
+
   const [procSearchTerm, setProcSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProcedureCategory>(() => {
     if (initialData?.procedureId) {
@@ -868,7 +884,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </button>
                   )}
                 </div>
-                <div className="p-6 space-y-6 overflow-y-auto flex-1 scrollbar-thin">
+                <div className="p-6 pb-32 space-y-6 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
                   {isAddingNewPatient ? (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
@@ -1155,7 +1171,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     <Activity size={16} className="text-primary" /> Chỉ định thủ thuật
                   </h3>
                 </div>
-                <div className="p-6 space-y-8 overflow-y-auto flex-1 scrollbar-thin">
+                <div className="p-6 pb-80 space-y-8 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
                   {/* Nhóm 1: Thông tin cơ bản */}
                   <div className="space-y-5">
                     <div className="space-y-2">
@@ -1227,7 +1243,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           {filteredProcedures.filter(p => p.deptId === currentDept.id && (p.category || 'Lâm sàng') === selectedCategory).length} thủ thuật
                         </span>
                       </div>
-                      <div className="relative">
+                      <div className="relative" ref={procDropdownRef}>
                         <button
                           type="button"
                           onClick={() => setIsProcDropdownOpen(!isProcDropdownOpen)}
@@ -1252,7 +1268,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: 10 }}
-                              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[80] overflow-hidden flex flex-col max-h-[360px]"
+                              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 z-[100] overflow-hidden flex flex-col max-h-[360px]"
                             >
                               <div className="p-3 border-b border-slate-100 bg-slate-50/90 backdrop-blur-sm shrink-0 z-10">
                                 <div className="relative">
@@ -1287,23 +1303,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                       key={p.id}
                                       type="button"
                                       onClick={() => {
-                                        setFormData({ 
-                                          ...formData, 
-                                          procedureId: p.id, 
-                                          staffId: '', 
-                                          assistant1Id: '', 
-                                          assistant2Id: '', 
-                                          assignedMachineId: '', 
-                                          machineShiftId: undefined,
-                                          selectedDurationOptionId: 'default',
-                                          allowSameAssistant: p.allowSameAssistant,
-                                          mainBusyStart: undefined,
-                                          mainBusyEnd: undefined,
-                                          asst1BusyStart: undefined,
-                                          asst1BusyEnd: undefined,
-                                          asst2BusyStart: undefined,
-                                          asst2BusyEnd: undefined
-                                        });
+                                        if (formData.procedureId !== p.id) {
+                                          setFormData({ 
+                                            ...formData, 
+                                            procedureId: p.id, 
+                                            staffId: '', 
+                                            assistant1Id: '', 
+                                            assistant2Id: '', 
+                                            assignedMachineId: '', 
+                                            machineShiftId: undefined,
+                                            selectedDurationOptionId: 'default',
+                                            allowSameAssistant: p.allowSameAssistant,
+                                            mainBusyStart: undefined,
+                                            mainBusyEnd: undefined,
+                                            asst1BusyStart: undefined,
+                                            asst1BusyEnd: undefined,
+                                            asst2BusyStart: undefined,
+                                            asst2BusyEnd: undefined
+                                          });
+                                        }
                                         setIsProcDropdownOpen(false);
                                         setProcSearchTerm('');
                                       }}
@@ -1326,7 +1344,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                   {/* --- PHƯƠNG ÁN LỰA CHỌN THỜI LƯỢNG --- */}
                   {currentProc && currentProc.durationOptions && currentProc.durationOptions.some(opt => !opt.isDefault && opt.name.toLowerCase() !== 'mặc định' && opt.id !== 'default') && (
-                    <div className="space-y-3.5 mt-5 p-5 bg-slate-50/70 rounded-3xl border border-slate-200/80 animate-in fade-in slide-in-from-top-2 duration-250">
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-3.5 mt-5 p-5 bg-slate-50/70 rounded-3xl border border-slate-200/80 overflow-hidden"
+                    >
                       <div className="flex justify-between items-center pb-1">
                         <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
                           <Clock size={15} className="text-indigo-500" />
@@ -1441,7 +1465,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             );
                           })}
                       </div>
-                    </div>
+                    </motion.div>
                   )}
 
                   {/* Nhóm 2: Đội ngũ thực hiện */}
@@ -1480,8 +1504,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         {renderFieldWarnings(['người thực hiện', 'staff'])}
                       </div>
 
-                      {currentProc && (
-                        <div className="grid grid-cols-2 gap-5">
+                      {currentProc && (needsAssistant1 || needsAssistant2) && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="grid grid-cols-2 gap-5 overflow-hidden mt-4"
+                        >
                           {needsAssistant1 && (
                             <div className="space-y-2">
                               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
@@ -1551,7 +1581,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               {renderFieldWarnings(['người phụ 2', 'assistant 2'])}
                             </div>
                           )}
-                        </div>
+                        </motion.div>
                       )}
                     </div>
                   </div>
@@ -1566,7 +1596,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     <Clock size={16} className="text-primary" /> Thời gian thực hiện
                   </h3>
                 </div>
-                <div className="p-6 space-y-8 overflow-y-auto flex-1 scrollbar-thin">
+                <div className="p-6 pb-32 space-y-8 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Ngày thực hiện</label>
                     <DateInput 
@@ -1581,89 +1611,112 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
                       <Zap size={16} className="text-emerald-500" /> {isMachineShiftRequired ? 'Ca máy trống gợi ý' : 'Khung giờ trống gợi ý'}
                     </label>
-                    <div className="p-5 bg-white border border-emerald-100 rounded-2xl shadow-sm">
-                      {!formData.staffId ? (
-                        <p className="text-xs text-amber-600 font-medium italic flex items-center gap-2">
-                          <Info size={14} /> Chọn nhân sự để xem gợi ý...
-                        </p>
-                      ) : (isMachineShiftRequired ? availableShifts : availableTimeBlocks).length > 0 ? (
-                        <div className="flex flex-wrap gap-2.5">
-                          {isMachineShiftRequired ? (
-                            availableShifts.slice(0, 12).map((shift) => {
-                              const conflicts = getShiftConflicts(shift);
-                              const shiftAppts = appointments.filter(a => a.machineShiftId === shift.id && a.id !== formData.id);
-                              const capacity = currentProc?.machineCapacity || 1;
-                              const remainingSlots = capacity - shiftAppts.length;
-                              const isFull = remainingSlots <= 0;
-                              const isPatientBusy = patientAppointmentsOnDate.some(a => 
-                                (a.startTime < shift.endTime && shift.startTime < a.endTime)
-                              );
-                              const isSelected = formData.machineShiftId === shift.id;
-                              const hasStaffConflicts = conflicts.length > 0;
-                              const isValid = !isFull && !isPatientBusy && !hasStaffConflicts;
+                    <div className="p-5 bg-white border border-emerald-100 rounded-2xl shadow-sm min-h-[76px] flex flex-col justify-center">
+                      <AnimatePresence mode="wait">
+                        {!formData.staffId ? (
+                          <motion.p
+                            key="select-staff"
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            transition={{ duration: 0.15 }}
+                            className="text-xs text-amber-600 font-medium italic flex items-center gap-2"
+                          >
+                            <Info size={14} /> Chọn nhân sự để xem gợi ý...
+                          </motion.p>
+                        ) : (isMachineShiftRequired ? availableShifts : availableTimeBlocks).length > 0 ? (
+                          <motion.div
+                            key="avail-times"
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            transition={{ duration: 0.15 }}
+                            className="flex flex-wrap gap-2.5"
+                          >
+                            {isMachineShiftRequired ? (
+                              availableShifts.slice(0, 12).map((shift) => {
+                                const conflicts = getShiftConflicts(shift);
+                                const shiftAppts = appointments.filter(a => a.machineShiftId === shift.id && a.id !== formData.id);
+                                const capacity = currentProc?.machineCapacity || 1;
+                                const remainingSlots = capacity - shiftAppts.length;
+                                const isFull = remainingSlots <= 0;
+                                const isPatientBusy = patientAppointmentsOnDate.some(a => 
+                                  (a.startTime < shift.endTime && shift.startTime < a.endTime)
+                                );
+                                const isSelected = formData.machineShiftId === shift.id;
+                                const hasStaffConflicts = conflicts.length > 0;
+                                const isValid = !isFull && !isPatientBusy && !hasStaffConflicts;
 
-                              return (
+                                return (
+                                  <button 
+                                    key={shift.id} 
+                                    type="button" 
+                                    onClick={() => {
+                                      setFormData(prev => ({ 
+                                        ...prev, 
+                                        machineShiftId: shift.id,
+                                        assignedMachineId: shift.machineId,
+                                        startTime: shift.startTime, 
+                                        endTime: shift.endTime,
+                                        staffId: shift.staffId,
+                                        assistant1Id: shift.assistant1Id || undefined,
+                                        assistant2Id: shift.assistant2Id || undefined
+                                      }));
+                                      setHasManuallySelectedShift(true);
+                                    }} 
+                                    className={`px-4 py-2 min-w-[75px] border rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 flex flex-col items-center gap-0.5 ${
+                                      isSelected 
+                                        ? 'bg-primary border-primary text-white ring-2 ring-primary/20' 
+                                        : isValid 
+                                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600'
+                                          : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white hover:border-amber-600'
+                                    }`}
+                                  >
+                                    <span>{shift.startTime}</span>
+                                    <span className="text-[8px] font-black opacity-70 uppercase tracking-tighter">
+                                      {isFull ? 'ĐẦY' : isPatientBusy ? 'BN BẬN' : hasStaffConflicts ? 'LỖI NV' : `TRỐNG ${remainingSlots}`}
+                                    </span>
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              availableTimeBlocks.slice(0, 8).map((block, idx) => (
                                 <button 
-                                  key={shift.id} 
+                                  key={idx} 
                                   type="button" 
                                   onClick={() => {
+                                    const end = addMinutesToTime(block.start, currentProc?.durationMinutes || 30);
+                                    // Find a machine that is free in this specific block
+                                    const res = checkConflict(block.start, end, formData.date!, formData.staffId!, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, formData.assistant2Id, { ...formData, assignedMachineId: undefined });
+                                    
                                     setFormData(prev => ({ 
                                       ...prev, 
-                                      machineShiftId: shift.id,
-                                      assignedMachineId: shift.machineId,
-                                      startTime: shift.startTime, 
-                                      endTime: shift.endTime,
-                                      staffId: shift.staffId,
-                                      assistant1Id: shift.assistant1Id || undefined,
-                                      assistant2Id: shift.assistant2Id || undefined
+                                      startTime: block.start, 
+                                      endTime: end,
+                                      assignedMachineId: res.assignedMachineId || prev.assignedMachineId 
                                     }));
-                                    setHasManuallySelectedShift(true);
+                                    setHasManuallySelectedTime(true);
                                   }} 
-                                  className={`px-4 py-2 min-w-[75px] border rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 flex flex-col items-center gap-0.5 ${
-                                    isSelected 
-                                      ? 'bg-primary border-primary text-white ring-2 ring-primary/20' 
-                                      : isValid 
-                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600'
-                                        : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white hover:border-amber-600'
-                                  }`}
+                                  className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all shadow-sm active:scale-95"
                                 >
-                                  <span>{shift.startTime}</span>
-                                  <span className="text-[8px] font-black opacity-70 uppercase tracking-tighter">
-                                    {isFull ? 'ĐẦY' : isPatientBusy ? 'BN BẬN' : hasStaffConflicts ? 'LỖI NV' : `TRỐNG ${remainingSlots}`}
-                                  </span>
+                                  {block.start}
                                 </button>
-                              );
-                            })
-                          ) : (
-                            availableTimeBlocks.slice(0, 8).map((block, idx) => (
-                              <button 
-                                key={idx} 
-                                type="button" 
-                                onClick={() => {
-                                  const end = addMinutesToTime(block.start, currentProc?.durationMinutes || 30);
-                                  // Find a machine that is free in this specific block
-                                  const res = checkConflict(block.start, end, formData.date!, formData.staffId!, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, formData.assistant2Id, { ...formData, assignedMachineId: undefined });
-                                  
-                                  setFormData(prev => ({ 
-                                    ...prev, 
-                                    startTime: block.start, 
-                                    endTime: end,
-                                    assignedMachineId: res.assignedMachineId || prev.assignedMachineId 
-                                  }));
-                                  setHasManuallySelectedTime(true);
-                                }} 
-                                className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all shadow-sm active:scale-95"
-                              >
-                                {block.start}
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-rose-500 font-medium italic flex items-center gap-2">
-                          <AlertTriangle size={14} /> Không có khung giờ trống phù hợp.
-                        </p>
-                      )}
+                              ))
+                            )}
+                          </motion.div>
+                        ) : (
+                          <motion.p
+                            key="no-time-slots"
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            transition={{ duration: 0.15 }}
+                            className="text-xs text-rose-500 font-medium italic flex items-center gap-2"
+                          >
+                            <AlertTriangle size={14} /> Không có khung giờ trống phù hợp.
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
 
@@ -1702,9 +1755,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         )}
                       </div>
                       {formData.procedureId && currentProc?.requireMachine && availableMachines.length > 0 && availableMachines.every(m => m.isFull) && (
-                        <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-rose-600 uppercase tracking-tight bg-rose-50 p-2.5 rounded-xl border border-rose-100 animate-in fade-in slide-in-from-top-1">
+                        <motion.div
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-rose-600 uppercase tracking-tight bg-rose-50 p-2.5 rounded-xl border border-rose-100 overflow-hidden"
+                        >
                            <AlertTriangle size={14} className="text-rose-500" /> Tất cả máy thực hiện đều đã đầy hoặc không phù hợp khung giờ đã chọn.
-                        </div>
+                        </motion.div>
                       )}
                     </div>
                   )}
@@ -2035,7 +2092,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                        </div>
 
                        {isCreatingShift && (
-                          <div className="p-5 bg-white border border-indigo-100 rounded-2xl shadow-sm space-y-4 animate-in zoom-in-95 duration-200">
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="p-5 bg-white border border-indigo-100 rounded-2xl shadow-sm space-y-4 overflow-hidden"
+                          >
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Chọn máy</label>
@@ -2119,7 +2180,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                {editingShiftId ? <Edit2 size={16} /> : <Plus size={16} />} 
                                {editingShiftId ? 'Cập nhật thay đổi' : 'Tạo ca trực mới'}
                              </button>
-                          </div>
+                          </motion.div>
                        )}
                     </div>
 
