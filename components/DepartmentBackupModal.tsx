@@ -45,6 +45,18 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
   const [isRestoring, setIsRestoring] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Backup selective states
+  const [backupStaff, setBackupStaff] = useState<boolean>(true);
+  const [backupProcedures, setBackupProcedures] = useState<boolean>(true);
+  const [backupAttendance, setBackupAttendance] = useState<boolean>(true);
+  const [backupAppointments, setBackupAppointments] = useState<boolean>(true);
+
+  // Restore selective states
+  const [restoreStaff, setRestoreStaff] = useState<boolean>(true);
+  const [restoreProcedures, setRestoreProcedures] = useState<boolean>(true);
+  const [restoreAttendance, setRestoreAttendance] = useState<boolean>(true);
+  const [restoreAppointments, setRestoreAppointments] = useState<boolean>(true);
+
   // Permission check
   const hasPermission = currentUser.role === UserRole.ADMIN || currentUser.editableDeptIds?.includes(currentDept.id);
 
@@ -82,17 +94,13 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
       return;
     }
 
-    const d1 = new Date(fromDate);
-    const d2 = new Date(toDate);
-    const diffDays = Math.ceil(Math.abs(d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
-
     if (fromDate > toDate) {
       alert('Ngày bắt đầu không được lớn hơn ngày kết thúc.');
       return;
     }
 
-    if (diffDays > 10) {
-      alert('Chỉ giới hạn sao lưu từ ngày đến ngày trong khoảng tối đa 10 ngày.');
+    if (!backupStaff && !backupProcedures && !backupAttendance && !backupAppointments) {
+      alert('Vui lòng chọn ít nhất một loại dữ liệu để sao lưu.');
       return;
     }
 
@@ -110,12 +118,12 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
         note: backupNote,
         data: {
           department: currentDept,
-          staff: deptStaff, // Bao gồm nhân sự và kỹ năng (mainCapabilityIds, assistantCapabilityIds)
-          procedures: deptProcedures, // Danh mục thủ thuật của khoa
-          attendance: filteredAttendance, // Chấm công của khoa trong khoảng ngày
-          appointments: filteredAppointments, // Thông tin thủ thuật, giờ bắt đầu, kết thúc, người thực hiện
-          patients: relevantPatients, // Hồ sơ bệnh nhân và ngày vào/ra viện
-          machineShifts: filteredMachineShifts // Ca máy thực hiện
+          staff: backupStaff ? deptStaff : [],
+          procedures: backupProcedures ? deptProcedures : [],
+          attendance: backupAttendance ? filteredAttendance : [],
+          appointments: backupAppointments ? filteredAppointments : [],
+          patients: backupAppointments ? relevantPatients : [],
+          machineShifts: backupAppointments ? filteredMachineShifts : []
         }
       };
 
@@ -172,6 +180,11 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
         }
 
         setUploadedFileContent(json);
+        // Automatically check options if they are present in file
+        setRestoreStaff(!!(json.data?.staff && json.data.staff.length > 0));
+        setRestoreProcedures(!!(json.data?.procedures && json.data.procedures.length > 0));
+        setRestoreAttendance(!!(json.data?.attendance && json.data.attendance.length > 0));
+        setRestoreAppointments(!!(json.data?.appointments && json.data.appointments.length > 0));
       } catch (err) {
         console.error(err);
         alert('Lỗi đọc file JSON: File không hợp lệ.');
@@ -198,13 +211,28 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
       return;
     }
 
+    if (!restoreStaff && !restoreProcedures && !restoreAttendance && !restoreAppointments) {
+      alert('Vui lòng chọn ít nhất một loại dữ liệu để khôi phục.');
+      return;
+    }
+
     const { deptName, fromDate, toDate } = uploadedFileContent;
-    const confirmMsg = `CẢNH BÁO: Dữ liệu của khoa ${deptName || currentDept.name} từ ngày ${fromDate} đến ngày ${toDate} sẽ bị THAY THẾ toàn bộ bằng dữ liệu từ file sao lưu.\n\nBạn có chắc chắn muốn tiếp tục?`;
+    const confirmMsg = `CẢNH BÁO: Dữ liệu đã chọn của khoa ${deptName || currentDept.name} từ ngày ${fromDate} đến ngày ${toDate} sẽ bị THAY THẾ toàn bộ bằng dữ liệu từ file sao lưu.\n\nBạn có chắc chắn muốn tiếp tục?`;
 
     if (window.confirm(confirmMsg)) {
       setIsRestoring(true);
       try {
-        await onRestoreDepartmentData(uploadedFileContent.data);
+        const restorePayload: any = {};
+        if (restoreStaff) restorePayload.staff = uploadedFileContent.data.staff || [];
+        if (restoreProcedures) restorePayload.procedures = uploadedFileContent.data.procedures || [];
+        if (restoreAttendance) restorePayload.attendance = uploadedFileContent.data.attendance || [];
+        if (restoreAppointments) {
+          restorePayload.appointments = uploadedFileContent.data.appointments || [];
+          restorePayload.patients = uploadedFileContent.data.patients || [];
+          restorePayload.machineShifts = uploadedFileContent.data.machineShifts || [];
+        }
+
+        await onRestoreDepartmentData(restorePayload);
         alert('Khôi phục dữ liệu thành công!');
         onClose();
       } catch (error) {
@@ -280,11 +308,8 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
               <div className="bg-sky-50 border border-sky-100 rounded-2xl p-4 text-xs text-sky-800 space-y-1">
                 <p className="font-black uppercase tracking-wider">Thông tin gói sao lưu khoa:</p>
                 <ul className="list-disc pl-5 space-y-0.5 text-sky-700">
-                  <li>Thông tin khoa & Danh mục thủ thuật của khoa</li>
-                  <li>Nhân sự thuộc khoa & Kỹ năng (chính/phụ) của nhân sự</li>
-                  <li>Bảng chấm công của nhân sự khoa trong khoảng thời gian chọn</li>
-                  <li>Tất cả thông tin chỉ định thủ thuật (giờ bắt đầu, giờ kết thúc, người thực hiện, ca máy...)</li>
-                  <li>Hồ sơ bệnh nhân liên quan & Ngày vào/ra viện</li>
+                  <li>Sao lưu linh hoạt theo các mục dữ liệu lựa chọn dưới đây</li>
+                  <li>Không giới hạn khoảng thời gian sao lưu</li>
                 </ul>
               </div>
 
@@ -301,13 +326,71 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Calendar size={14} /> Đến ngày (Tối đa 10 ngày)
+                    <Calendar size={14} /> Đến ngày
                   </label>
                   <DateInput 
                     value={toDate}
                     onChange={setToDate}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 outline-none focus:border-sky-500"
                   />
+                </div>
+              </div>
+
+              {/* Checkboxes for Backup options */}
+              <div className="space-y-3 bg-slate-50/50 p-5 rounded-3xl border border-slate-150">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chọn loại dữ liệu muốn sao lưu:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <label className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-2xl hover:border-sky-300 transition-all cursor-pointer shadow-sm">
+                    <input 
+                      type="checkbox" 
+                      checked={backupStaff} 
+                      onChange={e => setBackupStaff(e.target.checked)}
+                      className="w-4.5 h-4.5 text-sky-500 border-slate-300 rounded focus:ring-sky-400 cursor-pointer"
+                    />
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-slate-800">Nhân sự & Kỹ năng</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{deptStaff.length} nhân sự</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-2xl hover:border-sky-300 transition-all cursor-pointer shadow-sm">
+                    <input 
+                      type="checkbox" 
+                      checked={backupProcedures} 
+                      onChange={e => setBackupProcedures(e.target.checked)}
+                      className="w-4.5 h-4.5 text-sky-500 border-slate-300 rounded focus:ring-sky-400 cursor-pointer"
+                    />
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-slate-800">Danh mục thủ thuật</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{deptProcedures.length} thủ thuật</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-2xl hover:border-sky-300 transition-all cursor-pointer shadow-sm">
+                    <input 
+                      type="checkbox" 
+                      checked={backupAttendance} 
+                      onChange={e => setBackupAttendance(e.target.checked)}
+                      className="w-4.5 h-4.5 text-sky-500 border-slate-300 rounded focus:ring-sky-400 cursor-pointer"
+                    />
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-slate-800">Chấm công các tháng</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{filteredAttendance.length} lượt chấm công</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-2xl hover:border-sky-300 transition-all cursor-pointer shadow-sm">
+                    <input 
+                      type="checkbox" 
+                      checked={backupAppointments} 
+                      onChange={e => setBackupAppointments(e.target.checked)}
+                      className="w-4.5 h-4.5 text-sky-500 border-slate-300 rounded focus:ring-sky-400 cursor-pointer"
+                    />
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-slate-800">Lịch hẹn & Bệnh nhân</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{filteredAppointments.length} chỉ định, {relevantPatients.length} BN</p>
+                    </div>
+                  </label>
                 </div>
               </div>
 
@@ -320,26 +403,6 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
                   placeholder="VD: Sao lưu ca trực tuần 1 tháng 8..."
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-slate-700 outline-none focus:border-sky-500"
                 />
-              </div>
-
-              {/* Summary stats */}
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Nhân sự</p>
-                  <p className="text-lg font-black text-slate-800">{deptStaff.length}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Thủ thuật</p>
-                  <p className="text-lg font-black text-slate-800">{deptProcedures.length}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Chỉ định</p>
-                  <p className="text-lg font-black text-slate-800">{filteredAppointments.length}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bệnh nhân</p>
-                  <p className="text-lg font-black text-slate-800">{relevantPatients.length}</p>
-                </div>
               </div>
 
               <Button
@@ -381,20 +444,86 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
               </div>
 
               {uploadedFileContent && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                <div className="bg-emerald-50/50 border border-emerald-200 rounded-3xl p-6 space-y-4">
                   <div className="flex items-center gap-2 text-emerald-800 font-black text-sm uppercase tracking-tight">
                     <CheckCircle2 size={18} className="text-emerald-600" />
                     <span>Thông tin file sao lưu đã tải lên</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 pb-3 border-b border-emerald-100">
                     <div><strong>Khoa:</strong> {uploadedFileContent.deptName || uploadedFileContent.deptId}</div>
-                    <div><strong>Ngày tạo:</strong> {new Date(uploadedFileContent.createdAt).toLocaleString('vi-VN')}</div>
+                    <div><strong>Ngày tạo:</strong> {uploadedFileContent.createdAt ? new Date(uploadedFileContent.createdAt).toLocaleString('vi-VN') : 'Không rõ'}</div>
                     <div><strong>Khoảng thời gian:</strong> Từ {uploadedFileContent.fromDate} đến {uploadedFileContent.toDate}</div>
                     <div><strong>Người tạo:</strong> {uploadedFileContent.createdBy || 'Hệ thống'}</div>
                   </div>
                   {uploadedFileContent.note && (
-                    <p className="text-xs text-slate-600 italic">Ghi chú: "{uploadedFileContent.note}"</p>
+                    <p className="text-xs text-slate-600 italic pb-2 border-b border-emerald-100">Ghi chú: "{uploadedFileContent.note}"</p>
                   )}
+
+                  {/* Selective Restore Checkboxes */}
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Chọn loại dữ liệu muốn khôi phục từ file:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {uploadedFileContent.data?.staff && (
+                        <label className="flex items-center gap-3 p-3 bg-white border border-emerald-250 rounded-2xl hover:border-emerald-400 transition-all cursor-pointer shadow-sm">
+                          <input 
+                            type="checkbox" 
+                            checked={restoreStaff} 
+                            onChange={e => setRestoreStaff(e.target.checked)}
+                            className="w-4.5 h-4.5 text-emerald-600 border-emerald-300 rounded focus:ring-emerald-400 cursor-pointer"
+                          />
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-slate-800">Nhân sự & Kỹ năng</p>
+                            <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{uploadedFileContent.data.staff.length} nhân sự</p>
+                          </div>
+                        </label>
+                      )}
+
+                      {uploadedFileContent.data?.procedures && (
+                        <label className="flex items-center gap-3 p-3 bg-white border border-emerald-250 rounded-2xl hover:border-emerald-400 transition-all cursor-pointer shadow-sm">
+                          <input 
+                            type="checkbox" 
+                            checked={restoreProcedures} 
+                            onChange={e => setRestoreProcedures(e.target.checked)}
+                            className="w-4.5 h-4.5 text-emerald-600 border-emerald-300 rounded focus:ring-emerald-400 cursor-pointer"
+                          />
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-slate-800">Danh mục thủ thuật</p>
+                            <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{uploadedFileContent.data.procedures.length} thủ thuật</p>
+                          </div>
+                        </label>
+                      )}
+
+                      {uploadedFileContent.data?.attendance && (
+                        <label className="flex items-center gap-3 p-3 bg-white border border-emerald-250 rounded-2xl hover:border-emerald-400 transition-all cursor-pointer shadow-sm">
+                          <input 
+                            type="checkbox" 
+                            checked={restoreAttendance} 
+                            onChange={e => setRestoreAttendance(e.target.checked)}
+                            className="w-4.5 h-4.5 text-emerald-600 border-emerald-300 rounded focus:ring-emerald-400 cursor-pointer"
+                          />
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-slate-800">Chấm công các tháng</p>
+                            <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{uploadedFileContent.data.attendance.length} lượt</p>
+                          </div>
+                        </label>
+                      )}
+
+                      {uploadedFileContent.data?.appointments && (
+                        <label className="flex items-center gap-3 p-3 bg-white border border-emerald-250 rounded-2xl hover:border-emerald-400 transition-all cursor-pointer shadow-sm">
+                          <input 
+                            type="checkbox" 
+                            checked={restoreAppointments} 
+                            onChange={e => setRestoreAppointments(e.target.checked)}
+                            className="w-4.5 h-4.5 text-emerald-600 border-emerald-300 rounded focus:ring-emerald-400 cursor-pointer"
+                          />
+                          <div className="text-left">
+                            <p className="text-xs font-bold text-slate-800">Lịch hẹn & Bệnh nhân</p>
+                            <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{uploadedFileContent.data.appointments.length} chỉ định</p>
+                          </div>
+                        </label>
+                      )}
+                    </div>
+                  </div>
 
                   <div className="pt-2">
                     <Button
@@ -402,7 +531,7 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
                       disabled={isRestoring || !hasPermission}
                       className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase tracking-widest shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
                     >
-                      <Upload size={16} /> {isRestoring ? 'Đang khôi phục...' : `Đồng ý khôi phục dữ liệu (${uploadedFileContent.fromDate} -> ${uploadedFileContent.toDate})`}
+                      <Upload size={16} /> {isRestoring ? 'Đang khôi phục...' : `Bắt đầu khôi phục`}
                     </Button>
                   </div>
                 </div>

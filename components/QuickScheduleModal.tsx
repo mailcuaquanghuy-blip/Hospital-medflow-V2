@@ -1,11 +1,44 @@
 import React, { useState, useMemo } from 'react';
 import { X, Clock, Zap, Check, ChevronDown, Sparkles, AlertCircle, RefreshCw, User, HelpCircle, CheckCircle2, Plus } from 'lucide-react';
 import { Button } from './Button';
-import { Patient, Appointment, Procedure, Staff, AttendanceRecord, AppointmentStatus, Department, AttendanceStatus } from '../types';
+import { Patient, Appointment, Procedure, Staff, AttendanceRecord, AppointmentStatus, Department, AttendanceStatus, ProcedureCategory } from '../types';
 import { timeStringToMinutes, minutesToTimeString, checkConflict } from '../utils/timeUtils';
 import { doc } from 'firebase/firestore';
 import { setDoc } from '../utils/dbService';
 import { db } from '../firebase';
+
+const calculateAge = (dobString: string) => {
+  if (!dobString) return 0;
+  const birthYear = parseInt(dobString.split('-')[0]);
+  if (isNaN(birthYear)) return 0;
+  return new Date().getFullYear() - birthYear;
+};
+
+const formatAndValidateTime = (val: string, defaultVal: string): string => {
+  const cleaned = val.trim();
+  if (!cleaned) return defaultVal;
+  const match = cleaned.match(/^([0-9]{1,2})[:.hH-]?([0-9]{0,2})$/);
+  if (!match) return defaultVal;
+  
+  let hours = parseInt(match[1]);
+  let mins = parseInt(match[2] || '0');
+  
+  if (isNaN(hours) || hours < 0 || hours > 23) return defaultVal;
+  if (isNaN(mins) || mins < 0 || mins > 59) mins = 0;
+  
+  const hh = String(hours).padStart(2, '0');
+  const mm = String(mins).padStart(2, '0');
+  return `${hh}:${mm}`;
+};
+
+const generateTimeOptions = (startHour: number, count: number) => {
+  const options: string[] = [];
+  for (let h = startHour; h < startHour + count; h++) {
+    const hh = String(h).padStart(2, '0');
+    options.push(`${hh}:00`, `${hh}:15`, `${hh}:30`, `${hh}:45`);
+  }
+  return options;
+};
 
 interface QuickScheduleModalProps {
   isOpen: boolean;
@@ -44,12 +77,39 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
   appointments,
   attendanceRecords,
 }) => {
-  // 1. Time config
-  const [fromTime, setFromTime] = useState('08:30');
-  const [toTime, setToTime] = useState('11:30');
+  // 1. Patient Specific Time Configuration
+  interface PatientTimeConfig {
+    morningActive: boolean;
+    morningStart: string;
+    morningEnd: string;
+    afternoonActive: boolean;
+    afternoonStart: string;
+    afternoonEnd: string;
+  }
 
-  // Scheduling options: free (sắp xếp tự do) vs group (ưu tiên sắp xếp theo kíp)
-  const [scheduleMode, setScheduleMode] = useState<'free' | 'group'>('free');
+  const [patientTimeConfigs, setPatientTimeConfigs] = useState<Record<string, PatientTimeConfig>>({});
+
+  const getPatientTimeConfig = (patientId: string): PatientTimeConfig => {
+    return patientTimeConfigs[patientId] || {
+      morningActive: true, // Default to true
+      morningStart: '07:30',
+      morningEnd: '11:30',
+      afternoonActive: true, // Default to true
+      afternoonStart: '13:30',
+      afternoonEnd: '17:30'
+    };
+  };
+
+  // 2. Warning Modal State for duplicate scheduling
+  const [warningModal, setWarningModal] = useState<{
+    isOpen: boolean;
+    patientName: string;
+    procedureName: string;
+    existingTimes: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Daily kíp configs
   const [groups, setGroups] = useState<KipConfig[]>([]);
 
   // Attending department staff (present on current day)
@@ -89,16 +149,12 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     setGroups(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
   };
 
-  // 2. Filter patients who are TREATING and belong to or are referred to this department
+  // Filter patients who are TREATING and belong to or are referred to this department
   const departmentPatients = useMemo(() => {
     return patients.filter(p => {
-      // Must be treating (not discharged yet or discharged in the future)
       if (p.status !== 'TREATING') return false;
-
-      // Filter based on department
       if (p.admittedByDeptId === currentDept.id) return true;
 
-      // If support department, verify active referral
       return p.referrals?.some(r => {
         const s = (r.specialty || '').toLowerCase().trim();
         const dId = currentDept.id.toLowerCase().trim();
@@ -118,28 +174,41 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     });
   }, [patients, currentDept, currentDate]);
 
-  // 3. Filter procedures of this department
+  // Filter procedures of this department
   const departmentProcedures = useMemo(() => {
     return procedures.filter(p => p.deptId === currentDept.id);
   }, [procedures, currentDept]);
 
-  // Helper to fetch custom duration options for a procedure
-  const getProcDurationOptions = (proc: Procedure) => {
-    if (proc.durationOptions && proc.durationOptions.length > 0) {
-      return proc.durationOptions;
-    }
-    // Fallback for "Điện châm" to provide 25m and 30m as requested in instructions
-    if (proc.id === 'pr_diencham' || proc.name.toLowerCase().includes('điện châm')) {
-      return [
-        { id: 'opt_25', name: 'Điện châm 25 phút', durationMinutes: 25 },
-        { id: 'opt_30', name: 'Điện châm 30 phút', durationMinutes: 30 }
-      ];
-    }
-    return [];
-  };
+  // Unified quick schedule tasks record per patient
+  interface QuickScheduleTask {
+    id: string;
+    procedureId: string;
+    durationMinutes: number;
+    durationOptionId?: string | null;
+    mainStaffId?: string | null;
+    assistant1Id?: string | null;
+    assistant2Id?: string | null;
+    deviceId?: string | null;
+  }
 
-  // State: cell-level selections: selections[patientId][procedureId] = SelectionState
-  const [selection, setSelection] = useState<Record<string, Record<string, SelectionState>>>({});
+  const [quickScheduleTasks, setQuickScheduleTasks] = useState<Record<string, QuickScheduleTask[]>>({});
+
+  // Sub-dialog state for "+ Thêm thủ thuật"
+  const [addProcState, setAddProcState] = useState<{
+    isOpen: boolean;
+    patientId: string;
+    selectedCategory: string;
+    selectedProcedureId: string;
+    selectedDurationOptionId: string;
+    mainStaffId: string;
+    assistant1Id: string;
+    assistant2Id: string;
+    deviceId: string;
+  } | null>(null);
+
+  const [addProcDuplicateWarning, setAddProcDuplicateWarning] = useState<boolean>(false);
+
+  const [showKipConfig, setShowKipConfig] = useState(false);
 
   // States for scheduling progress
   const [isProcessing, setIsProcessing] = useState(false);
@@ -150,89 +219,6 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
   const [failedDetails, setFailedDetails] = useState<{ patientName: string; procedureName: string; reason: string }[]>([]);
 
   if (!isOpen) return null;
-
-  // Toggle cell selection (0 -> 1 -> 2 -> 0)
-  const handleCellClick = (patientId: string, proc: Procedure) => {
-    setSelection(prev => {
-      const patientSel = prev[patientId] || {};
-      const currentCell = patientSel[proc.id] || { level: 0, durationMinutes: proc.durationMinutes };
-      
-      let nextLevel: 0 | 1 | 2 = 0;
-      if (currentCell.level === 0) nextLevel = 1;
-      else if (currentCell.level === 1) nextLevel = 2;
-      else nextLevel = 0;
-
-      const updatedCell: SelectionState = {
-        ...currentCell,
-        level: nextLevel,
-      };
-
-      return {
-        ...prev,
-        [patientId]: {
-          ...patientSel,
-          [proc.id]: updatedCell
-        }
-      };
-    });
-  };
-
-  // Select/Deselect ALL patients for a procedure column
-  const handleColumnClick = (proc: Procedure) => {
-    // Check if any patient is not selected for this procedure
-    const anyUnselected = departmentPatients.some(p => {
-      const cell = selection[p.id]?.[proc.id];
-      return !cell || cell.level === 0;
-    });
-
-    // Check if any is level 1
-    const anyLevel1 = departmentPatients.some(p => {
-      const cell = selection[p.id]?.[proc.id];
-      return cell && cell.level === 1;
-    });
-
-    let targetLevel: 0 | 1 | 2 = 1;
-    if (!anyUnselected && anyLevel1) {
-      targetLevel = 2; // All are level 1, elevate to level 2
-    } else if (!anyUnselected && !anyLevel1) {
-      targetLevel = 0; // All are level 2, turn off
-    }
-
-    setSelection(prev => {
-      const next = { ...prev };
-      departmentPatients.forEach(p => {
-        const patientSel = next[p.id] || {};
-        next[p.id] = {
-          ...patientSel,
-          [proc.id]: {
-            level: targetLevel,
-            durationMinutes: patientSel[proc.id]?.durationMinutes || proc.durationMinutes,
-            durationOptionId: patientSel[proc.id]?.durationOptionId || null
-          }
-        };
-      });
-      return next;
-    });
-  };
-
-  // Change duration for a specific cell
-  const handleCellDurationChange = (patientId: string, procId: string, optionId: string, minutes: number) => {
-    setSelection(prev => {
-      const patientSel = prev[patientId] || {};
-      const currentCell = patientSel[procId] || { level: 1, durationMinutes: minutes };
-      return {
-        ...prev,
-        [patientId]: {
-          ...patientSel,
-          [procId]: {
-            ...currentCell,
-            durationMinutes: minutes,
-            durationOptionId: optionId === 'default' ? null : optionId
-          }
-        }
-      };
-    });
-  };
 
   // Algorithm to find valid slots
   const findValidSlotAndStaff = (
@@ -248,16 +234,13 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     patientsList: Patient[],
     dedicatedMainId?: string | null,
     dedicatedAsst1Id?: string | null,
-    dedicatedAsst2Id?: string | null
+    dedicatedAsst2Id?: string | null,
+    dedicatedDeviceId?: string | null
   ) => {
     // Find staff with main capability for this procedure
     let eligibleMain = staffList.filter(s => s.mainCapabilityIds?.includes(procedure.id));
     if (dedicatedMainId) {
-      const idx = eligibleMain.findIndex(s => s.id === dedicatedMainId);
-      if (idx > -1) {
-        const [match] = eligibleMain.splice(idx, 1);
-        eligibleMain = [match, ...eligibleMain];
-      }
+      eligibleMain = eligibleMain.filter(s => s.id === dedicatedMainId);
     }
 
     // Check if assistant is required
@@ -268,23 +251,21 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
     let eligibleAsst1 = hasAsst1 ? staffList.filter(s => s.assistantCapabilityIds?.includes(procedure.id)) : [null];
     if (hasAsst1 && dedicatedAsst1Id) {
-      const idx = eligibleAsst1.findIndex(s => s && s.id === dedicatedAsst1Id);
-      if (idx > -1) {
-        const match = eligibleAsst1[idx];
-        eligibleAsst1.splice(idx, 1);
-        eligibleAsst1 = [match, ...eligibleAsst1];
-      }
+      eligibleAsst1 = eligibleAsst1.filter(s => s && s.id === dedicatedAsst1Id);
     }
 
     let eligibleAsst2 = hasAsst2 ? staffList.filter(s => s.assistantCapabilityIds?.includes(procedure.id)) : [null];
     if (hasAsst2 && dedicatedAsst2Id) {
-      const idx = eligibleAsst2.findIndex(s => s && s.id === dedicatedAsst2Id);
-      if (idx > -1) {
-        const match = eligibleAsst2[idx];
-        eligibleAsst2.splice(idx, 1);
-        eligibleAsst2 = [match, ...eligibleAsst2];
-      }
+      eligibleAsst2 = eligibleAsst2.filter(s => s && s.id === dedicatedAsst2Id);
     }
+
+    // Check if the current option allows same assistant
+    const opt = procedure.durationOptions?.find(o => o.durationMinutes === durationMins) || 
+                 procedure.durationOptions?.find(o => o.isDefault) || 
+                 procedure.durationOptions?.[0];
+    const allowSame = opt?.allowSameAssistant !== undefined 
+      ? opt.allowSameAssistant 
+      : (procedure.allowSameAssistant || false);
 
     // Slide search from userStartMin to userEndMin - durationMins
     // Optimization: step by 5 minutes for extreme scheduling speed and clean visual slots
@@ -297,7 +278,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
           if (asst1 && asst1.id === mainStaff.id) continue;
 
           for (const asst2 of eligibleAsst2) {
-            if (asst2 && (asst2.id === mainStaff.id || (asst1 && asst2.id === asst1.id))) continue;
+            if (asst2 && (asst2.id === mainStaff.id || (!allowSame && asst1 && asst2.id === asst1.id))) continue;
 
             // Run conflict checks with detailed simulation
             const conflictRes = checkConflict(
@@ -318,6 +299,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
               {
                 endTime: endStr,
                 startTime: startStr,
+                assignedMachineId: dedicatedDeviceId || undefined
               }
             );
 
@@ -383,29 +365,28 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     const tasks: {
       patient: Patient;
       procedure: Procedure;
-      level: 1 | 2;
       durationMinutes: number;
       durationOptionId?: string | null;
+      mainStaffId?: string | null;
+      assistant1Id?: string | null;
+      assistant2Id?: string | null;
+      deviceId?: string | null;
     }[] = [];
 
     for (const patient of departmentPatients) {
-      for (const proc of departmentProcedures) {
-        const cellState = selection[patient.id]?.[proc.id];
-        if (cellState && cellState.level > 0) {
-          // Skip if already scheduled on this date
-          const hasExisting = appointments.some(
-            a => a.patientId === patient.id && a.procedureId === proc.id && a.date === currentDate
-          );
-          if (hasExisting) {
-            continue;
-          }
-
+      const pTasks = quickScheduleTasks[patient.id] || [];
+      for (const t of pTasks) {
+        const proc = procedures.find(p => p.id === t.procedureId);
+        if (proc) {
           tasks.push({
             patient,
             procedure: proc,
-            level: cellState.level as 1 | 2,
-            durationMinutes: cellState.durationMinutes || proc.durationMinutes,
-            durationOptionId: cellState.durationOptionId || null
+            durationMinutes: t.durationMinutes,
+            durationOptionId: t.durationOptionId || null,
+            mainStaffId: t.mainStaffId || null,
+            assistant1Id: t.assistant1Id || null,
+            assistant2Id: t.assistant2Id || null,
+            deviceId: t.deviceId || null,
           });
         }
       }
@@ -417,19 +398,14 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       return;
     }
 
-    // Sort Level 2 (Priority) first, then Level 1 (Xếp giờ)
-    tasks.sort((a, b) => b.level - a.level);
-
     let successCount = 0;
     let failCount = 0;
     const fails: typeof failedDetails = [];
     let tempAppointments = [...appointments];
 
     const totalTasks = tasks.length;
-    const userStartMin = timeStringToMinutes(fromTime);
-    const userEndMin = timeStringToMinutes(toTime);
 
-    // Track next available start minutes per procedure to support consecutive ("gối tiếp") scheduling starting from userStartMin.
+    // Track next available start minutes per procedure to support consecutive ("gối tiếp") scheduling.
     const nextProcStartMin: Record<string, number> = {};
 
     for (let i = 0; i < totalTasks; i++) {
@@ -445,90 +421,126 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       if (isDc) stagger = 6;
       else if (isTc) stagger = 6;
 
-      const searchStartMin = Math.max(userStartMin, nextProcStartMin[task.procedure.id] || userStartMin);
+      const config = getPatientTimeConfig(task.patient.id);
+      const activeWindows: { startMin: number; endMin: number }[] = [];
+
+      // If both are inactive (unchecked), default to "toàn bộ giờ hành chính trong ngày"
+      const useMorning = config.morningActive || (!config.morningActive && !config.afternoonActive);
+      const useAfternoon = config.afternoonActive || (!config.morningActive && !config.afternoonActive);
+
+      if (useMorning) {
+        activeWindows.push({
+          startMin: timeStringToMinutes(config.morningStart),
+          endMin: timeStringToMinutes(config.morningEnd)
+        });
+      }
+      if (useAfternoon) {
+        activeWindows.push({
+          startMin: timeStringToMinutes(config.afternoonStart),
+          endMin: timeStringToMinutes(config.afternoonEnd)
+        });
+      }
 
       let slot: any = null;
 
-      if (scheduleMode === 'group') {
-        const matchingKips = groups.filter(g => g.procedureId === task.procedure.id);
-        if (matchingKips.length > 0) {
-          // Find the earliest slot across all matching kips
-          let bestSlot: any = null;
-          let bestStartMin = Infinity;
-          
-          for (const kip of matchingKips) {
-            const tempSlot = findValidSlotAndStaff(
-              task.patient.id,
-              task.procedure,
-              task.durationMinutes,
-              searchStartMin,
-              userEndMin,
-              tempAppointments,
-              staff,
-              procedures,
-              attendanceRecords,
-              patients,
-              kip.mainStaffId || null,
-              kip.assistant1Id || null,
-              kip.assistant2Id || null
-            );
-            if (tempSlot) {
-              const startMin = timeStringToMinutes(tempSlot.startTime);
-              if (startMin < bestStartMin) {
-                bestStartMin = startMin;
-                bestSlot = tempSlot;
+      for (const window of activeWindows) {
+        const searchStartMin = Math.max(window.startMin, nextProcStartMin[task.procedure.id] || window.startMin);
+        if (searchStartMin + task.durationMinutes > window.endMin) {
+          continue; // Not enough time in this window, check next window
+        }
+
+        // Setup custom configurations/overrides
+        let decMain = task.mainStaffId || null;
+        let decAsst1 = task.assistant1Id || null;
+        let decAsst2 = task.assistant2Id || null;
+        const decDevice = task.deviceId || null;
+
+        // If no custom staff overrides are specified, check if daily Kip (groups) is defined for this procedure
+        if (!decMain && !decAsst1 && !decAsst2) {
+          const matchingKips = groups.filter(g => g.procedureId === task.procedure.id);
+          if (matchingKips.length > 0) {
+            let bestSlot: any = null;
+            let bestStartMin = Infinity;
+            
+            // Check if the current task duration/procedure allows same assistant
+            let currentAllowSame = task.procedure.allowSameAssistant;
+            if (task.durationOptionId) {
+              const opt = task.procedure.durationOptions?.find(o => o.id === task.durationOptionId);
+              if (opt && opt.allowSameAssistant !== undefined) {
+                currentAllowSame = opt.allowSameAssistant;
               }
             }
+
+            for (const kip of matchingKips) {
+              let asst1Override = kip.assistant1Id || null;
+              let asst2Override = kip.assistant2Id || null;
+
+              if (currentAllowSame && asst1Override && asst2Override && asst1Override !== asst2Override) {
+                asst2Override = asst1Override;
+              }
+
+              const tempSlot = findValidSlotAndStaff(
+                task.patient.id,
+                task.procedure,
+                task.durationMinutes,
+                searchStartMin,
+                window.endMin,
+                tempAppointments,
+                staff,
+                procedures,
+                attendanceRecords,
+                patients,
+                kip.mainStaffId || null,
+                asst1Override,
+                asst2Override,
+                decDevice
+              );
+              if (tempSlot) {
+                const startMin = timeStringToMinutes(tempSlot.startTime);
+                if (startMin < bestStartMin) {
+                  bestStartMin = startMin;
+                  bestSlot = tempSlot;
+                }
+              }
+            }
+            slot = bestSlot;
           }
-          slot = bestSlot;
-        } else {
-          // No custom kip defined, use general search
+        }
+
+        // If still no slot, fallback to general free search or standard Điện châm/Thủy châm pre-calculated defaults
+        if (!slot) {
+          if (!decMain && !decAsst1 && !decAsst2) {
+            if (isDc) {
+              decMain = dcMainId;
+              decAsst1 = dcAsst1Id;
+              decAsst2 = dcAsst2Id;
+            } else if (isTc) {
+              decMain = tcMainId;
+              decAsst1 = tcAsstId;
+            }
+          }
+
           slot = findValidSlotAndStaff(
             task.patient.id,
             task.procedure,
             task.durationMinutes,
             searchStartMin,
-            userEndMin,
+            window.endMin,
             tempAppointments,
             staff,
             procedures,
             attendanceRecords,
             patients,
-            null,
-            null,
-            null
+            decMain,
+            decAsst1,
+            decAsst2,
+            decDevice
           );
         }
-      } else {
-        // Free scheduling mode ('free'): can use the default pre-calculated dedicated teams for Dien cham & Thuy cham
-        let dedicatedMain: string | null = null;
-        let dedicatedAsst1: string | null = null;
-        let dedicatedAsst2: string | null = null;
 
-        if (isDc) {
-          dedicatedMain = dcMainId;
-          dedicatedAsst1 = dcAsst1Id;
-          dedicatedAsst2 = dcAsst2Id;
-        } else if (isTc) {
-          dedicatedMain = tcMainId;
-          dedicatedAsst1 = tcAsstId;
+        if (slot) {
+          break; // Found slot, stop checking other windows
         }
-
-        slot = findValidSlotAndStaff(
-          task.patient.id,
-          task.procedure,
-          task.durationMinutes,
-          searchStartMin,
-          userEndMin,
-          tempAppointments,
-          staff,
-          procedures,
-          attendanceRecords,
-          patients,
-          dedicatedMain,
-          dedicatedAsst1,
-          dedicatedAsst2
-        );
       }
 
       if (slot) {
@@ -613,8 +625,60 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     setScheduledCount(0);
     setFailedCount(0);
     setFailedDetails([]);
-    setSelection({});
+    setQuickScheduleTasks({});
     onClose();
+  };
+
+  const handleAddProcedureConfirm = () => {
+    if (!addProcState || !addProcState.selectedProcedureId) {
+      alert("Vui lòng chọn thủ thuật.");
+      return;
+    }
+
+    const patientId = addProcState.patientId;
+    const procedureId = addProcState.selectedProcedureId;
+    const durationOptionId = addProcState.selectedDurationOptionId || null;
+    const selectedProc = procedures.find(p => p.id === procedureId);
+
+    // Get duration minutes and same assistant rule
+    const selectedDurationOpt = selectedProc?.durationOptions?.find(o => o.id === durationOptionId);
+    let durationMinutes = selectedProc?.durationMinutes || 20;
+    if (selectedDurationOpt) {
+      durationMinutes = selectedDurationOpt.durationMinutes;
+    }
+
+    const isSameAsst = selectedDurationOpt ? (
+      selectedDurationOpt.allowSameAssistant ?? selectedProc?.allowSameAssistant
+    ) : selectedProc?.allowSameAssistant;
+
+    // Check for duplicate warning
+    const hasExistingAppt = appointments.some(appt => appt.patientId === patientId && appt.date === currentDate && appt.procedureId === procedureId);
+    const hasPendingTask = (quickScheduleTasks[patientId] || []).some(t => t.procedureId === procedureId);
+
+    if ((hasExistingAppt || hasPendingTask) && !addProcDuplicateWarning) {
+      setAddProcDuplicateWarning(true);
+      return;
+    }
+
+    // Add task
+    const newTask: QuickScheduleTask = {
+      id: 'task_' + Math.random().toString(36).substr(2, 9),
+      procedureId: procedureId,
+      durationMinutes: durationMinutes,
+      durationOptionId: durationOptionId,
+      mainStaffId: addProcState.mainStaffId || null,
+      assistant1Id: addProcState.assistant1Id || null,
+      assistant2Id: isSameAsst ? (addProcState.assistant1Id || null) : (addProcState.assistant2Id || null),
+      deviceId: addProcState.deviceId || null
+    };
+
+    setQuickScheduleTasks(prev => ({
+      ...prev,
+      [patientId]: [...(prev[patientId] || []), newTask]
+    }));
+
+    setAddProcState(null);
+    setAddProcDuplicateWarning(false);
   };
 
   return (
@@ -648,143 +712,38 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
         {!isProcessing ? (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Setting bar */}
-            <div className="p-6 bg-slate-50/40 border-b border-slate-100 flex flex-col gap-6 shrink-0">
-              <div className="flex flex-wrap gap-6 items-center">
-                <div className="flex items-center gap-3">
-                  <Clock size={16} className="text-violet-500 shrink-0" />
-                  <span className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">Khoảng thời gian xếp lịch:</span>
+            <div className="p-6 bg-slate-50/40 border-b border-slate-100 flex flex-col gap-4 shrink-0">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-violet-600 fill-violet-200 animate-pulse" />
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Cấu hình kíp thủ thuật chuyên biệt</span>
+                  <button
+                    onClick={() => setShowKipConfig(!showKipConfig)}
+                    className="text-xs font-black text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-xl transition-colors ml-4"
+                  >
+                    {showKipConfig ? 'Thu gọn kíp' : 'Mở rộng cấu hình kíp'}
+                  </button>
                 </div>
-                <div className="flex items-center gap-4">
-                  {/* Custom Time Picker 1 (Từ) */}
-                  <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-100 transition-all">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider pr-2 border-r border-slate-100 select-none">Từ</span>
-                    <div className="flex items-center gap-1">
-                      <select
-                        value={fromTime.split(':')[0]}
-                        onChange={e => {
-                          const [, m] = fromTime.split(':');
-                          setFromTime(`${e.target.value}:${m}`);
-                        }}
-                        className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer appearance-none px-1"
-                      >
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(hour => (
-                          <option key={hour} value={hour}>{hour}</option>
-                        ))}
-                      </select>
-                      <span className="text-slate-400 font-extrabold text-xs select-none">:</span>
-                      <select
-                        value={fromTime.split(':')[1]}
-                        onChange={e => {
-                          const [h] = fromTime.split(':');
-                          setFromTime(`${h}:${e.target.value}`);
-                        }}
-                        className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer appearance-none px-1"
-                      >
-                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(minute => (
-                          <option key={minute} value={minute}>{minute}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Custom Time Picker 2 (Đến) */}
-                  <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-100 transition-all">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider pr-2 border-r border-slate-100 select-none">Đến</span>
-                    <div className="flex items-center gap-1">
-                      <select
-                        value={toTime.split(':')[0]}
-                        onChange={e => {
-                          const [, m] = toTime.split(':');
-                          setToTime(`${e.target.value}:${m}`);
-                        }}
-                        className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer appearance-none px-1"
-                      >
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(hour => (
-                          <option key={hour} value={hour}>{hour}</option>
-                        ))}
-                      </select>
-                      <span className="text-slate-400 font-extrabold text-xs select-none">:</span>
-                      <select
-                        value={toTime.split(':')[1]}
-                        onChange={e => {
-                          const [h] = toTime.split(':');
-                          setToTime(`${h}:${e.target.value}`);
-                        }}
-                        className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer appearance-none px-1"
-                      >
-                        {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(minute => (
-                          <option key={minute} value={minute}>{minute}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mode selector */}
-                <div className="flex items-center gap-3 border-l border-slate-250 pl-6">
-                  <span className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">Chế độ sắp xếp:</span>
-                  <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-                    <button
-                      onClick={() => setScheduleMode('free')}
-                      className={`px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all ${
-                        scheduleMode === 'free'
-                          ? 'bg-white text-slate-800 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      Sắp xếp tự do
-                    </button>
-                    <button
-                      onClick={() => setScheduleMode('group')}
-                      className={`px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider rounded-lg transition-all ${
-                        scheduleMode === 'group'
-                          ? 'bg-white text-violet-700 shadow-sm'
-                          : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      Ưu tiên kíp
-                    </button>
-                  </div>
-                </div>
-
-                <div className="ml-auto flex items-center gap-6">
-                  <div className="flex gap-4 text-xs font-bold text-slate-500 select-none">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-md bg-emerald-50 border border-emerald-300"></span>
-                      <span>Mức 1 (Xếp giờ)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-3 h-3 rounded-md bg-violet-50 border border-violet-300"></span>
-                      <span>Mức 2 (Ưu tiên)</span>
-                    </div>
-                  </div>
-                </div>
+                {showKipConfig && (
+                  <button
+                    onClick={handleAddGroup}
+                    className="text-xs font-black text-white bg-violet-600 hover:bg-violet-700 transition-colors px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-violet-500/10"
+                  >
+                    <span>+ Thêm kíp</span>
+                  </button>
+                )}
               </div>
 
               {/* Kíp Configuration box */}
-              {scheduleMode === 'group' && (
-                <div className="p-4 bg-violet-50/20 border border-violet-100 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles size={16} className="text-violet-600 fill-violet-200" />
-                      <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Cấu hình kíp thủ thuật chuyên biệt</span>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">Khi sắp xếp, kíp này sẽ được ưu tiên phân công trước cho thủ thuật tương ứng</p>
-                    </div>
-                    <button
-                      onClick={handleAddGroup}
-                      className="text-xs font-black text-white bg-violet-600 hover:bg-violet-700 transition-colors px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-violet-500/10"
-                    >
-                      <span>+ Thêm kíp</span>
-                    </button>
-                  </div>
-                  
+              {showKipConfig && (
+                <div className="p-4 bg-violet-50/20 border border-violet-100 rounded-2xl space-y-3 max-h-[160px] overflow-y-auto">
                   {groups.length === 0 ? (
                     <div className="text-center py-4 border border-dashed border-slate-200 rounded-xl bg-white/50">
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Chưa thiết lập kíp nào</p>
-                      <p className="text-[10px] font-bold text-slate-400 mt-1">Bấm nút "+ Thêm kíp" để bắt đầu cấu hình nhân lực cố định cho từng thủ thuật</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1">Bấm nút "+ Thêm kíp" để cấu hình cố định nhân sự cho từng thủ thuật ngày hôm nay</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[160px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-1">
                       {groups.map((group, index) => {
                         const proc = departmentProcedures.find(p => p.id === group.procedureId);
                         const needsAsst1 = proc ? ((proc.asst1BusyEnd !== undefined && proc.asst1BusyEnd > 0) || (proc.assistant1BusyMinutes !== undefined && proc.assistant1BusyMinutes > 0)) : false;
@@ -913,110 +872,290 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
               {departmentPatients.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
                   <User size={48} className="text-slate-300" />
-                  <p className="text-sm font-bold text-slate-400 uppercase tracking-wider">Không tìm thấy bệnh nhân nào đang điều trị tại khoa này</p>
+                  <p className="text-sm font-bold text-slate-400 uppercase tracking-wider animate-pulse">Không tìm thấy bệnh nhân nào đang điều trị tại khoa này</p>
                 </div>
               ) : (
                 <div className="w-full flex-1 overflow-auto border border-slate-150 rounded-2xl shadow-sm bg-white">
                   <table className="min-w-full border-collapse text-left">
                     <thead>
                       <tr className="bg-slate-50/80 border-b border-slate-200 select-none">
-                        <th className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider sticky top-0 left-0 bg-slate-50 border-r border-slate-200 z-40 min-w-[320px] w-[320px] md:min-w-[360px] md:w-[360px] shadow-[4px_0_8px_rgba(0,0,0,0.03)]">
+                        <th className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider sticky top-0 left-0 bg-slate-50 border-r border-slate-200 z-40 min-w-[280px] w-[280px]">
                           Danh sách bệnh nhân
                         </th>
-                        {departmentProcedures.map(proc => (
-                          <th key={proc.id} className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider text-center border-r border-slate-200 min-w-[180px] w-[180px] sticky top-0 bg-slate-50 z-20">
-                            <button
-                              onClick={() => handleColumnClick(proc)}
-                              className="w-full flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-slate-150/50 transition-colors text-center"
-                              title="Bấm để chọn hàng loạt thủ thuật này cho tất cả bệnh nhân"
-                            >
-                              <span className="text-slate-800 text-xs font-black line-clamp-1">{proc.name}</span>
-                              <span className="text-[9px] text-indigo-500 font-black font-mono tracking-normal bg-indigo-50 px-1.5 py-0.5 rounded-md">{proc.durationMinutes}p</span>
-                            </button>
-                          </th>
-                        ))}
+                        <th className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider sticky top-0 bg-slate-50 border-r border-slate-200 min-w-[240px] w-[240px]">
+                          Thủ thuật đã có
+                        </th>
+                        <th className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider sticky top-0 bg-slate-50 border-r border-slate-200 min-w-[340px] w-[340px]">
+                          Thủ thuật xếp lịch nhanh
+                        </th>
+                        <th className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider sticky top-0 bg-slate-50 min-w-[300px] w-[300px]">
+                          Chọn khung giờ
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {departmentPatients.map(p => (
-                        <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
-                          <td className="p-4 sticky left-0 bg-white border-r border-slate-200 font-bold text-slate-700 text-sm z-20 shadow-[6px_0_12px_-3px_rgba(0,0,0,0.08)] min-w-[320px] w-[320px] md:min-w-[360px] md:w-[360px]">
-                            <div className="flex flex-col min-w-0">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                {p.insuranceLevel && (
-                                  <div className={`shrink-0 w-2.5 h-3.5 rounded-[2px] border shadow-sm ${
-                                    p.insuranceLevel === '0%' ? 'bg-rose-500 border-rose-600' :
-                                    p.insuranceLevel === '80%' ? 'bg-orange-500 border-orange-600' :
-                                    p.insuranceLevel === '95%' ? 'bg-lime-400 border-lime-500' :
-                                    'bg-emerald-500 border-emerald-600'
-                                  }`} title={`BHYT: ${p.insuranceLevel}`} />
-                                )}
-                                <span className="text-slate-800 text-sm font-extrabold whitespace-nowrap overflow-hidden text-ellipsis" title={p.name}>{p.name}</span>
-                                {p.note && (
-                                  <div className="group/note relative shrink-0">
-                                    <Plus size={10} className="text-amber-500 bg-amber-50 rounded-full border border-amber-200 cursor-help" />
-                                    <div className="absolute left-full ml-1 top-0 hidden group-hover/note:block z-[100] w-48 p-2 bg-slate-800 text-white text-[10px] font-medium rounded-lg shadow-xl backdrop-blur-sm bg-opacity-90 normal-case leading-normal tracking-normal">
-                                      {p.note}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider whitespace-nowrap overflow-hidden text-ellipsis">
-                                Buồng: {p.roomNumber || '?'}, Giường: {p.bedNumber || '?'}
-                              </span>
-                            </div>
-                          </td>
-                          {departmentProcedures.map(proc => {
-                            const cellState = selection[p.id]?.[proc.id] || { level: 0, durationMinutes: proc.durationMinutes };
-                            const options = getProcDurationOptions(proc);
-                            
-                            return (
-                              <td key={proc.id} className="p-4 border-r border-slate-200 text-center align-middle min-w-[180px] w-[180px]">
-                                <div className="flex flex-col items-center justify-center gap-2">
-                                  <button
-                                    onClick={() => handleCellClick(p.id, proc)}
-                                    className={`w-full py-2.5 px-3 rounded-xl border font-black text-[11px] uppercase tracking-wider transition-all duration-250 flex items-center justify-center gap-1.5 ${
-                                      cellState.level === 1
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-sm shadow-emerald-500/5'
-                                        : cellState.level === 2
-                                        ? 'bg-violet-50 text-violet-700 border-violet-300 shadow-sm shadow-violet-500/5'
-                                        : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300 hover:text-slate-600'
-                                    }`}
-                                  >
-                                    {cellState.level === 1 && <Check size={12} strokeWidth={3} />}
-                                    {cellState.level === 2 && <Sparkles size={12} className="fill-violet-300" />}
-                                    {cellState.level === 1 ? 'Xếp giờ' : cellState.level === 2 ? 'Ưu tiên' : 'Chọn xếp'}
-                                  </button>
+                      {departmentPatients.map(p => {
+                        const config = getPatientTimeConfig(p.id);
+                        const existingAppts = appointments.filter(
+                          a => a.patientId === p.id && a.date === currentDate
+                        );
+                        const patientTasks = quickScheduleTasks[p.id] || [];
 
-                                  {cellState.level > 0 && options.length > 0 && (
-                                    <div className="relative group/sel w-full">
-                                      <select
-                                        value={cellState.durationOptionId || 'default'}
-                                        onChange={e => {
-                                          if (e.target.value === 'default') {
-                                            handleCellDurationChange(p.id, proc.id, 'default', proc.durationMinutes);
-                                          } else {
-                                            const opt = options.find(o => o.id === e.target.value);
-                                            if (opt) {
-                                              handleCellDurationChange(p.id, proc.id, opt.id, opt.durationMinutes);
-                                            }
-                                          }
-                                        }}
-                                        className="w-full text-[10px] font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg py-1 px-1.5 outline-none focus:border-violet-400 focus:bg-white appearance-none cursor-pointer transition-colors text-center font-mono"
-                                      >
-                                        <option value="default">Mặc định ({proc.durationMinutes}p)</option>
-                                        {options.map(opt => (
-                                          <option key={opt.id} value={opt.id}>{opt.durationMinutes} phút</option>
-                                        ))}
-                                      </select>
-                                    </div>
+                        return (
+                          <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
+                            {/* Column 1: Patient details */}
+                            <td className="p-4 sticky left-0 bg-white border-r border-slate-200 font-bold text-slate-700 text-sm z-30 shadow-[6px_0_12px_-3px_rgba(0,0,0,0.08)]">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {p.insuranceLevel && (
+                                    <span className={`shrink-0 w-2.5 h-3.5 rounded-[2px] border shadow-sm ${
+                                      p.insuranceLevel === '0%' ? 'bg-rose-500 border-rose-600' :
+                                      p.insuranceLevel === '80%' ? 'bg-orange-500 border-orange-600' :
+                                      p.insuranceLevel === '95%' ? 'bg-lime-400 border-lime-500' :
+                                      'bg-emerald-500 border-emerald-600'
+                                    }`} title={`BHYT: ${p.insuranceLevel}`} />
                                   )}
+                                  <span className="text-slate-800 text-[14px] font-black tracking-tight leading-none">{p.name}</span>
+                                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md uppercase shrink-0">
+                                    {p.gender}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md shrink-0">
+                                    {calculateAge(p.dob)} tuổi
+                                  </span>
                                 </div>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
+                                
+                                <div className="flex items-center gap-2 mt-1 text-[10px] font-black text-slate-500 uppercase tracking-wider flex-wrap">
+                                  <span className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-md border border-amber-200">
+                                    Giường: {p.bedNumber || '?'}
+                                  </span>
+                                  <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
+                                    Loại: {p.bedType || 'Nội trú'}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Column 2: Existing procedures */}
+                            <td className="p-4 border-r border-slate-200 vertical-align-top">
+                              {existingAppts.length === 0 ? (
+                                <span className="text-xs text-slate-400 italic">Chưa có lịch trình nào</span>
+                              ) : (
+                                <div className="flex flex-col gap-1.5">
+                                  {existingAppts.map(appt => {
+                                    const proc = procedures.find(proc => proc.id === appt.procedureId);
+                                    return (
+                                      <div key={appt.id} className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-lg p-2 text-xs font-bold text-slate-600">
+                                        <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                                        <div className="flex flex-col">
+                                          <span className="text-slate-800 font-extrabold">{proc?.name || 'Thủ thuật'}</span>
+                                          <span className="text-[10px] text-slate-400 font-mono mt-0.5">{appt.startTime} - {appt.endTime}</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Column 3: Quick schedule tasks */}
+                            <td className="p-4 border-r border-slate-200 vertical-align-top">
+                              <div className="flex flex-col gap-2">
+                                {patientTasks.map(task => {
+                                  const proc = procedures.find(proc => proc.id === task.procedureId);
+                                  const mainS = staff.find(s => s.id === task.mainStaffId);
+                                  
+                                  return (
+                                    <div key={task.id} className="flex items-center justify-between gap-3 bg-violet-50/50 border border-violet-100 rounded-xl p-2.5 text-xs text-slate-700 font-bold group">
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="text-violet-950 font-black">{proc?.name || 'Thủ thuật'}</span>
+                                        <div className="flex items-center gap-2 mt-0.5 text-[9px] font-bold text-violet-600 uppercase tracking-wide">
+                                          <span>{task.durationMinutes}p</span>
+                                          {mainS && (
+                                            <span className="bg-violet-100 text-violet-800 px-1.5 py-0.5 rounded">
+                                              BS: {mainS.name}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          setQuickScheduleTasks(prev => ({
+                                            ...prev,
+                                            [p.id]: (prev[p.id] || []).filter(t => t.id !== task.id)
+                                          }));
+                                        }}
+                                        className="text-slate-400 hover:text-rose-500 transition-colors p-1 hover:bg-rose-50 rounded-lg"
+                                        title="Xóa thủ thuật"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                                
+                                <button
+                                  onClick={() => {
+                                    setAddProcState({
+                                      isOpen: true,
+                                      patientId: p.id,
+                                      selectedCategory: 'Lâm sàng',
+                                      selectedProcedureId: '',
+                                      selectedDurationOptionId: '',
+                                      mainStaffId: '',
+                                      assistant1Id: '',
+                                      assistant2Id: '',
+                                      deviceId: ''
+                                    });
+                                  }}
+                                  className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-200 hover:border-slate-300 rounded-xl text-xs font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                                >
+                                  <Plus size={14} className="stroke-slate-500 hover:stroke-slate-800" />
+                                  <span>+ Thêm thủ thuật</span>
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Column 4: Select time configuration */}
+                            <td className="p-4 vertical-align-top">
+                              <div className="space-y-3 p-1">
+                                {/* Sáng row */}
+                                <div className="flex items-center justify-between gap-4 text-xs font-bold text-slate-700">
+                                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={config.morningActive}
+                                      onChange={e => {
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: {
+                                            ...config,
+                                            morningActive: e.target.checked
+                                          }
+                                        }));
+                                      }}
+                                      className="rounded border-slate-300 text-violet-600 focus:ring-violet-500 w-4 h-4 cursor-pointer"
+                                    />
+                                    <span className={config.morningActive ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium"}>Sáng</span>
+                                  </label>
+
+                                  <div className={`flex items-center gap-1 border border-slate-200 rounded-xl px-2 py-1 shadow-sm bg-white transition-all ${!config.morningActive ? 'opacity-40 pointer-events-none' : ''}`}>
+                                    <input
+                                      type="text"
+                                      maxLength={5}
+                                      placeholder="07:30"
+                                      value={config.morningStart}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: { ...config, morningStart: val }
+                                        }));
+                                      }}
+                                      onBlur={e => {
+                                        const formatted = formatAndValidateTime(e.target.value, '07:30');
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: { ...config, morningStart: formatted }
+                                        }));
+                                      }}
+                                      className="w-10 text-[11px] font-black text-slate-700 outline-none bg-transparent font-mono text-center"
+                                    />
+                                    <span className="text-slate-400 text-[10px] font-normal px-0.5">-</span>
+                                    <input
+                                      type="text"
+                                      maxLength={5}
+                                      placeholder="11:30"
+                                      value={config.morningEnd}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: { ...config, morningEnd: val }
+                                        }));
+                                      }}
+                                      onBlur={e => {
+                                        const formatted = formatAndValidateTime(e.target.value, '11:30');
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: { ...config, morningEnd: formatted }
+                                        }));
+                                      }}
+                                      className="w-10 text-[11px] font-black text-slate-700 outline-none bg-transparent font-mono text-center"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Chiều row */}
+                                <div className="flex items-center justify-between gap-4 text-xs font-bold text-slate-700">
+                                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={config.afternoonActive}
+                                      onChange={e => {
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: {
+                                            ...config,
+                                            afternoonActive: e.target.checked
+                                          }
+                                        }));
+                                      }}
+                                      className="rounded border-slate-300 text-violet-600 focus:ring-violet-500 w-4 h-4 cursor-pointer"
+                                    />
+                                    <span className={config.afternoonActive ? "text-slate-900 font-extrabold" : "text-slate-400 font-medium"}>Chiều</span>
+                                  </label>
+
+                                  <div className={`flex items-center gap-1 border border-slate-200 rounded-xl px-2 py-1 shadow-sm bg-white transition-all ${!config.afternoonActive ? 'opacity-40 pointer-events-none' : ''}`}>
+                                    <input
+                                      type="text"
+                                      maxLength={5}
+                                      placeholder="13:30"
+                                      value={config.afternoonStart}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: { ...config, afternoonStart: val }
+                                        }));
+                                      }}
+                                      onBlur={e => {
+                                        const formatted = formatAndValidateTime(e.target.value, '13:30');
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: { ...config, afternoonStart: formatted }
+                                        }));
+                                      }}
+                                      className="w-10 text-[11px] font-black text-slate-700 outline-none bg-transparent font-mono text-center"
+                                    />
+                                    <span className="text-slate-400 text-[10px] font-normal px-0.5">-</span>
+                                    <input
+                                      type="text"
+                                      maxLength={5}
+                                      placeholder="17:30"
+                                      value={config.afternoonEnd}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: { ...config, afternoonEnd: val }
+                                        }));
+                                      }}
+                                      onBlur={e => {
+                                        const formatted = formatAndValidateTime(e.target.value, '17:30');
+                                        setPatientTimeConfigs(prev => ({
+                                          ...prev,
+                                          [p.id]: { ...config, afternoonEnd: formatted }
+                                        }));
+                                      }}
+                                      className="w-10 text-[11px] font-black text-slate-700 outline-none bg-transparent font-mono text-center"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1125,6 +1264,346 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
             )}
           </div>
         )}
+        {/* Warning Modal for duplicate scheduling confirmation */}
+        {warningModal?.isOpen && (
+          <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-md w-full animate-in fade-in zoom-in-95 duration-200 border border-slate-100">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+                  <AlertCircle size={24} className="stroke-amber-600" />
+                </div>
+                <div className="space-y-1.5 text-left">
+                  <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">Cảnh báo trùng lịch</h4>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Bệnh nhân <strong className="text-slate-800 font-extrabold">{warningModal.patientName}</strong> đã có lịch trình <strong className="text-violet-600 font-black">{warningModal.procedureName}</strong> vào ngày hôm nay.
+                  </p>
+                  <p className="text-[11px] text-amber-700 font-bold bg-amber-50/50 p-2 rounded-xl border border-amber-150 leading-normal">
+                    Bạn có chắc chắn muốn tiếp tục xếp thêm lịch trình trùng này không?
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end gap-3 border-t border-slate-50 pt-4">
+                <button
+                  onClick={() => setWarningModal(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-wider transition-colors"
+                >
+                  Bỏ qua
+                </button>
+                <button
+                  onClick={() => {
+                    if (warningModal?.onConfirm) {
+                      warningModal.onConfirm();
+                    }
+                  }}
+                  className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-md shadow-violet-500/10 animate-pulse"
+                >
+                  Đồng ý xếp thêm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* "+ Thêm thủ thuật" Selection Dialog */}
+        {addProcState?.isOpen && (() => {
+          const selectedPatient = patients.find(p => p.id === addProcState.patientId);
+          const selectedProc = procedures.find(p => p.id === addProcState.selectedProcedureId);
+          const filteredProcs = procedures.filter(p => p.deptId === currentDept.id && (p.category || 'Khác') === addProcState.selectedCategory);
+          
+          // Get chosen duration option details
+          const selectedDurationOpt = selectedProc?.durationOptions?.find(o => o.id === addProcState.selectedDurationOptionId);
+          
+          const needsAsst1 = selectedDurationOpt ? (
+            (selectedDurationOpt.asst1BusyEnd !== undefined && selectedDurationOpt.asst1BusyEnd > 0)
+          ) : (selectedProc ? (
+            (selectedProc.asst1BusyEnd !== undefined && selectedProc.asst1BusyEnd > 0) ||
+            (selectedProc.assistant1BusyMinutes !== undefined && selectedProc.assistant1BusyMinutes > 0)
+          ) : false);
+
+          const needsAsst2 = selectedDurationOpt ? (
+            (selectedDurationOpt.asst2BusyEnd !== undefined && selectedDurationOpt.asst2BusyEnd > 0)
+          ) : (selectedProc ? (
+            (selectedProc.asst2BusyEnd !== undefined && selectedProc.asst2BusyEnd > 0) ||
+            (selectedProc.assistant2BusyMinutes !== undefined && selectedProc.assistant2BusyMinutes > 0)
+          ) : false);
+
+          const isSameAsst = selectedDurationOpt ? (
+            selectedDurationOpt.allowSameAssistant ?? selectedProc?.allowSameAssistant
+          ) : selectedProc?.allowSameAssistant;
+
+          const availableDevices = selectedProc?.availableMachines || [];
+          const categories = ['Lâm sàng', 'Cận lâm sàng', 'Hành chính', 'Khác'];
+          if (!selectedPatient) return null;
+
+          return (
+            <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
+              <div className="bg-white rounded-[32px] p-6 shadow-2xl max-w-lg w-full animate-in fade-in zoom-in-95 duration-200 border border-slate-100 flex flex-col gap-4 text-left">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="space-y-0.5 text-left">
+                    <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">Thêm thủ thuật xếp lịch nhanh</h3>
+                    <p className="text-xs font-bold text-slate-400">
+                      Bệnh nhân: <span className="text-slate-800 font-extrabold">{selectedPatient.name}</span> ({selectedPatient.gender} • {calculateAge(selectedPatient.dob)} tuổi)
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setAddProcState(null);
+                      setAddProcDuplicateWarning(false);
+                    }}
+                    className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-2 rounded-2xl transition-all"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Warning Banner for Duplicate */}
+                {addProcDuplicateWarning && (
+                  <div className="bg-amber-50/70 border border-amber-200 p-3 rounded-2xl flex items-start gap-3 text-left">
+                    <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-black text-amber-800">CẢNH BÁO TRÙNG LỊCH TRÌNH</p>
+                      <p className="text-[11px] text-amber-700 font-bold leading-normal">
+                        Bệnh nhân này đã có lịch trình <strong className="text-amber-950 font-black">{selectedProc?.name}</strong> hôm nay. Bạn có chắc chắn muốn xếp thêm không?
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 1: Chọn Nhóm */}
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bước 1: Chọn nhóm thủ thuật</label>
+                  <div className="flex gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                    {categories.map(cat => {
+                      const active = addProcState.selectedCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            setAddProcState(prev => prev ? {
+                              ...prev,
+                              selectedCategory: cat,
+                              selectedProcedureId: '',
+                              selectedDurationOptionId: '',
+                              mainStaffId: '',
+                              assistant1Id: '',
+                              assistant2Id: '',
+                              deviceId: ''
+                            } : null);
+                            setAddProcDuplicateWarning(false);
+                          }}
+                          className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${active ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Step 2: Chọn Thủ thuật */}
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bước 2: Chọn thủ thuật trong nhóm</label>
+                  <select
+                    value={addProcState.selectedProcedureId}
+                    onChange={e => {
+                      const pId = e.target.value;
+                      setAddProcState(prev => prev ? {
+                        ...prev,
+                        selectedProcedureId: pId,
+                        selectedDurationOptionId: '',
+                        mainStaffId: '',
+                        assistant1Id: '',
+                        assistant2Id: '',
+                        deviceId: ''
+                      } : null);
+                      setAddProcDuplicateWarning(false);
+                    }}
+                    className="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer"
+                  >
+                    <option value="">-- Chọn thủ thuật --</option>
+                    {filteredProcs.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.durationMinutes} phút)
+                      </option>
+                    ))}
+                  </select>
+                  {filteredProcs.length === 0 && (
+                    <p className="text-[11px] font-bold text-slate-400 italic">Không tìm thấy thủ thuật nào thuộc nhóm này trong khoa của bạn.</p>
+                  )}
+                </div>
+
+                {/* Step 2.5: Chọn thời lượng (Thời lượng hiện có) */}
+                {selectedProc && (
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bước 2.5: Chọn thời lượng (Thời lượng hiện có)</label>
+                    <select
+                      value={addProcState.selectedDurationOptionId}
+                      onChange={e => {
+                        const optId = e.target.value;
+                        const opt = selectedProc.durationOptions?.find(o => o.id === optId);
+                        const currentAllowSame = opt ? (opt.allowSameAssistant ?? selectedProc.allowSameAssistant) : selectedProc.allowSameAssistant;
+                        
+                        setAddProcState(prev => {
+                          if (!prev) return null;
+                          let asst2 = prev.assistant2Id;
+                          if (currentAllowSame && prev.assistant1Id) {
+                            asst2 = prev.assistant1Id;
+                          }
+                          return {
+                            ...prev,
+                            selectedDurationOptionId: optId,
+                            assistant2Id: asst2
+                          };
+                        });
+                      }}
+                      className="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer"
+                    >
+                      <option value="">Mặc định ({selectedProc.durationMinutes} phút)</option>
+                      {selectedProc.durationOptions?.map(opt => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.name} ({opt.durationMinutes} phút)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Step 3: Chọn Nhân sự & Thiết bị nếu cần */}
+                {selectedProc && (
+                  <div className="border-t border-slate-100 pt-3 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bước 3: Tùy chỉnh nhân sự & máy (Nếu cần)</span>
+                      <span className="text-[9px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">Hệ thống sẽ tự động phân công nếu bỏ trống</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Bác sĩ chính */}
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bác sĩ / KTV chính</label>
+                        <select
+                          value={addProcState.mainStaffId}
+                          onChange={e => setAddProcState(prev => prev ? { ...prev, mainStaffId: e.target.value } : null)}
+                          className="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer"
+                        >
+                          <option value="">-- Tự động phân công --</option>
+                          {attendingStaff.filter(s => s.mainCapabilityIds?.includes(selectedProc.id)).map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.role === 'Doctor' ? 'BS' : 'KTV'})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Thiết bị / Máy */}
+                      <div className="space-y-1.5 text-left">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Thiết bị / Máy</label>
+                        {availableDevices.length > 0 ? (
+                          <select
+                            value={addProcState.deviceId}
+                            onChange={e => setAddProcState(prev => prev ? { ...prev, deviceId: e.target.value } : null)}
+                            className="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer"
+                          >
+                            <option value="">-- Tự động phân công --</option>
+                            {availableDevices.map(mId => (
+                              <option key={mId} value={mId}>{mId}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="w-full text-xs font-bold text-slate-400 bg-slate-50/50 border border-slate-200 rounded-xl p-2.5 select-none">
+                            Không yêu cầu thiết bị
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Assistants rows if required */}
+                    {(needsAsst1 || needsAsst2) && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Assistant 1 */}
+                        {needsAsst1 && (
+                          <div className="space-y-1.5 text-left">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Người phụ 1</label>
+                            <select
+                              value={addProcState.assistant1Id}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setAddProcState(prev => {
+                                  if (!prev) return null;
+                                  return {
+                                    ...prev,
+                                    assistant1Id: val,
+                                    assistant2Id: isSameAsst ? val : prev.assistant2Id
+                                  };
+                                });
+                              }}
+                              className="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer"
+                            >
+                              <option value="">-- Tự động phân công --</option>
+                              {attendingStaff.filter(s => s.assistantCapabilityIds?.includes(selectedProc.id)).map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Assistant 2 */}
+                        {needsAsst2 && (
+                          <div className="space-y-1.5 text-left">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                              Người phụ 2 {isSameAsst && <span className="text-amber-600 font-semibold lowercase">(Đồng bộ Phụ 1)</span>}
+                            </label>
+                            <select
+                              disabled={!!isSameAsst}
+                              value={isSameAsst ? (addProcState.assistant1Id || '') : addProcState.assistant2Id}
+                              onChange={e => setAddProcState(prev => prev ? { ...prev, assistant2Id: e.target.value } : null)}
+                              className={`w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer ${isSameAsst ? 'opacity-70 bg-amber-50/50 cursor-not-allowed border-amber-200 text-amber-900' : ''}`}
+                            >
+                              {isSameAsst ? (
+                                <option value="">-- Đồng bộ theo Phụ 1 --</option>
+                              ) : (
+                                <>
+                                  <option value="">-- Tự động phân công --</option>
+                                  {attendingStaff.filter(s => s.assistantCapabilityIds?.includes(selectedProc.id)).map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </>
+                              )}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="mt-4 flex justify-end gap-3 border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddProcState(null);
+                      setAddProcDuplicateWarning(false);
+                    }}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-wider transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddProcedureConfirm}
+                    disabled={!addProcState.selectedProcedureId}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-md ${
+                      addProcDuplicateWarning 
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/10 animate-pulse'
+                        : 'bg-violet-600 hover:bg-violet-700 text-white shadow-violet-500/10'
+                    } ${!addProcState.selectedProcedureId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {addProcDuplicateWarning ? 'Vẫn xếp thêm' : 'Xác nhận'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
