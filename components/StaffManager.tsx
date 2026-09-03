@@ -1,11 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Staff, Procedure, ProcedureCategory, PROCEDURE_CATEGORIES, ProcedureDurationOption, AttendanceRecord, AttendanceStatus, Department, Patient, Appointment, UserAccount, UserRole } from '../types';
 import { 
   UserCog, Check, X, Settings2, CalendarOff, Save, Briefcase, Plus, Trash2, User, Stethoscope, Pencil, 
   UserPlus, Users, Search, ArrowLeft, Bed, Clock, LogOut, Activity, Zap, Lock, Info, Printer, ChevronDown,
   Sun, Dumbbell, Waves, Droplet, FlaskConical, HeartPulse, Thermometer, Syringe, Pill, Microscope, Bone, Brain, Eye, Ear, Wind, HandHelping,
-  Star
+  Star, Download, Upload, FileText
 } from 'lucide-react';
 import { Button } from './Button';
 import { getDaysInMonth, getDayOfWeek, getRoleLabel } from '../utils/timeUtils';
@@ -28,6 +28,7 @@ interface StaffManagerProps {
 }
 
 import { getAbbreviation } from '../utils/timeUtils';
+import { DEPARTMENTS } from '../constants';
 
 export const StaffManager: React.FC<StaffManagerProps> = ({
   activeTab,
@@ -62,6 +63,13 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   const [editingOptId, setEditingOptId] = useState<string | null>(null);
   const [procCategoryFilter, setProcCategoryFilter] = useState<string>('ALL');
   const [procSearchTerm, setProcSearchTerm] = useState<string>('');
+
+  // Trạng thái sao lưu & khôi phục danh mục thủ thuật
+  const procFileInputRef = useRef<HTMLInputElement>(null);
+  const [isRestoreProcsModalOpen, setIsRestoreProcsModalOpen] = useState(false);
+  const [parsedRestoreProcs, setParsedRestoreProcs] = useState<Procedure[]>([]);
+  const [restoreSourceDeptName, setRestoreSourceDeptName] = useState<string>('');
+  const [restoreProcMode, setRestoreProcMode] = useState<'OVERWRITE' | 'MERGE'>('OVERWRITE');
 
   // Trạng thái cấu hình thêm thời lượng lựa chọn cho thủ thuật
   const [newOpt, setNewOpt] = useState<{
@@ -473,7 +481,118 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     printWindow.document.close();
   };
 
+  // Xuất file sao lưu riêng danh mục thủ thuật của khoa hiện tại
+  const handleExportProceduresBackup = () => {
+    const deptProcs = procedures.filter(p => p.deptId === department.id);
+    if (deptProcs.length === 0) {
+      alert(`Khoa ${department.name} hiện chưa có thủ thuật nào để sao lưu!`);
+      return;
+    }
 
+    const backupPayload = {
+      version: '1.0',
+      type: 'PROCEDURES_BACKUP',
+      deptId: department.id,
+      deptName: department.name,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser.fullName,
+      totalProcedures: deptProcs.length,
+      data: deptProcs
+    };
+
+    const jsonString = JSON.stringify(backupPayload, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const cleanDeptName = department.name.replace(/[\/\\:*?"<>|]/g, '_').trim();
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `DanhMucThuThuat_${cleanDeptName}_${dateStr}.json`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Đọc file JSON sao lưu danh mục thủ thuật (từ khoa này hoặc từ khoa khác)
+  const handleProcFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        let extractedProcs: Procedure[] = [];
+        let sourceDept = '';
+
+        if (Array.isArray(json)) {
+          extractedProcs = json;
+        } else if (json.type === 'PROCEDURES_BACKUP' && Array.isArray(json.data)) {
+          extractedProcs = json.data;
+          sourceDept = json.deptName || json.deptId || '';
+        } else if (json.type === 'DEPARTMENT_BACKUP' && json.data?.procedures && Array.isArray(json.data.procedures)) {
+          extractedProcs = json.data.procedures;
+          sourceDept = json.deptName || json.deptId || '';
+        } else if (json.procedures && Array.isArray(json.procedures)) {
+          extractedProcs = json.procedures;
+          sourceDept = json.deptName || json.deptId || '';
+        } else if (json.data && Array.isArray(json.data)) {
+          extractedProcs = json.data;
+        }
+
+        if (!extractedProcs || extractedProcs.length === 0) {
+          alert('Không tìm thấy danh sách thủ thuật hợp lệ trong file JSON đã chọn.');
+          return;
+        }
+
+        setParsedRestoreProcs(extractedProcs);
+        setRestoreSourceDeptName(sourceDept || 'File bên ngoài / Khác');
+        setRestoreProcMode('OVERWRITE');
+        setIsRestoreProcsModalOpen(true);
+      } catch (err) {
+        console.error(err);
+        alert('Lỗi đọc file JSON: File không đúng định dạng.');
+      } finally {
+        if (procFileInputRef.current) procFileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Thực hiện khôi phục danh mục vào khoa hiện tại (hỗ trợ cả từ khoa này lẫn từ khoa khác)
+  const handleExecuteRestoreProcedures = () => {
+    if (!parsedRestoreProcs || parsedRestoreProcs.length === 0) return;
+
+    // Chuẩn hóa và chuyển đổi mã khoa sang khoa hiện tại
+    const mappedProcs = parsedRestoreProcs.map(p => {
+      const newProcId = `pr_${Math.random().toString(36).substr(2, 9)}`;
+      const newDurationOptions = p.durationOptions?.map(opt => ({
+        ...opt,
+        id: `opt_${Math.random().toString(36).substr(2, 9)}`
+      })) || [];
+
+      return {
+        ...p,
+        id: newProcId,
+        deptId: department.id,
+        durationOptions: newDurationOptions
+      } as Procedure;
+    });
+
+    if (restoreProcMode === 'OVERWRITE') {
+      const otherDeptsProcs = procedures.filter(p => p.deptId !== department.id);
+      onUpdateProcedures([...otherDeptsProcs, ...mappedProcs]);
+      alert(`Đã khôi phục thành công ${mappedProcs.length} thủ thuật cho khoa ${department.name}! (Đã ghi đè toàn bộ danh mục cũ)`);
+    } else {
+      onUpdateProcedures([...procedures, ...mappedProcs]);
+      alert(`Đã gộp thành công ${mappedProcs.length} thủ thuật vào danh mục của khoa ${department.name}!`);
+    }
+
+    setIsRestoreProcsModalOpen(false);
+    setParsedRestoreProcs([]);
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full relative">
@@ -761,7 +880,14 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                         <h3 className="text-lg font-black text-slate-800 tracking-tight">Danh mục thủ thuật ({procedures.filter(p => p.deptId === department.id).length})</h3>
                         <p className="text-gray-500 text-xs mt-0.5 italic">Mẹo: "Chặn trước" chặn các thủ thuật trước nó. "Chặn sau" chặn các thủ thuật sau nó.</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                     <div className="flex flex-wrap items-center gap-2">
+                        <input 
+                            type="file" 
+                            ref={procFileInputRef} 
+                            onChange={handleProcFileInputChange} 
+                            accept=".json" 
+                            className="hidden" 
+                        />
                         <Button size="sm" variant="danger" onClick={() => {
                             if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ thủ thuật của khoa này? Hành động này không thể hoàn tác.')) {
                                 onUpdateProcedures(procedures.filter(p => p.deptId !== department.id));
@@ -769,7 +895,13 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                         }}>
                             <Trash2 size={16} /> Xóa tất cả
                         </Button>
-                        <Button size="sm" onClick={handleAddProcedure} className="shadow-sm">
+                        <Button size="sm" variant="secondary" onClick={handleExportProceduresBackup} className="border border-sky-200 text-sky-600 hover:bg-sky-50 shadow-sm font-bold bg-white" title="Tải xuống file JSON sao lưu danh mục thủ thuật của khoa này">
+                            <Download size={16} /> Sao lưu danh mục
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => procFileInputRef.current?.click()} className="border border-emerald-200 text-emerald-600 hover:bg-emerald-50 shadow-sm font-bold bg-white" title="Khôi phục danh mục từ file JSON (có thể từ khoa này hoặc từ khoa khác)">
+                            <Upload size={16} /> Khôi phục danh mục
+                        </Button>
+                        <Button size="sm" onClick={handleAddProcedure} className="shadow-sm font-bold">
                             <Plus size={16} /> Thêm thủ thuật
                         </Button>
                     </div>
@@ -1607,6 +1739,97 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                               setEditingProcedure(null);
                           }} className="px-8 py-3.5 rounded-xl shadow-lg shadow-primary/30 text-base font-black tracking-wide">
                               <Save size={18} /> LƯU THỦ THUẬT
+                          </Button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {isRestoreProcsModalOpen && (
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                  {/* Header */}
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                          <Upload className="text-emerald-500 animate-pulse" /> Khôi phục danh mục thủ thuật
+                      </h3>
+                      <button onClick={() => setIsRestoreProcsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                          <X size={24} />
+                      </button>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-6 overflow-y-auto flex-1 space-y-6 scrollbar-thin">
+                      <div className="bg-emerald-50 text-emerald-950 p-4 rounded-2xl text-xs font-bold leading-relaxed flex items-start gap-2.5 border border-emerald-200">
+                          <Info size={16} className="shrink-0 text-emerald-600 mt-0.5" />
+                          <span>
+                              Hệ thống đã nhận diện <strong>{parsedRestoreProcs.length} thủ thuật</strong> từ file sao lưu. Bạn có thể khôi phục và áp dụng trực tiếp cho khoa <strong>{department.name}</strong> (kể cả file sao lưu từ khoa khác).
+                          </span>
+                      </div>
+
+                      {/* File source info */}
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
+                          <div className="flex justify-between items-center">
+                              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Xuất xứ nguồn:</span>
+                              <span className="font-black text-slate-800">{restoreSourceDeptName}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Khoa đích nhận:</span>
+                              <span className="font-black text-emerald-600">{department.name}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Tổng thủ thuật:</span>
+                              <span className="font-black text-slate-800">{parsedRestoreProcs.length} thủ thuật</span>
+                          </div>
+                      </div>
+
+                      {/* Phương thức khôi phục */}
+                      <div className="space-y-3">
+                          <label className="text-xs font-black text-slate-500 uppercase tracking-wide block">Phương thức khôi phục</label>
+                          <div className="grid grid-cols-1 gap-3">
+                              <label className={`p-4 border-2 rounded-2xl cursor-pointer flex items-start gap-3 transition-all ${restoreProcMode === 'OVERWRITE' ? 'border-emerald-500 bg-emerald-50/20 shadow-sm' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                  <input 
+                                      type="radio" 
+                                      name="restoreProcMode" 
+                                      value="OVERWRITE" 
+                                      checked={restoreProcMode === 'OVERWRITE'} 
+                                      onChange={() => setRestoreProcMode('OVERWRITE')}
+                                      className="mt-1 accent-emerald-600 cursor-pointer" 
+                                  />
+                                  <div>
+                                      <p className="font-black text-xs text-slate-800 uppercase tracking-tight">Ghi đè (Khuyên dùng)</p>
+                                      <p className="text-[11px] text-slate-500 font-bold mt-0.5 leading-relaxed">Xóa toàn bộ thủ thuật hiện có của khoa {department.name} và thay thế bằng {parsedRestoreProcs.length} thủ thuật từ file sao lưu.</p>
+                                  </div>
+                              </label>
+
+                              <label className={`p-4 border-2 rounded-2xl cursor-pointer flex items-start gap-3 transition-all ${restoreProcMode === 'MERGE' ? 'border-emerald-500 bg-emerald-50/20 shadow-sm' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                  <input 
+                                      type="radio" 
+                                      name="restoreProcMode" 
+                                      value="MERGE" 
+                                      checked={restoreProcMode === 'MERGE'} 
+                                      onChange={() => setRestoreProcMode('MERGE')}
+                                      className="mt-1 accent-emerald-600 cursor-pointer" 
+                                  />
+                                  <div>
+                                      <p className="font-black text-xs text-slate-800 uppercase tracking-tight">Gộp thêm</p>
+                                      <p className="text-[11px] text-slate-500 font-bold mt-0.5 leading-relaxed">Giữ lại các thủ thuật hiện có của khoa {department.name} và gộp thêm {parsedRestoreProcs.length} thủ thuật từ file vào.</p>
+                                  </div>
+                              </label>
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end items-center shrink-0">
+                      <div className="flex gap-4">
+                          <button onClick={() => setIsRestoreProcsModalOpen(false)} className="px-6 py-3.5 text-slate-500 font-black text-sm uppercase tracking-wider hover:bg-slate-200 rounded-xl transition-colors">HỦY BỎ</button>
+                          <Button 
+                              onClick={handleExecuteRestoreProcedures} 
+                              className="px-8 py-3.5 rounded-xl shadow-lg bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30 text-base font-black tracking-wide text-white"
+                          >
+                              <Upload size={18} /> TIẾN HÀNH KHÔI PHỤC
                           </Button>
                       </div>
                   </div>

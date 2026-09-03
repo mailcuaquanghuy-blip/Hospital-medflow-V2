@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Department, Staff, Procedure, Appointment, Patient, AttendanceRecord, MachineShift, UserAccount, UserRole } from '../types';
 import { Button } from './Button';
-import { Database, Download, Upload, Calendar, Building2, AlertTriangle, X, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Database, Download, Upload, Calendar, Building2, AlertTriangle, X, CheckCircle2, ShieldAlert, Info } from 'lucide-react';
 import { DateInput } from './DateInput';
 
 interface DepartmentBackupModalProps {
@@ -166,25 +166,41 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        if (!json.deptId || !json.data || json.type !== 'DEPARTMENT_BACKUP') {
+        
+        // Support both DEPARTMENT_BACKUP and PROCEDURES_BACKUP format
+        let normalizedContent = json;
+        if (json.type === 'PROCEDURES_BACKUP' && Array.isArray(json.data)) {
+          normalizedContent = {
+            type: 'DEPARTMENT_BACKUP',
+            version: '1.0',
+            deptId: json.deptId || '',
+            deptName: json.deptName || '',
+            createdAt: json.createdAt || new Date().toISOString(),
+            fromDate: 'Không áp dụng',
+            toDate: 'Không áp dụng',
+            createdBy: json.createdBy || 'Hệ thống',
+            note: 'File sao lưu riêng danh mục thủ thuật',
+            data: {
+              procedures: json.data,
+              staff: [],
+              attendance: [],
+              appointments: [],
+              patients: [],
+              machineShifts: []
+            }
+          };
+        } else if (!json.data || (json.type !== 'DEPARTMENT_BACKUP' && !json.procedures)) {
           alert('Lỗi: File JSON không đúng định dạng sao lưu dữ liệu khoa.');
           setUploadedFileContent(null);
           return;
         }
 
-        // Check if file matches currentDept
-        if (json.deptId !== currentDept.id) {
-          alert(`Lỗi: File sao lưu này thuộc về khoa "${json.deptName || json.deptId}". Bạn đang ở khoa "${currentDept.name}". Chỉ có thể khôi phục file trùng với khoa hiện tại!`);
-          setUploadedFileContent(null);
-          return;
-        }
-
-        setUploadedFileContent(json);
+        setUploadedFileContent(normalizedContent);
         // Automatically check options if they are present in file
-        setRestoreStaff(!!(json.data?.staff && json.data.staff.length > 0));
-        setRestoreProcedures(!!(json.data?.procedures && json.data.procedures.length > 0));
-        setRestoreAttendance(!!(json.data?.attendance && json.data.attendance.length > 0));
-        setRestoreAppointments(!!(json.data?.appointments && json.data.appointments.length > 0));
+        setRestoreStaff(!!(normalizedContent.data?.staff && normalizedContent.data.staff.length > 0));
+        setRestoreProcedures(!!(normalizedContent.data?.procedures && normalizedContent.data.procedures.length > 0));
+        setRestoreAttendance(!!(normalizedContent.data?.attendance && normalizedContent.data.attendance.length > 0));
+        setRestoreAppointments(!!(normalizedContent.data?.appointments && normalizedContent.data.appointments.length > 0));
       } catch (err) {
         console.error(err);
         alert('Lỗi đọc file JSON: File không hợp lệ.');
@@ -206,25 +222,49 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
       return;
     }
 
-    if (uploadedFileContent.deptId !== currentDept.id) {
-      alert(`Lỗi: File sao lưu thuộc về khoa "${uploadedFileContent.deptName || uploadedFileContent.deptId}", không trùng với khoa hiện tại "${currentDept.name}".`);
-      return;
-    }
-
     if (!restoreStaff && !restoreProcedures && !restoreAttendance && !restoreAppointments) {
       alert('Vui lòng chọn ít nhất một loại dữ liệu để khôi phục.');
       return;
     }
 
-    const { deptName, fromDate, toDate } = uploadedFileContent;
-    const confirmMsg = `CẢNH BÁO: Dữ liệu đã chọn của khoa ${deptName || currentDept.name} từ ngày ${fromDate} đến ngày ${toDate} sẽ bị THAY THẾ toàn bộ bằng dữ liệu từ file sao lưu.\n\nBạn có chắc chắn muốn tiếp tục?`;
+    const isCrossDept = uploadedFileContent.deptId && uploadedFileContent.deptId !== currentDept.id;
+    const sourceDeptName = uploadedFileContent.deptName || uploadedFileContent.deptId || 'khoa khác';
+    
+    let confirmMsg = '';
+    if (isCrossDept) {
+      confirmMsg = `XÁC NHẬN KHÔI PHỤC LIÊN KHOA:\n\nFile sao lưu này có nguồn gốc từ khoa "${sourceDeptName}".\nBạn đang khôi phục dữ liệu đã chọn vào khoa "${currentDept.name}".\n\nHệ thống sẽ tự động gán toàn bộ danh mục thủ thuật/dữ liệu đã chọn sang khoa "${currentDept.name}".\n\nBạn có muốn tiếp tục?`;
+    } else {
+      const { deptName, fromDate, toDate } = uploadedFileContent;
+      confirmMsg = `CẢNH BÁO: Dữ liệu đã chọn của khoa ${deptName || currentDept.name} sẽ được cập nhật/thay thế bằng dữ liệu từ file sao lưu.\n\nBạn có chắc chắn muốn tiếp tục?`;
+    }
 
     if (window.confirm(confirmMsg)) {
       setIsRestoring(true);
       try {
-        const restorePayload: any = {};
-        if (restoreStaff) restorePayload.staff = uploadedFileContent.data.staff || [];
-        if (restoreProcedures) restorePayload.procedures = uploadedFileContent.data.procedures || [];
+        const restorePayload: any = {
+          targetDeptId: currentDept.id
+        };
+        
+        if (restoreStaff) {
+          const rawStaff = uploadedFileContent.data.staff || [];
+          // If cross department, map staff to current department
+          restorePayload.staff = isCrossDept ? rawStaff.map((s: Staff) => ({ ...s, id: `st_${Math.random().toString(36).substr(2, 9)}`, departmentId: currentDept.id })) : rawStaff;
+        }
+
+        if (restoreProcedures) {
+          const rawProcedures = uploadedFileContent.data.procedures || [];
+          // If cross department, map procedures to current department with clean new IDs
+          restorePayload.procedures = isCrossDept ? rawProcedures.map((p: Procedure) => ({
+            ...p,
+            id: `pr_${Math.random().toString(36).substr(2, 9)}`,
+            deptId: currentDept.id,
+            durationOptions: p.durationOptions?.map(opt => ({
+              ...opt,
+              id: `opt_${Math.random().toString(36).substr(2, 9)}`
+            })) || []
+          })) : rawProcedures;
+        }
+
         if (restoreAttendance) restorePayload.attendance = uploadedFileContent.data.attendance || [];
         if (restoreAppointments) {
           restorePayload.appointments = uploadedFileContent.data.appointments || [];
@@ -457,6 +497,15 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
                   </div>
                   {uploadedFileContent.note && (
                     <p className="text-xs text-slate-600 italic pb-2 border-b border-emerald-100">Ghi chú: "{uploadedFileContent.note}"</p>
+                  )}
+
+                  {uploadedFileContent.deptId && uploadedFileContent.deptId !== currentDept.id && (
+                    <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-sky-900 font-bold">
+                      <Info size={16} className="text-sky-600 shrink-0 mt-0.5" />
+                      <span>
+                        File này có nguồn gốc từ khoa <strong>"{uploadedFileContent.deptName || uploadedFileContent.deptId}"</strong>. Khi khôi phục, danh mục thủ thuật/nhân sự sẽ được chuyển đổi tự động sang khoa <strong>"{currentDept.name}"</strong>.
+                      </span>
+                    </div>
                   )}
 
                   {/* Selective Restore Checkboxes */}

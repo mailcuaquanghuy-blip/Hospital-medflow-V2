@@ -2097,6 +2097,7 @@ const App: React.FC = () => {
 
     try {
       const promises: Promise<void>[] = [];
+      const targetDeptId = restoredData.targetDeptId || currentDept?.id;
 
       // 1. Staff
       if (restoredData.staff) {
@@ -2107,7 +2108,22 @@ const App: React.FC = () => {
 
       // 2. Procedures
       if (restoredData.procedures) {
-        restoredData.procedures.forEach((p: Procedure) => {
+        const normalizedProcs = restoredData.procedures.map((p: Procedure) => ({
+          ...p,
+          deptId: targetDeptId || p.deptId
+        }));
+
+        if (targetDeptId) {
+          // Xóa các thủ thuật cũ của khoa này khỏi DB để thay thế hoàn toàn
+          const oldDeptProcs = procedures.filter(p => p.deptId === targetDeptId);
+          oldDeptProcs.forEach(op => {
+            promises.push(deleteDoc(doc(db, "procedures", op.id)));
+          });
+          const otherDeptsProcs = procedures.filter(p => p.deptId !== targetDeptId);
+          setProcedures([...otherDeptsProcs, ...normalizedProcs]);
+        }
+
+        normalizedProcs.forEach((p: Procedure) => {
           promises.push(setDoc(doc(db, "procedures", p.id), p));
         });
       }
