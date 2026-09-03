@@ -30,6 +30,9 @@ export const getRefDetails = (docRef: any) => {
   if (collectionName === 'machineShifts') {
     tableName = 'machine_shifts';
   }
+  if (collectionName === 'scheduleSnapshots') {
+    tableName = 'schedule_snapshots';
+  }
   return { collectionName, tableName, docId };
 };
 

@@ -66,6 +66,7 @@ const App: React.FC = () => {
     staff: false,
     machineShifts: false,
     procedures: false,
+    scheduleSnapshots: false,
   });
   
   const [currentDept, setCurrentDept] = useState<Department | null>(null);
@@ -235,6 +236,19 @@ const App: React.FC = () => {
             return [...prev, data];
           });
           break;
+        case 'scheduleSnapshots':
+        case 'schedule_snapshots':
+          setScheduleSnapshots(prev => {
+            if (action === 'delete') return prev.filter(item => item.id !== docId);
+            const idx = prev.findIndex(item => item.id === docId);
+            if (idx > -1) {
+              const copy = [...prev];
+              copy[idx] = { ...copy[idx], ...data };
+              return copy;
+            }
+            return [...prev, data];
+          });
+          break;
         default:
           break;
       }
@@ -261,6 +275,7 @@ const App: React.FC = () => {
         staff: true,
         machineShifts: true,
         procedures: true,
+        scheduleSnapshots: true,
       });
     }
   }, [isQuotaExceeded, users.length, staff.length, procedures.length, patients.length, templates.length]);
@@ -439,7 +454,7 @@ const App: React.FC = () => {
         lastFetchTimeRef.current = now;
 
         try {
-          const [pats, appts, stf, procs, att, shifts, tpls, usrs] = await Promise.all([
+          const [pats, appts, stf, procs, att, shifts, tpls, usrs, snapshots] = await Promise.all([
             fetchSupabaseTable<Patient>('patients'),
             fetchSupabaseTable<Appointment>('appointments'),
             fetchSupabaseTable<Staff>('staff'),
@@ -447,7 +462,8 @@ const App: React.FC = () => {
             fetchSupabaseTable<AttendanceRecord>('attendance'),
             fetchSupabaseTable<MachineShift>('machine_shifts'),
             fetchSupabaseTable<AppointmentTemplate>('templates'),
-            fetchSupabaseTable<UserAccount>('users')
+            fetchSupabaseTable<UserAccount>('users'),
+            fetchSupabaseTable<ScheduleSnapshot>('schedule_snapshots').then(res => res || fetchSupabaseTable<ScheduleSnapshot>('scheduleSnapshots'))
           ]);
           if (pats) setPatients(pats);
           if (appts) setAppointments(appts);
@@ -463,6 +479,7 @@ const App: React.FC = () => {
             setTemplates(sanitizedTpls);
           }
           if (usrs && usrs.length > 0) setUsers(usrs);
+          if (snapshots) setScheduleSnapshots(snapshots);
 
           setLoadedCollections({
             patients: true,
@@ -472,6 +489,7 @@ const App: React.FC = () => {
             staff: true,
             machineShifts: true,
             procedures: true,
+            scheduleSnapshots: true,
           });
         } catch (err) {
           console.warn("Failed to fetch Supabase data:", err);
@@ -491,6 +509,7 @@ const App: React.FC = () => {
             const tableName = payload.table;
             let collectionName = tableName;
             if (tableName === 'machine_shifts') collectionName = 'machineShifts';
+            if (tableName === 'schedule_snapshots' || tableName === 'scheduleSnapshots') collectionName = 'scheduleSnapshots';
 
             if (payload.eventType === 'DELETE') {
               const docId = payload.old?.id;
@@ -672,8 +691,10 @@ const App: React.FC = () => {
     const unsub = onSnapshot(collection(db, "scheduleSnapshots"), (snapshot) => {
       const snapshotData = snapshot.docs.map(doc => ({ ...doc.data() } as ScheduleSnapshot));
       setScheduleSnapshots(snapshotData);
+      setLoadedCollections(prev => ({ ...prev, scheduleSnapshots: true }));
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, "scheduleSnapshots");
+      setLoadedCollections(prev => ({ ...prev, scheduleSnapshots: true }));
     });
     return () => unsub();
   }, [isFirebaseReady, currentUser, isAuthReady]);
@@ -689,6 +710,7 @@ const App: React.FC = () => {
       staff: false,
       machineShifts: false,
       procedures: false,
+      scheduleSnapshots: false,
     });
     setCurrentUser(user);
     sessionStorage.setItem('medflow_user', JSON.stringify(user));
@@ -978,7 +1000,7 @@ const App: React.FC = () => {
 
   // Tự động khởi tạo phiên bản chốt nếu chưa có để bắt đầu theo dõi biến động ngay lập tức khi load phòng/ngày
   useEffect(() => {
-    if (!db || !currentDept || !activeDate || !isAuthReady || !loadedCollections.appointments) return;
+    if (!db || !currentDept || !activeDate || !isAuthReady || !loadedCollections.appointments || !loadedCollections.scheduleSnapshots) return;
     
     const hasSnapshot = scheduleSnapshots.some(s => s.deptId === currentDept.id && s.date === activeDate);
     if (!hasSnapshot) {
@@ -993,7 +1015,7 @@ const App: React.FC = () => {
         appointments: deptAppts
       }).catch(err => console.error("Error auto-creating snapshot:", err));
     }
-  }, [loadedCollections.appointments, scheduleSnapshots, currentDept, activeDate, db, isAuthReady]);
+  }, [loadedCollections.appointments, loadedCollections.scheduleSnapshots, scheduleSnapshots, currentDept, activeDate, db, isAuthReady]);
 
   const handleSaveScheduleSnapshot = async (deptId: string, dateStr: string) => {
     try {
