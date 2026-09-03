@@ -111,10 +111,26 @@ export const DailyReport: React.FC<DailyReportProps> = ({
 
   // States cho báo cáo theo tháng và lọc nhân sự
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
-    // Mặc định là tháng hiện tại của hệ thống (tháng 6/2026 dựa trên mốc thời gian thiết lập)
-    return 6;
+    // Mặc định là tháng hiện tại dựa trên ngày làm việc hoạt động (activeDate)
+    if (activeDate) {
+      const parts = activeDate.split('-');
+      if (parts.length === 3) {
+        const m = parseInt(parts[1], 10);
+        if (!isNaN(m) && m >= 1 && m <= 12) return m;
+      }
+    }
+    return new Date().getMonth() + 1;
   });
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  const [selectedYear, setSelectedYear] = useState<number>(() => {
+    if (activeDate) {
+      const parts = activeDate.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        if (!isNaN(y)) return y;
+      }
+    }
+    return new Date().getFullYear();
+  });
   const [selectedTimelineStaff, setSelectedTimelineStaff] = useState<string[]>([]);
 
   // States cho Bảng chấm công thủ thuật
@@ -140,7 +156,9 @@ export const DailyReport: React.FC<DailyReportProps> = ({
   // Tự động tìm các năm có dữ liệu trong danh sách lịch hẹn
   const availableYears = useMemo(() => {
     const years = new Set<number>();
-    years.add(2026); // Mặc định luôn có 2026
+    years.add(selectedYear); // Luôn bao gồm năm đang chọn
+    years.add(new Date().getFullYear()); // Luôn bao gồm năm hiện tại của thiết bị
+    years.add(2026); // Mặc định có 2026
     appointments.forEach(a => {
       const parts = a.date.split('-');
       if (parts.length === 3) {
