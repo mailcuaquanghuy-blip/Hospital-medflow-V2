@@ -565,14 +565,29 @@ export const Timeline: React.FC<TimelineProps> = ({
   }, [viewMode, staff, procedures, patients]);
 
   const filteredAppointments = useMemo(() => {
-    let result = appointments;
+    // Only process appointments for the current active date
+    let result = appointments.filter(a => a.date === date);
+    
+    // Quick pre-indexing for O(1) lookup
+    const patMap = new Map<string, Patient>();
+    patients.forEach(p => patMap.set(p.id, p));
+    const staffMap = new Map<string, Staff>();
+    staff.forEach(s => staffMap.set(s.id, s));
+    const procMap = new Map<string, Procedure>();
+    procedures.forEach(pr => procMap.set(pr.id, pr));
+
+    // Lọc các thủ thuật có biến động so với bản chốt
+    if (filterModifiedOnly) {
+      const changedIds = new Set(deviations.map(d => d.id));
+      result = result.filter(a => changedIds.has(a.id));
+    }
     
     if (filterText) {
       const lower = filterText.toLowerCase();
       result = result.filter(a => {
-        const p = patients.find(pat => pat.id === a.patientId);
-        const s = staff.find(st => st.id === a.staffId);
-        const pr = procedures.find(proc => proc.id === a.procedureId);
+        const p = patMap.get(a.patientId);
+        const s = staffMap.get(a.staffId);
+        const pr = procMap.get(a.procedureId);
         return (
           (p?.name?.toLowerCase().includes(lower)) ||
           (s?.name?.toLowerCase().includes(lower)) ||
@@ -585,7 +600,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         // Patient status filter (headerPatientStatusFilters)
         if (headerPatientStatusFilters.length > 0) {
             result = result.filter(a => {
-                const p = patients.find(pat => pat.id === a.patientId);
+                const p = patMap.get(a.patientId);
                 return headerPatientStatusFilters.some(filter => {
                     if (filter === 'TREATING') {
                         return p?.status !== 'DISCHARGED';
@@ -608,7 +623,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         // Bed type filter (headerBedTypeFilters)
         if (headerBedTypeFilters.length > 0) {
             result = result.filter(a => {
-                const p = patients.find(pat => pat.id === a.patientId);
+                const p = patMap.get(a.patientId);
                 const bedType = p?.bedType || 'Nội trú';
                 return headerBedTypeFilters.some(filter => {
                     if (filter === 'Nội trú') return bedType === 'Nội trú';
@@ -622,7 +637,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         // Department filter (headerDeptFilters)
         if (headerDeptFilters.length > 0) {
             result = result.filter(a => {
-                const proc = procedures.find(p => p.id === a.procedureId);
+                const proc = procMap.get(a.procedureId);
                 const procedureDeptId = proc?.deptId || a.deptId;
                 return headerDeptFilters.includes(procedureDeptId);
             });
@@ -694,22 +709,17 @@ export const Timeline: React.FC<TimelineProps> = ({
                 });
             });
         }
-
-        // Lọc các thủ thuật mới được chỉnh sửa trong phiên
-        if (filterModifiedOnly) {
-            const changedIds = new Set(deviations.map(d => d.id));
-            result = result.filter(a => changedIds.has(a.id));
-        }
     }
 
-    const enriched = result.map(appt => {
-        const start = timeStringToMinutes(appt.startTime);
-        const end = timeStringToMinutes(appt.endTime);
-        const overlaps = result.filter(other => {
-            if (appt.id === other.id) return false;
-            const oStart = timeStringToMinutes(other.startTime);
-            const oEnd = timeStringToMinutes(other.endTime);
-            return Math.max(start, oStart) < Math.min(end, oEnd);
+    const withTimes = result.map(appt => ({
+        appt,
+        start: timeStringToMinutes(appt.startTime),
+        end: timeStringToMinutes(appt.endTime)
+    }));
+    const enriched = withTimes.map(({ appt, start, end }) => {
+        const overlaps = withTimes.filter(other => {
+            if (appt.id === other.appt.id) return false;
+            return Math.max(start, other.start) < Math.min(end, other.end);
         }).length;
         return { ...appt, overlapLevel: overlaps };
     });
@@ -725,8 +735,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             const isAsc = sortDir === 'asc';
             
             if (sortBy === 'PATIENT_GROUP') {
-                const patA = patients.find(p => p.id === a.patientId);
-                const patB = patients.find(p => p.id === b.patientId);
+                const patA = patMap.get(a.patientId);
+                const patB = patMap.get(b.patientId);
                 const pNameA = patA?.name || '';
                 const pNameB = patB?.name || '';
                 
@@ -744,8 +754,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             }
             
             if (sortBy === 'PATIENT_NAME') {
-                const patA = patients.find(p => p.id === a.patientId);
-                const patB = patients.find(p => p.id === b.patientId);
+                const patA = patMap.get(a.patientId);
+                const patB = patMap.get(b.patientId);
                 const valA = patA?.name || '';
                 const valB = patB?.name || '';
                 const comp = compareNamesByFirstName(valA, valB);
@@ -753,8 +763,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             }
             
             if (sortBy === 'BED') {
-                const patA = patients.find(p => p.id === a.patientId);
-                const patB = patients.find(p => p.id === b.patientId);
+                const patA = patMap.get(a.patientId);
+                const patB = patMap.get(b.patientId);
                 const bedA = patA?.bedNumber || '';
                 const bedB = patB?.bedNumber || '';
                 const numA = parseInt(bedA.replace(/\D/g, ''), 10) || 0;
@@ -768,8 +778,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             }
             
             if (sortBy === 'DEPT') {
-                const procA = procedures.find(p => p.id === a.procedureId);
-                const procB = procedures.find(p => p.id === b.procedureId);
+                const procA = procMap.get(a.procedureId);
+                const procB = procMap.get(b.procedureId);
                 const procDeptId_A = procA?.deptId || a.deptId;
                 const procDeptId_B = procB?.deptId || b.deptId;
                 const deptA = DEPARTMENTS.find(d => d.id === procDeptId_A)?.name || '';
@@ -779,8 +789,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             }
             
             if (sortBy === 'PROCEDURE') {
-                const procA = procedures.find(p => p.id === a.procedureId);
-                const procB = procedures.find(p => p.id === b.procedureId);
+                const procA = procMap.get(a.procedureId);
+                const procB = procMap.get(b.procedureId);
                 const valA = procA?.name || '';
                 const valB = procB?.name || '';
                 const comp = valA.localeCompare(valB, 'vi');
@@ -788,8 +798,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             }
             
             if (sortBy === 'STAFF') {
-                const staffA = staff.find(s => s.id === a.staffId);
-                const staffB = staff.find(s => s.id === b.staffId);
+                const staffA = staffMap.get(a.staffId);
+                const staffB = staffMap.get(b.staffId);
                 const valA = staffA?.name || '';
                 const valB = staffB?.name || '';
                 const comp = compareNamesByFirstName(valA, valB);
@@ -813,7 +823,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         });
     }
     return enriched;
-  }, [appointments, filterText, patients, staff, procedures, viewMode, sortBy, sortDir, headerPatientStatusFilters, headerPatientFilters, headerBedTypeFilters, headerDeptFilters, headerProcedureStatusFilters, headerProcedureFilters, headerStaffRoleFilters, headerStaffIdFilters, headerTimeShiftFilters, headerMachineFilters, currentDept]);
+  }, [appointments, date, filterModifiedOnly, deviations, filterText, patients, staff, procedures, viewMode, sortBy, sortDir, headerPatientStatusFilters, headerPatientFilters, headerBedTypeFilters, headerDeptFilters, headerProcedureStatusFilters, headerProcedureFilters, headerStaffRoleFilters, headerStaffIdFilters, headerTimeShiftFilters, headerMachineFilters, currentDept]);
 
   const getStatusColor = (status: AppointmentStatus, isOutside: boolean, isIndependent: boolean = false, isCurrentDept: boolean = true) => {
     if (!isCurrentDept) return 'bg-slate-50 border-slate-200 text-slate-400 opacity-40 grayscale-[0.5]';
@@ -1081,7 +1091,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                {currentDept && (
                  <button 
                    onClick={() => setFilterModifiedOnly(prev => !prev)} 
-                   className={`h-[40px] px-3.5 border rounded-xl flex items-center gap-2 font-bold text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm ${filterModifiedOnly ? 'bg-amber-600 border-amber-600 text-white hover:bg-amber-700 animate-pulse' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
+                   className={`h-[40px] px-3.5 border rounded-xl flex items-center gap-2 font-bold text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm ${filterModifiedOnly ? 'bg-amber-600 border-amber-600 text-white hover:bg-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
                    title="Chỉ hiển thị các thủ thuật đã được chỉnh sửa hoặc thêm mới trong phiên làm việc hiện tại"
                  >
                    <Filter size={14} />
@@ -1091,7 +1101,10 @@ export const Timeline: React.FC<TimelineProps> = ({
 
                {currentDept && onSaveScheduleSnapshot && (
                  <button 
-                   onClick={() => onSaveScheduleSnapshot(currentDept.id, date)} 
+                   onClick={async () => {
+                     await onSaveScheduleSnapshot(currentDept.id, date);
+                     setFilterModifiedOnly(false);
+                   }} 
                    className="h-[40px] px-3.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-xl flex items-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm"
                    title="Lưu lại phiên bản chốt hiện tại làm mốc so sánh biến động"
                  >

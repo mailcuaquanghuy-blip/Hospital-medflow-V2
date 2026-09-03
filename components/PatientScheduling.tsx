@@ -150,9 +150,13 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     }
   };
 
+  const currentSnapshot = useMemo(() => {
+    return (scheduleSnapshots || []).find(s => s.deptId === currentDept.id && s.date === currentDate);
+  }, [scheduleSnapshots, currentDept.id, currentDate]);
+
   const deviations = useMemo(() => {
     const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === currentDate);
-    const snapshot = (scheduleSnapshots || []).find(s => s.deptId === currentDept.id && s.date === currentDate);
+    const snapshot = currentSnapshot;
     
     if (!snapshot) {
       return [];
@@ -2484,7 +2488,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
             {/* Content */}
             <div className="flex-1 p-6 overflow-y-auto space-y-4">
-              {deviations.length === 0 ? (
+              {!currentSnapshot ? (
+                <div className="text-center py-12 px-4 space-y-4">
+                  <div className="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center mx-auto text-sky-500">
+                    <History size={32} />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-800">Chưa lưu phiên bản chốt mẫu</h4>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Lịch trình ngày này chưa tạo mốc so sánh</p>
+                  </div>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                    Hãy bấm nút <strong className="text-sky-700 font-extrabold">"Lưu phiên bản"</strong> bên dưới khi quý khoa đã phân lịch xong để làm mốc chuẩn. Mọi thay đổi sau đó (dời giờ, đổi bác sĩ, xóa/thêm ca) sẽ được theo dõi chi tiết tại đây.
+                  </p>
+                </div>
+              ) : deviations.length === 0 ? (
                 <div className="text-center py-12 px-4 space-y-4">
                   <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-500">
                     <CheckCircle2 size={32} />
@@ -2557,6 +2574,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                 {deviations.length > 0 ? (
                   <span className="text-amber-600 font-bold">
                     Có {deviations.length} thủ thuật biến động so với bản chốt
+                  </span>
+                ) : !currentSnapshot ? (
+                  <span className="text-slate-400">
+                    Chưa lưu phiên bản chốt cho ngày này
                   </span>
                 ) : (
                   <span className="text-slate-400">

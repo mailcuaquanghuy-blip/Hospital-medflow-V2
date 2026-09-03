@@ -998,25 +998,6 @@ const App: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
-  // Tự động khởi tạo phiên bản chốt nếu chưa có để bắt đầu theo dõi biến động ngay lập tức khi load phòng/ngày
-  useEffect(() => {
-    if (!db || !currentDept || !activeDate || !isAuthReady || !loadedCollections.appointments || !loadedCollections.scheduleSnapshots) return;
-    
-    const hasSnapshot = scheduleSnapshots.some(s => s.deptId === currentDept.id && s.date === activeDate);
-    if (!hasSnapshot) {
-      const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === activeDate);
-      const snapshotId = `${currentDept.id}_${activeDate}`;
-      setDoc(doc(db, 'scheduleSnapshots', snapshotId), {
-        id: snapshotId,
-        deptId: currentDept.id,
-        date: activeDate,
-        createdAt: new Date().toISOString(),
-        createdBy: 'Hệ thống (Tự động)',
-        appointments: deptAppts
-      }).catch(err => console.error("Error auto-creating snapshot:", err));
-    }
-  }, [loadedCollections.appointments, loadedCollections.scheduleSnapshots, scheduleSnapshots, currentDept, activeDate, db, isAuthReady]);
-
   const handleSaveScheduleSnapshot = async (deptId: string, dateStr: string) => {
     try {
       const deptAppts = appointments.filter(a => a.deptId === deptId && a.date === dateStr);
