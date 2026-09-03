@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Patient, Appointment, Procedure, Staff, AppointmentStatus, Department, DepartmentType, UserAccount, UserRole, AttendanceRecord, ConflictDetail, AppointmentTemplate, TemplateProcedure, AttendanceStatus, MachineShift } from '../types';
+import { Patient, Appointment, Procedure, Staff, AppointmentStatus, Department, DepartmentType, UserAccount, UserRole, AttendanceRecord, ConflictDetail, AppointmentTemplate, TemplateProcedure, AttendanceStatus, MachineShift, ScheduleSnapshot } from '../types';
 import { Button } from './Button';
-import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut } from 'lucide-react';
+import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History } from 'lucide-react';
 
 import { calculateAge, timeStringToMinutes, minutesToPixels, minutesToTimeString, addMinutesToTime, isInsideOfficeHours, checkConflict, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
 import { CopyRangeModal } from './CopyRangeModal';
@@ -60,6 +60,9 @@ interface PatientSchedulingProps {
   onDeleteShift: (id: string) => void;
   onCleanupShifts: () => void;
   onVerifyAction?: (patientId: string, action: () => void, description?: string) => void;
+  scheduleSnapshots?: ScheduleSnapshot[];
+  onSaveScheduleSnapshot?: (deptId: string, date: string) => void;
+  onUndoAppointmentChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => void;
 }
 
 const PIXELS_PER_MINUTE = 5.0; 
@@ -89,7 +92,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   onUpdateShift,
   onDeleteShift,
   onCleanupShifts,
-  onVerifyAction
+  onVerifyAction,
+  scheduleSnapshots = [],
+  onSaveScheduleSnapshot,
+  onUndoAppointmentChange
 }) => {
   const [activeTab, setActiveTab] = useState<'SCHEDULING' | 'TEMPLATES'>('SCHEDULING');
   const [pixelsPerMinute, setPixelsPerMinute] = useState(6.5);
@@ -130,6 +136,118 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const [isBatchLoadModalOpen, setIsBatchLoadModalOpen] = useState(false);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
   const [isQuickScheduleModalOpen, setIsQuickScheduleModalOpen] = useState(false);
+  
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+  const deviations = useMemo(() => {
+    const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === currentDate);
+    const snapshot = (scheduleSnapshots || []).find(s => s.deptId === currentDept.id && s.date === currentDate);
+    
+    if (!snapshot) {
+      return [];
+    }
+    
+    const baselineAppts = snapshot.appointments || [];
+    const baselineMap = new Map<string, Appointment>();
+    baselineAppts.forEach(a => baselineMap.set(a.id, a));
+    
+    const currentMap = new Map<string, Appointment>();
+    deptAppts.forEach(a => currentMap.set(a.id, a));
+    
+    const list: {
+      id: string;
+      patientId: string;
+      patientName: string;
+      procedureName: string;
+      type: 'NEW' | 'MODIFIED' | 'DELETED';
+      changeDetails: string;
+      currentAppt?: Appointment;
+      originalAppt?: Appointment;
+    }[] = [];
+    
+    // Check for NEW or MODIFIED
+    deptAppts.forEach(appt => {
+      const patient = patients.find(p => p.id === appt.patientId);
+      const patientName = patient?.name || 'Bệnh nhân không rõ';
+      const proc = procedures.find(p => p.id === appt.procedureId);
+      const procedureName = proc?.name || 'Thủ thuật không rõ';
+      
+      const baseline = baselineMap.get(appt.id);
+      if (!baseline) {
+        list.push({
+          id: appt.id,
+          patientId: appt.patientId,
+          patientName,
+          procedureName,
+          type: 'NEW',
+          changeDetails: 'Thủ thuật mới được thêm vào lịch trình',
+          currentAppt: appt
+        });
+      } else {
+        const norm = (val: any) => (val === null || val === undefined) ? '' : String(val).trim();
+        const diffs: string[] = [];
+        
+        if (norm(appt.startTime) !== norm(baseline.startTime) || norm(appt.endTime) !== norm(baseline.endTime)) {
+          diffs.push(`Dời giờ (${baseline.startTime} ➔ ${appt.startTime})`);
+        }
+        if (norm(appt.staffId) !== norm(baseline.staffId)) {
+          const oldStaff = staff.find(s => s.id === baseline.staffId)?.name || 'Chưa phân công';
+          const newStaff = staff.find(s => s.id === appt.staffId)?.name || 'Chưa phân công';
+          diffs.push(`Đổi Bác sĩ chính (${oldStaff} ➔ ${newStaff})`);
+        }
+        if (norm(appt.assistant1Id) !== norm(baseline.assistant1Id)) {
+          const oldAsst1 = staff.find(s => s.id === baseline.assistant1Id)?.name || 'Không có';
+          const newAsst1 = staff.find(s => s.id === appt.assistant1Id)?.name || 'Không có';
+          diffs.push(`Đổi Phụ 1 (${oldAsst1} ➔ ${newAsst1})`);
+        }
+        if (norm(appt.assistant2Id) !== norm(baseline.assistant2Id)) {
+          const oldAsst2 = staff.find(s => s.id === baseline.assistant2Id)?.name || 'Không có';
+          const newAsst2 = staff.find(s => s.id === appt.assistant2Id)?.name || 'Không có';
+          diffs.push(`Đổi Phụ 2 (${oldAsst2} ➔ ${newAsst2})`);
+        }
+        if (norm(appt.assignedMachineId) !== norm(baseline.assignedMachineId)) {
+          const oldMachine = baseline.assignedMachineId ? `Thiết bị ${baseline.assignedMachineId}` : 'Chưa phân ca';
+          const newMachine = appt.assignedMachineId ? `Thiết bị ${appt.assignedMachineId}` : 'Chưa phân ca';
+          diffs.push(`Thay đổi thiết bị/phòng (${oldMachine} ➔ ${newMachine})`);
+        }
+        
+        if (diffs.length > 0) {
+          list.push({
+            id: appt.id,
+            patientId: appt.patientId,
+            patientName,
+            procedureName,
+            type: 'MODIFIED',
+            changeDetails: diffs.join(', '),
+            currentAppt: appt,
+            originalAppt: baseline
+          });
+        }
+      }
+    });
+    
+    // Check for DELETED
+    baselineAppts.forEach(baseline => {
+      if (!currentMap.has(baseline.id)) {
+        const patient = patients.find(p => p.id === baseline.patientId);
+        const patientName = patient?.name || 'Bệnh nhân không rõ';
+        const proc = procedures.find(p => p.id === baseline.procedureId);
+        const procedureName = proc?.name || 'Thủ thuật không rõ';
+        
+        list.push({
+          id: baseline.id,
+          patientId: baseline.patientId,
+          patientName,
+          procedureName,
+          type: 'DELETED',
+          changeDetails: `Đã xóa lịch trình (${baseline.startTime} - BS: ${staff.find(s => s.id === baseline.staffId)?.name || 'Không rõ'})`,
+          originalAppt: baseline
+        });
+      }
+    });
+    
+    return list;
+  }, [appointments, scheduleSnapshots, currentDept.id, currentDate, patients, procedures, staff]);
   
 
 
@@ -1150,6 +1268,21 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
             Kiểm tra lỗi
           </button>
         )}
+
+        {/* Nút Lịch sử chỉnh sửa */}
+        <button 
+          onClick={() => setIsHistoryModalOpen(true)} 
+          className="flex items-center gap-2 px-6 py-2.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm relative"
+          title="Xem danh sách các thủ thuật biến động trong phiên hôm nay"
+        >
+          <History size={14} className="text-amber-600" />
+          Lịch sử chỉnh sửa
+          {deviations.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-pulse">
+              {deviations.length}
+            </span>
+          )}
+        </button>
 
         {hasUndoData && (
           <button 
@@ -2314,6 +2447,114 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         appointments={appointments}
         attendanceRecords={attendanceRecords}
       />
+
+      {/* Modal Lịch sử biến động và hoàn tác chỉnh sửa */}
+      {isHistoryModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[150] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                  <History size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 tracking-tight">Nhật ký biến động lịch trình</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">Ngày {currentDate} - {currentDept.name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsHistoryModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 p-6 overflow-y-auto space-y-4">
+              {deviations.length === 0 ? (
+                <div className="text-center py-12 px-4 space-y-4">
+                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-500">
+                    <CheckCircle2 size={32} />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-800">Không có biến động nào!</h4>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Lịch trình ngày này đang hoàn toàn khớp với phiên bản chốt mẫu</p>
+                  </div>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Mọi sửa đổi, đổi giờ, đổi kíp bác sĩ chính, người phụ hoặc xóa/thêm mới thủ thuật sau khi đã bấm "Lưu phiên bản" sẽ xuất hiện tại đây để hoàn tác khi cần.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs font-black text-slate-400 uppercase tracking-widest px-1">
+                    <span>Thủ thuật bị biến động ({deviations.length})</span>
+                    <span>Hành động khôi phục</span>
+                  </div>
+                  <div className="divide-y divide-slate-100 border border-slate-200/60 rounded-3xl overflow-hidden bg-slate-50/20 shadow-sm">
+                    {deviations.map((dev) => {
+                      let badgeBg = "bg-amber-50 text-amber-700 border-amber-200";
+                      let badgeText = "✎ Chỉnh sửa";
+                      if (dev.type === 'NEW') {
+                        badgeBg = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                        badgeText = "+ Thêm mới";
+                      } else if (dev.type === 'DELETED') {
+                        badgeBg = "bg-rose-50 text-rose-700 border-rose-200";
+                        badgeText = "✗ Đã xóa";
+                      }
+
+                      return (
+                        <div key={dev.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                          <div className="space-y-1.5 flex-1 pr-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-extrabold text-slate-800">{dev.patientName}</span>
+                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeBg}`}>
+                                {badgeText}
+                              </span>
+                            </div>
+                            <div className="text-xs font-semibold text-slate-500">
+                              Thủ thuật: <span className="font-extrabold text-slate-700">{dev.procedureName}</span>
+                            </div>
+                            <div className="text-xs font-bold text-amber-600 bg-amber-50/30 px-2.5 py-1 rounded-xl inline-block">
+                              {dev.changeDetails}
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={() => {
+                              if (onUndoAppointmentChange) {
+                                onUndoAppointmentChange(dev.id, dev.type, dev.originalAppt);
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-300 shadow-sm border border-slate-200/40"
+                          >
+                            <RotateCcw size={12} />
+                            Hoàn tác
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                Chốt phiên bản tại "Timeline Khoa" để làm sạch nhật ký
+              </div>
+              <button
+                onClick={() => setIsHistoryModalOpen(false)}
+                className="px-6 py-2.5 bg-slate-800 text-white hover:bg-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
+              >
+                Đóng nhật ký
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isProcessingBatch && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6 text-center">

@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole } from '../types';
+import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole, ScheduleSnapshot } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString } from '../utils/timeUtils';
 import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown } from 'lucide-react';
@@ -206,6 +206,8 @@ interface TimelineProps {
     staffIds?: string[];
     deptIds?: string[];
   };
+  scheduleSnapshots?: ScheduleSnapshot[];
+  onSaveScheduleSnapshot?: (deptId: string, date: string) => void;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -222,6 +224,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   onEmptySlotClick,
   onRecheckConflicts,
   initialFilters,
+  scheduleSnapshots = [],
+  onSaveScheduleSnapshot,
 }) => {
   const pixelsPerMinute = 1.8;
   const startHour = 0;       
@@ -289,6 +293,60 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [headerMachineFilters, setHeaderMachineFilters] = useState<string[]>(() =>
     getSavedArray(`medflow_tl_machine_${deptKey}`, [])
   );
+
+  const [filterModifiedOnly, setFilterModifiedOnly] = useState<boolean>(false);
+
+  const deviations = useMemo(() => {
+    if (!currentDept) return [];
+    const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
+    const snapshot = (scheduleSnapshots || []).find(s => s.deptId === currentDept.id && s.date === date);
+    
+    if (!snapshot) {
+      return [];
+    }
+    
+    const baselineAppts = snapshot.appointments || [];
+    const baselineMap = new Map<string, Appointment>();
+    baselineAppts.forEach(a => baselineMap.set(a.id, a));
+    
+    const currentMap = new Map<string, Appointment>();
+    deptAppts.forEach(a => currentMap.set(a.id, a));
+    
+    const list: {
+      id: string;
+      type: 'NEW' | 'MODIFIED' | 'DELETED';
+    }[] = [];
+    
+    // Check for NEW or MODIFIED
+    deptAppts.forEach(appt => {
+      const baseline = baselineMap.get(appt.id);
+      if (!baseline) {
+        list.push({ id: appt.id, type: 'NEW' });
+      } else {
+        const norm = (val: any) => (val === null || val === undefined) ? '' : String(val).trim();
+        const isModified = 
+          norm(appt.startTime) !== norm(baseline.startTime) || 
+          norm(appt.endTime) !== norm(baseline.endTime) ||
+          norm(appt.staffId) !== norm(baseline.staffId) ||
+          norm(appt.assistant1Id) !== norm(baseline.assistant1Id) ||
+          norm(appt.assistant2Id) !== norm(baseline.assistant2Id) ||
+          norm(appt.assignedMachineId) !== norm(baseline.assignedMachineId);
+        
+        if (isModified) {
+          list.push({ id: appt.id, type: 'MODIFIED' });
+        }
+      }
+    });
+    
+    // Check for DELETED
+    baselineAppts.forEach(baseline => {
+      if (!currentMap.has(baseline.id)) {
+        list.push({ id: baseline.id, type: 'DELETED' });
+      }
+    });
+    
+    return list;
+  }, [appointments, scheduleSnapshots, currentDept, date]);
 
   useEffect(() => {
     sessionStorage.setItem(`medflow_tl_sortBy_${deptKey}`, sortBy);
@@ -635,6 +693,12 @@ export const Timeline: React.FC<TimelineProps> = ({
                     return a.assignedMachineId === filter;
                 });
             });
+        }
+
+        // Lọc các thủ thuật mới được chỉnh sửa trong phiên
+        if (filterModifiedOnly) {
+            const changedIds = new Set(deviations.map(d => d.id));
+            result = result.filter(a => changedIds.has(a.id));
         }
     }
 
@@ -1011,6 +1075,28 @@ export const Timeline: React.FC<TimelineProps> = ({
                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-black bg-amber-200 text-amber-900 rounded-full min-w-[20px]">
                      {activeFiltersCount}
                    </span>
+                 </button>
+               )}
+
+               {currentDept && (
+                 <button 
+                   onClick={() => setFilterModifiedOnly(prev => !prev)} 
+                   className={`h-[40px] px-3.5 border rounded-xl flex items-center gap-2 font-bold text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm ${filterModifiedOnly ? 'bg-amber-600 border-amber-600 text-white hover:bg-amber-700 animate-pulse' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
+                   title="Chỉ hiển thị các thủ thuật đã được chỉnh sửa hoặc thêm mới trong phiên làm việc hiện tại"
+                 >
+                   <Filter size={14} />
+                   <span>Lọc biến động {deviations.length > 0 ? `(${deviations.length})` : ''}</span>
+                 </button>
+               )}
+
+               {currentDept && onSaveScheduleSnapshot && (
+                 <button 
+                   onClick={() => onSaveScheduleSnapshot(currentDept.id, date)} 
+                   className="h-[40px] px-3.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-xl flex items-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm"
+                   title="Lưu lại phiên bản chốt hiện tại làm mốc so sánh biến động"
+                 >
+                   <Check size={14} />
+                   <span>Lưu phiên bản</span>
                  </button>
                )}
 

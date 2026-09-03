@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, TimelineViewMode, AttendanceRecord, AttendanceStatus, PatientStatus, PatientReferral, UserAccount, UserRole, AppointmentTemplate, MachineShift, Backup } from './types';
+import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, TimelineViewMode, AttendanceRecord, AttendanceStatus, PatientStatus, PatientReferral, UserAccount, UserRole, AppointmentTemplate, MachineShift, Backup, ScheduleSnapshot } from './types';
 import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN, MOCK_TEMPLATES } from './constants';
 
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
@@ -88,6 +88,7 @@ const App: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [backups, setBackups] = useState<Backup[]>([]);
+  const [scheduleSnapshots, setScheduleSnapshots] = useState<ScheduleSnapshot[]>([]);
   const [undoData, setUndoData] = useState<Appointment[] | null>(null);
   
   // Ref to throttle rapid database reloads (preventing lag & state overwrites during focus events)
@@ -665,6 +666,18 @@ const App: React.FC = () => {
     return () => unsub();
   }, [isFirebaseReady, currentUser, isAuthReady]);
 
+  useEffect(() => {
+    if (isSupabaseConfigured()) return;
+    if (!db || !currentUser || !isAuthReady) return;
+    const unsub = onSnapshot(collection(db, "scheduleSnapshots"), (snapshot) => {
+      const snapshotData = snapshot.docs.map(doc => ({ ...doc.data() } as ScheduleSnapshot));
+      setScheduleSnapshots(snapshotData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "scheduleSnapshots");
+    });
+    return () => unsub();
+  }, [isFirebaseReady, currentUser, isAuthReady]);
+
 
   const handleLogin = (user: UserAccount) => {
     setShowLoginLoading(true);
@@ -810,6 +823,13 @@ const App: React.FC = () => {
   const handleSaveBooking = async (data: Partial<Appointment>, skipVerify = false) => {
     if (!currentDept || !db || !canEditCurrentDept) return;
     
+    // Ngăn chặn chỉnh sửa lùi lịch cũ của các ngày đã chốt lịch tự động
+    const today = getTodayDateString();
+    if (data.date && data.date < today && currentUser?.role !== UserRole.ADMIN) {
+      alert("Lịch trình ngày cũ đã tự động chốt. Không thể thêm chỉ định mới lùi lịch.");
+      return;
+    }
+    
     // Check if patient is discharged
     const patient = patients.find(p => p.id === data.patientId);
     if (!skipVerify && patient?.status === PatientStatus.DISCHARGED) {
@@ -948,8 +968,83 @@ const App: React.FC = () => {
     }
   };
 
+  const getTodayDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Tự động khởi tạo phiên bản chốt nếu chưa có để bắt đầu theo dõi biến động ngay lập tức khi load phòng/ngày
+  useEffect(() => {
+    if (!db || !currentDept || !activeDate || !isAuthReady || !loadedCollections.appointments) return;
+    
+    const hasSnapshot = scheduleSnapshots.some(s => s.deptId === currentDept.id && s.date === activeDate);
+    if (!hasSnapshot) {
+      const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === activeDate);
+      const snapshotId = `${currentDept.id}_${activeDate}`;
+      setDoc(doc(db, 'scheduleSnapshots', snapshotId), {
+        id: snapshotId,
+        deptId: currentDept.id,
+        date: activeDate,
+        createdAt: new Date().toISOString(),
+        createdBy: 'Hệ thống (Tự động)',
+        appointments: deptAppts
+      }).catch(err => console.error("Error auto-creating snapshot:", err));
+    }
+  }, [loadedCollections.appointments, scheduleSnapshots, currentDept, activeDate, db, isAuthReady]);
+
+  const handleSaveScheduleSnapshot = async (deptId: string, dateStr: string) => {
+    try {
+      const deptAppts = appointments.filter(a => a.deptId === deptId && a.date === dateStr);
+      const snapshotId = `${deptId}_${dateStr}`;
+      
+      await setDoc(doc(db, 'scheduleSnapshots', snapshotId), {
+        id: snapshotId,
+        deptId,
+        date: dateStr,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser?.fullName || 'Hệ thống',
+        appointments: deptAppts
+      });
+      
+      alert('Đã lưu phiên bản chốt thành công! Tất cả nhật ký chỉnh sửa của phiên đã được làm sạch.');
+    } catch (err) {
+      console.error('Error saving schedule snapshot:', err);
+      alert('Không thể lưu phiên bản chốt. Vui lòng thử lại.');
+    }
+  };
+
+  const handleUndoAppointmentChange = async (
+    apptId: string,
+    type: 'NEW' | 'MODIFIED' | 'DELETED',
+    originalAppt?: Appointment
+  ) => {
+    try {
+      if (type === 'NEW') {
+        await deleteDoc(doc(db, 'appointments', apptId));
+      } else if (type === 'MODIFIED' && originalAppt) {
+        await setDoc(doc(db, 'appointments', apptId), originalAppt);
+      } else if (type === 'DELETED' && originalAppt) {
+        await setDoc(doc(db, 'appointments', apptId), originalAppt);
+      }
+      alert('Đã hoàn tác thao tác chỉnh sửa thành công!');
+    } catch (err) {
+      console.error('Error undoing appointment change:', err);
+      alert('Không thể hoàn tác thao tác. Vui lòng thử lại.');
+    }
+  };
+
   const handleUpdateAppointment = async (updatedAppt: Appointment, skipVerify = false) => {
     if (!db || !canEditCurrentDept) return;
+    
+    // Ngăn chặn chỉnh sửa lùi lịch cũ của các ngày đã chốt lịch tự động
+    const today = getTodayDateString();
+    if (updatedAppt.date && updatedAppt.date < today && currentUser?.role !== UserRole.ADMIN) {
+      alert("Lịch trình ngày cũ đã tự động chốt vào cuối ngày. Không thể chỉnh sửa.");
+      return;
+    }
     
     // Check if patient is discharged
     const patient = patients.find(p => p.id === updatedAppt.patientId);
@@ -996,6 +1091,13 @@ const App: React.FC = () => {
     
     const appt = appointments.find(a => a.id === apptId);
     if (!appt) return;
+
+    // Ngăn chặn chỉnh sửa lùi lịch cũ của các ngày đã chốt lịch tự động
+    const today = getTodayDateString();
+    if (appt.date && appt.date < today && currentUser?.role !== UserRole.ADMIN) {
+      alert("Lịch trình ngày cũ đã tự động chốt vào cuối ngày. Không thể xóa.");
+      return;
+    }
 
     // Check if patient is discharged
     const patient = patients.find(p => p.id === appt.patientId);
@@ -2392,10 +2494,31 @@ const App: React.FC = () => {
             onDeleteShift={handleDeleteMachineShift} 
             onCleanupShifts={handleCleanupEmptyMachineShifts}
             onVerifyAction={onVerifyAction}
+            scheduleSnapshots={scheduleSnapshots}
+            onSaveScheduleSnapshot={handleSaveScheduleSnapshot}
+            onUndoAppointmentChange={handleUndoAppointmentChange}
           />
          )}
 
-         {activeTab === 'GENERAL_TIMELINE' && currentDept && <Timeline date={activeDate} staff={staff} appointments={deptAppointments} procedures={procedures} patients={patients} viewMode="GENERAL" filterText="" currentDept={currentDept} currentUser={currentUser} onAppointmentClick={a => { setEditingAppt(a); setIsModalOpen(true); }} onEmptySlotClick={(rid, t) => { setEditingAppt({ date: activeDate, startTime: t }); setIsModalOpen(true); }} onRecheckConflicts={handleRecheckConflicts} initialFilters={timelineFilters} />}
+         {activeTab === 'GENERAL_TIMELINE' && currentDept && (
+           <Timeline 
+             date={activeDate} 
+             staff={staff} 
+             appointments={deptAppointments} 
+             procedures={procedures} 
+             patients={patients} 
+             viewMode="GENERAL" 
+             filterText="" 
+             currentDept={currentDept} 
+             currentUser={currentUser} 
+             onAppointmentClick={a => { setEditingAppt(a); setIsModalOpen(true); }} 
+             onEmptySlotClick={(rid, t) => { setEditingAppt({ date: activeDate, startTime: t }); setIsModalOpen(true); }} 
+             onRecheckConflicts={handleRecheckConflicts} 
+             initialFilters={timelineFilters}
+             scheduleSnapshots={scheduleSnapshots}
+             onSaveScheduleSnapshot={handleSaveScheduleSnapshot}
+           />
+         )}
 
           {activeTab === 'DAILY_REPORT' && currentDept && (
             <DailyReport 

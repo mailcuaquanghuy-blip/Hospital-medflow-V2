@@ -235,3 +235,13 @@ export interface Backup {
   createdBy: string; // User ID
 }
 
+export interface ScheduleSnapshot {
+  id: string; // format: `${deptId}_${date}`
+  deptId: string;
+  date: string; // YYYY-MM-DD
+  createdAt: string; // ISO Timestamp
+  createdBy: string;
+  appointments: Appointment[]; // List of appointments in the baseline version
+}
+
+
