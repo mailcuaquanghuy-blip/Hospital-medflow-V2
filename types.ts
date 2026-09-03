@@ -221,6 +221,7 @@ export interface Appointment {
   restMinutes?: number;
   selectedDurationOptionId?: string | null;
   allowSameAssistant?: boolean;
+  isPriority?: boolean;
 }
 
 export interface Backup {

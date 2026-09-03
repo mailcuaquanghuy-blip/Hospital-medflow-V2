@@ -189,6 +189,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     assistant1Id?: string | null;
     assistant2Id?: string | null;
     deviceId?: string | null;
+    isPriority?: boolean;
   }
 
   const [quickScheduleTasks, setQuickScheduleTasks] = useState<Record<string, QuickScheduleTask[]>>({});
@@ -204,6 +205,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     assistant1Id: string;
     assistant2Id: string;
     deviceId: string;
+    isPriority?: boolean;
   } | null>(null);
 
   const [addProcDuplicateWarning, setAddProcDuplicateWarning] = useState<boolean>(false);
@@ -217,6 +219,14 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
   const [scheduledCount, setScheduledCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [failedDetails, setFailedDetails] = useState<{ patientName: string; procedureName: string; reason: string }[]>([]);
+
+  const allPendingTasks = useMemo(() => {
+    return Object.values(quickScheduleTasks).flat();
+  }, [quickScheduleTasks]);
+
+  const priorityPendingCount = useMemo(() => {
+    return allPendingTasks.filter(t => t.isPriority).length;
+  }, [allPendingTasks]);
 
   if (!isOpen) return null;
 
@@ -371,6 +381,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       assistant1Id?: string | null;
       assistant2Id?: string | null;
       deviceId?: string | null;
+      isPriority?: boolean;
     }[] = [];
 
     for (const patient of departmentPatients) {
@@ -387,6 +398,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
             assistant1Id: t.assistant1Id || null,
             assistant2Id: t.assistant2Id || null,
             deviceId: t.deviceId || null,
+            isPriority: !!t.isPriority,
           });
         }
       }
@@ -397,6 +409,14 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       setIsProcessing(false);
       return;
     }
+
+    // Sort tasks: prioritized tasks (isPriority = true) are placed FIRST
+    // so they are allocated prime slots and staff before non-priority tasks
+    tasks.sort((a, b) => {
+      if (a.isPriority && !b.isPriority) return -1;
+      if (!a.isPriority && b.isPriority) return 1;
+      return 0;
+    });
 
     let successCount = 0;
     let failCount = 0;
@@ -571,7 +591,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
           assistant2Id: slot.assistant2Id,
           assignedMachineId: slot.assignedMachineId,
           status: AppointmentStatus.PENDING,
-          notes: "Sắp xếp tự động nhanh",
+          notes: task.isPriority ? "Sắp xếp tự động nhanh (Ưu tiên)" : "Sắp xếp tự động nhanh",
           selectedDurationOptionId: task.durationOptionId || null,
           mainBusyStart: mainBusyStart,
           mainBusyEnd: mainBusyEnd,
@@ -579,7 +599,8 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
           asst1BusyEnd: asst1BusyEnd,
           asst2BusyStart: asst2BusyStart,
           asst2BusyEnd: asst2BusyEnd,
-          restMinutes: restMinutes
+          restMinutes: restMinutes,
+          isPriority: !!task.isPriority
         };
 
         if (db) {
@@ -669,7 +690,8 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       mainStaffId: addProcState.mainStaffId || null,
       assistant1Id: addProcState.assistant1Id || null,
       assistant2Id: isSameAsst ? (addProcState.assistant1Id || null) : (addProcState.assistant2Id || null),
-      deviceId: addProcState.deviceId || null
+      deviceId: addProcState.deviceId || null,
+      isPriority: !!addProcState.isPriority
     };
 
     setQuickScheduleTasks(prev => ({
@@ -965,30 +987,74 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                   const mainS = staff.find(s => s.id === task.mainStaffId);
                                   
                                   return (
-                                    <div key={task.id} className="flex items-center justify-between gap-3 bg-violet-50/50 border border-violet-100 rounded-xl p-2.5 text-xs text-slate-700 font-bold group">
-                                      <div className="flex flex-col gap-0.5">
-                                        <span className="text-violet-950 font-black">{proc?.name || 'Thủ thuật'}</span>
+                                    <div 
+                                      key={task.id} 
+                                      className={`flex items-center justify-between gap-2.5 border rounded-xl p-2.5 text-xs font-bold transition-all group ${
+                                        task.isPriority 
+                                          ? 'bg-amber-50/90 border-amber-300 shadow-sm ring-1 ring-amber-300/60' 
+                                          : 'bg-violet-50/50 border-violet-100 text-slate-700'
+                                      }`}
+                                    >
+                                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className={`font-black truncate ${task.isPriority ? 'text-amber-950' : 'text-violet-950'}`}>
+                                            {proc?.name || 'Thủ thuật'}
+                                          </span>
+                                          {task.isPriority && (
+                                            <span className="inline-flex items-center gap-0.5 bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs shrink-0">
+                                              ★ Ưu tiên
+                                            </span>
+                                          )}
+                                        </div>
                                         <div className="flex items-center gap-2 mt-0.5 text-[9px] font-bold text-violet-600 uppercase tracking-wide">
-                                          <span>{task.durationMinutes}p</span>
+                                          <span className={task.isPriority ? 'text-amber-700' : ''}>{task.durationMinutes}p</span>
                                           {mainS && (
-                                            <span className="bg-violet-100 text-violet-800 px-1.5 py-0.5 rounded">
+                                            <span className={`px-1.5 py-0.5 rounded ${task.isPriority ? 'bg-amber-100 text-amber-900' : 'bg-violet-100 text-violet-800'}`}>
                                               BS: {mainS.name}
                                             </span>
                                           )}
                                         </div>
                                       </div>
-                                      <button
-                                        onClick={() => {
-                                          setQuickScheduleTasks(prev => ({
-                                            ...prev,
-                                            [p.id]: (prev[p.id] || []).filter(t => t.id !== task.id)
-                                          }));
-                                        }}
-                                        className="text-slate-400 hover:text-rose-500 transition-colors p-1 hover:bg-rose-50 rounded-lg"
-                                        title="Xóa thủ thuật"
-                                      >
-                                        <X size={14} />
-                                      </button>
+
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        {/* Priority checkbox tick */}
+                                        <label 
+                                          className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] font-black cursor-pointer select-none transition-all ${
+                                            task.isPriority
+                                              ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                                              : 'bg-white text-slate-600 hover:text-slate-900 border-slate-200 hover:border-amber-300'
+                                          }`}
+                                          title="Tick chọn để ưu tiên xếp lịch cho thủ thuật này"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={!!task.isPriority}
+                                            onChange={e => {
+                                              const checked = e.target.checked;
+                                              setQuickScheduleTasks(prev => ({
+                                                ...prev,
+                                                [p.id]: (prev[p.id] || []).map(t => t.id === task.id ? { ...t, isPriority: checked } : t)
+                                              }));
+                                            }}
+                                            className="w-3.5 h-3.5 rounded text-amber-500 border-slate-300 focus:ring-amber-400 cursor-pointer"
+                                          />
+                                          <span>Ưu tiên</span>
+                                        </label>
+
+                                        {/* Delete button */}
+                                        <button
+                                          onClick={() => {
+                                            setQuickScheduleTasks(prev => ({
+                                              ...prev,
+                                              [p.id]: (prev[p.id] || []).filter(t => t.id !== task.id)
+                                            }));
+                                          }}
+                                          className="text-slate-400 hover:text-rose-500 transition-colors p-1 hover:bg-rose-50 rounded-lg"
+                                          title="Xóa thủ thuật"
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -1004,7 +1070,8 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                       mainStaffId: '',
                                       assistant1Id: '',
                                       assistant2Id: '',
-                                      deviceId: ''
+                                      deviceId: '',
+                                      isPriority: false
                                     });
                                   }}
                                   className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-200 hover:border-slate-300 rounded-xl text-xs font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm"
@@ -1163,15 +1230,32 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
             </div>
 
             {/* Footer buttons */}
-            <div className="p-6 border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-slate-50/30">
-              <Button variant="secondary" onClick={handleResetModal}>Hủy bỏ</Button>
-              <Button 
-                onClick={handleConfirm} 
-                className="bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-500/15"
-                disabled={departmentPatients.length === 0}
-              >
-                Xác nhận sắp xếp
-              </Button>
+            <div className="p-6 border-t border-slate-100 flex items-center justify-between gap-3 shrink-0 bg-slate-50/30">
+              <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
+                {allPendingTasks.length > 0 ? (
+                  <>
+                    <span>Đã chọn: <strong className="text-slate-800">{allPendingTasks.length}</strong> thủ thuật</span>
+                    {priorityPendingCount > 0 && (
+                      <span className="inline-flex items-center gap-1 bg-amber-500 text-white px-2.5 py-1 rounded-lg font-black text-[11px] shadow-xs">
+                        ★ {priorityPendingCount} ưu tiên
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-slate-400 italic">Chưa chọn thủ thuật nào để sắp xếp</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button variant="secondary" onClick={handleResetModal}>Hủy bỏ</Button>
+                <Button 
+                  onClick={handleConfirm} 
+                  className="bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-500/15"
+                  disabled={departmentPatients.length === 0 || allPendingTasks.length === 0}
+                >
+                  Xác nhận sắp xếp {allPendingTasks.length > 0 ? `(${allPendingTasks.length})` : ''}
+                </Button>
+              </div>
             </div>
           </div>
         ) : (
@@ -1572,6 +1656,44 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Step 4: Ưu tiên xếp lịch */}
+                {selectedProc && (
+                  <div className="border-t border-slate-100 pt-3">
+                    <label className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                      addProcState.isPriority 
+                        ? 'bg-amber-50/80 border-amber-300 shadow-sm ring-1 ring-amber-300/60' 
+                        : 'bg-slate-50/60 border-slate-200 hover:border-amber-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={!!addProcState.isPriority}
+                          onChange={e => setAddProcState(prev => prev ? { ...prev, isPriority: e.target.checked } : null)}
+                          className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400 cursor-pointer"
+                        />
+                        <div className="text-left">
+                          <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            Ưu tiên xếp lịch cho thủ thuật này
+                            {addProcState.isPriority && (
+                              <span className="text-[9px] bg-amber-500 text-white font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                ★ Ưu tiên
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-500 mt-0.5">
+                            Khi tick chọn, thủ thuật này sẽ được hệ thống ưu tiên xếp lịch trước các thủ thuật thông thường
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-lg shrink-0 ${
+                        addProcState.isPriority ? 'bg-amber-500 text-white' : 'text-slate-400 bg-white border border-slate-200'
+                      }`}>
+                        {addProcState.isPriority ? 'Đang bật' : 'Tắt'}
+                      </span>
+                    </label>
                   </div>
                 )}
 
