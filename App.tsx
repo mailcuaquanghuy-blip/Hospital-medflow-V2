@@ -4,6 +4,7 @@ import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, 
 import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN, MOCK_TEMPLATES } from './constants';
 
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
+import { setSessionBaseline } from './utils/scheduleHistoryUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
 import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, resetSupabaseDatabase } from './utils/supabaseService';
 import { supabase } from './supabaseClient';
@@ -454,7 +455,7 @@ const App: React.FC = () => {
         lastFetchTimeRef.current = now;
 
         try {
-          const [pats, appts, stf, procs, att, shifts, tpls, usrs, snapshots] = await Promise.all([
+          const [pats, appts, stf, procs, att, shifts, tpls, usrs, snapshots, bkps] = await Promise.all([
             fetchSupabaseTable<Patient>('patients'),
             fetchSupabaseTable<Appointment>('appointments'),
             fetchSupabaseTable<Staff>('staff'),
@@ -463,7 +464,8 @@ const App: React.FC = () => {
             fetchSupabaseTable<MachineShift>('machine_shifts'),
             fetchSupabaseTable<AppointmentTemplate>('templates'),
             fetchSupabaseTable<UserAccount>('users'),
-            fetchSupabaseTable<ScheduleSnapshot>('schedule_snapshots').then(res => res || fetchSupabaseTable<ScheduleSnapshot>('scheduleSnapshots'))
+            fetchSupabaseTable<ScheduleSnapshot>('schedule_snapshots').then(res => res || fetchSupabaseTable<ScheduleSnapshot>('scheduleSnapshots')),
+            fetchSupabaseTable<Backup>('backups')
           ]);
           if (pats) setPatients(pats);
           if (appts) setAppointments(appts);
@@ -480,6 +482,7 @@ const App: React.FC = () => {
           }
           if (usrs && usrs.length > 0) setUsers(usrs);
           if (snapshots) setScheduleSnapshots(snapshots);
+          if (bkps) setBackups(bkps);
 
           setLoadedCollections({
             patients: true,
@@ -1012,6 +1015,7 @@ const App: React.FC = () => {
         appointments: deptAppts
       });
       
+      setSessionBaseline(deptId, dateStr, deptAppts);
       alert('Đã lưu phiên bản chốt thành công! Tất cả nhật ký chỉnh sửa của phiên đã được làm sạch.');
     } catch (err) {
       console.error('Error saving schedule snapshot:', err);
@@ -1026,10 +1030,13 @@ const App: React.FC = () => {
   ) => {
     try {
       if (type === 'NEW') {
+        setAppointments(prev => prev.filter(a => a.id !== apptId));
         await deleteDoc(doc(db, 'appointments', apptId));
       } else if (type === 'MODIFIED' && originalAppt) {
+        setAppointments(prev => prev.map(a => a.id === apptId ? originalAppt : a));
         await setDoc(doc(db, 'appointments', apptId), originalAppt);
       } else if (type === 'DELETED' && originalAppt) {
+        setAppointments(prev => [...prev.filter(a => a.id !== apptId), originalAppt]);
         await setDoc(doc(db, 'appointments', apptId), originalAppt);
       }
       alert('Đã hoàn tác thao tác chỉnh sửa thành công!');
@@ -2342,7 +2349,7 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col font-sans overflow-hidden">
-      {isQuotaExceeded && (
+      {isQuotaExceeded && !isSupabaseConfigured() && (
         <div className="bg-amber-600 text-white px-6 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-md z-[120] border-b border-amber-700">
           <div className="flex items-center gap-3">
             <AlertCircle size={20} className="shrink-0 text-amber-200" />
@@ -2520,6 +2527,7 @@ const App: React.FC = () => {
              initialFilters={timelineFilters}
              scheduleSnapshots={scheduleSnapshots}
              onSaveScheduleSnapshot={handleSaveScheduleSnapshot}
+             onUndoAppointmentChange={handleUndoAppointmentChange}
            />
          )}
 

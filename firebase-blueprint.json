@@ -158,6 +158,20 @@
         "createdBy": { "type": "string" }
       },
       "required": ["deptId", "backupDate", "versionName", "createdAt", "snapshot", "createdBy"]
+    },
+    "ScheduleSnapshot": {
+      "title": "ScheduleSnapshot",
+      "description": "Baseline schedule snapshot for change tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "deptId": { "type": "string" },
+        "date": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "appointments": { "type": "array", "items": { "$ref": "#/entities/Appointment" } }
+      },
+      "required": ["deptId", "date", "createdAt", "createdBy", "appointments"]
     }
   },
   "firestore": {
@@ -188,6 +202,10 @@
     "backups/{backupId}": {
       "schema": { "$ref": "#/entities/Backup" },
       "description": "Data backups"
+    },
+    "scheduleSnapshots/{snapshotId}": {
+      "schema": { "$ref": "#/entities/ScheduleSnapshot" },
+      "description": "Baseline schedule snapshots"
     }
   }
 }

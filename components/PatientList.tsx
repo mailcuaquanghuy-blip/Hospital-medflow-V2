@@ -419,14 +419,14 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       if (currentDept.type === DepartmentType.CLINICAL) {
         if (p.admittedByDeptId !== currentDept.id) return;
-        all++;
         if (isTreatingOnActiveDate) treating++;
         if (isDischargedOnActiveDate) discharged++;
+        if (isTreatingOnActiveDate || isDischargedOnActiveDate) all++;
       } else {
         if (p.admittedByDeptId === currentDept.id) {
-          all++;
           if (isTreatingOnActiveDate) treating++;
           if (isDischargedOnActiveDate) discharged++;
+          if (isTreatingOnActiveDate || isDischargedOnActiveDate) all++;
         } else {
           const matchedReferral = p.referrals?.find(r => {
             const s = (r.specialty || '').toLowerCase().trim();
@@ -450,14 +450,14 @@ export const PatientList: React.FC<PatientListProps> = ({
           });
 
           if (matchedReferral) {
-            all++;
             const isFin = matchedReferral.status === 'FINISHED';
             const finDate = matchedReferral.finishedDate || '';
-            if (isFin && finDate === activeDate) {
-              discharged++;
-            } else if (!isFin || (finDate && finDate > activeDate)) {
-              treating++;
-            }
+            const isFinishedOnActiveDate = isFin && finDate === activeDate;
+            const isTreatingOnActiveDateRef = !isFin || (finDate && finDate > activeDate);
+
+            if (isTreatingOnActiveDateRef) treating++;
+            if (isFinishedOnActiveDate) discharged++;
+            if (isTreatingOnActiveDateRef || isFinishedOnActiveDate) all++;
           }
         }
       }
@@ -481,20 +481,36 @@ export const PatientList: React.FC<PatientListProps> = ({
         return false;
       }
 
-      if (filterStatus === 'DISCHARGED') {
-        // Tab "Ra viện": Chỉ giữ BN ra viện trong ngày hiện tại (activeDate)
-        if (!isDischarged) return false;
-        if (dischargeDateStr && dischargeDateStr !== activeDate) return false;
-      } else if (filterStatus === 'TREATING') {
-        // Tab "Đang điều trị": Loại bỏ nếu đã ra viện hôm nay hoặc quá khứ
-        if (isDischarged && (!dischargeDateStr || dischargeDateStr <= activeDate)) return false;
-      }
-
       let isVisible = false;
       if (currentDept.type === DepartmentType.CLINICAL) {
-        isVisible = p.admittedByDeptId === currentDept.id;
+        if (p.admittedByDeptId !== currentDept.id) return false;
+
+        const isDischargedOnActiveDate = isDischarged && dischargeDateStr === activeDate;
+        const isTreatingOnActiveDate = !isDischarged || (dischargeDateStr && dischargeDateStr > activeDate);
+
+        if (filterStatus === 'DISCHARGED') {
+          // Tab "Ra viện": Chỉ giữ BN ra viện trong ngày hiện tại (activeDate)
+          if (!isDischargedOnActiveDate) return false;
+        } else if (filterStatus === 'TREATING') {
+          // Tab "Đang điều trị": Chỉ giữ BN đang điều trị trong ngày hiện tại (activeDate)
+          if (!isTreatingOnActiveDate) return false;
+        } else {
+          // Tab "Tất cả": Chỉ giữ BN hiện diện trong ngày hiện tại (đang điều trị hoặc ra viện trong ngày)
+          if (!isTreatingOnActiveDate && !isDischargedOnActiveDate) return false;
+        }
+        isVisible = true;
       } else {
         if (p.admittedByDeptId === currentDept.id) {
+          const isDischargedOnActiveDate = isDischarged && dischargeDateStr === activeDate;
+          const isTreatingOnActiveDate = !isDischarged || (dischargeDateStr && dischargeDateStr > activeDate);
+
+          if (filterStatus === 'DISCHARGED') {
+            if (!isDischargedOnActiveDate) return false;
+          } else if (filterStatus === 'TREATING') {
+            if (!isTreatingOnActiveDate) return false;
+          } else {
+            if (!isTreatingOnActiveDate && !isDischargedOnActiveDate) return false;
+          }
           isVisible = true;
         } else {
           isVisible = p.referrals?.some(r => {
@@ -526,13 +542,18 @@ export const PatientList: React.FC<PatientListProps> = ({
               return false;
             }
 
+            const isFinishedOnActiveDate = isFinished && finishedDateStr === activeDate;
+            const isTreatingOnActiveDateRef = !isFinished || (finishedDateStr && finishedDateStr > activeDate);
+
             if (filterStatus === 'DISCHARGED') {
               // Tab "Ra viện": Chỉ giữ BN hoàn thành trong ngày làm việc hiện tại
-              if (!isFinished) return false;
-              if (finishedDateStr && finishedDateStr !== activeDate) return false;
+              if (!isFinishedOnActiveDate) return false;
             } else if (filterStatus === 'TREATING') {
-              // Tab "Đang điều trị": Loại bỏ nếu đã hoàn thành hôm nay hoặc quá khứ
-              if (isFinished && (!finishedDateStr || finishedDateStr <= activeDate)) return false;
+              // Tab "Đang điều trị": Chỉ giữ BN đang điều trị tại khoa trong ngày làm việc
+              if (!isTreatingOnActiveDateRef) return false;
+            } else {
+              // Tab "Tất cả": Chỉ giữ BN hiện diện trong ngày làm việc
+              if (!isTreatingOnActiveDateRef && !isFinishedOnActiveDate) return false;
             }
 
             return true;

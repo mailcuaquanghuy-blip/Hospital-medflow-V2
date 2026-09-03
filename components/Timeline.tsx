@@ -3,8 +3,10 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole, ScheduleSnapshot } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString } from '../utils/timeUtils';
-import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown } from 'lucide-react';
+import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2 } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
+import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
+import { ScheduleHistoryModal } from './ScheduleHistoryModal';
 
 
 const getLocalDateString = (isoStr: string | null | undefined): string => {
@@ -208,6 +210,7 @@ interface TimelineProps {
   };
   scheduleSnapshots?: ScheduleSnapshot[];
   onSaveScheduleSnapshot?: (deptId: string, date: string) => void;
+  onUndoAppointmentChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => void;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -226,6 +229,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   initialFilters,
   scheduleSnapshots = [],
   onSaveScheduleSnapshot,
+  onUndoAppointmentChange,
 }) => {
   const pixelsPerMinute = 1.8;
   const startHour = 0;       
@@ -295,58 +299,19 @@ export const Timeline: React.FC<TimelineProps> = ({
   );
 
   const [filterModifiedOnly, setFilterModifiedOnly] = useState<boolean>(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
+  const [isSavingSnapshot, setIsSavingSnapshot] = useState<boolean>(false);
 
-  const deviations = useMemo(() => {
+  const baselineInfo = useMemo(() => {
+    if (!currentDept) return { baselineAppts: [], isExplicitSnapshot: false, snapshotInfo: undefined };
+    return getBaselineAppointments(currentDept.id, date, appointments, scheduleSnapshots);
+  }, [currentDept, date, appointments, scheduleSnapshots]);
+
+  const deviations: DeviationItem[] = useMemo(() => {
     if (!currentDept) return [];
     const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
-    const snapshot = (scheduleSnapshots || []).find(s => s.deptId === currentDept.id && s.date === date);
-    
-    if (!snapshot) {
-      return [];
-    }
-    
-    const baselineAppts = snapshot.appointments || [];
-    const baselineMap = new Map<string, Appointment>();
-    baselineAppts.forEach(a => baselineMap.set(a.id, a));
-    
-    const currentMap = new Map<string, Appointment>();
-    deptAppts.forEach(a => currentMap.set(a.id, a));
-    
-    const list: {
-      id: string;
-      type: 'NEW' | 'MODIFIED' | 'DELETED';
-    }[] = [];
-    
-    // Check for NEW or MODIFIED
-    deptAppts.forEach(appt => {
-      const baseline = baselineMap.get(appt.id);
-      if (!baseline) {
-        list.push({ id: appt.id, type: 'NEW' });
-      } else {
-        const norm = (val: any) => (val === null || val === undefined) ? '' : String(val).trim();
-        const isModified = 
-          norm(appt.startTime) !== norm(baseline.startTime) || 
-          norm(appt.endTime) !== norm(baseline.endTime) ||
-          norm(appt.staffId) !== norm(baseline.staffId) ||
-          norm(appt.assistant1Id) !== norm(baseline.assistant1Id) ||
-          norm(appt.assistant2Id) !== norm(baseline.assistant2Id) ||
-          norm(appt.assignedMachineId) !== norm(baseline.assignedMachineId);
-        
-        if (isModified) {
-          list.push({ id: appt.id, type: 'MODIFIED' });
-        }
-      }
-    });
-    
-    // Check for DELETED
-    baselineAppts.forEach(baseline => {
-      if (!currentMap.has(baseline.id)) {
-        list.push({ id: baseline.id, type: 'DELETED' });
-      }
-    });
-    
-    return list;
-  }, [appointments, scheduleSnapshots, currentDept, date]);
+    return calculateDeviations(deptAppts, baselineInfo.baselineAppts, patients, procedures, staff);
+  }, [appointments, baselineInfo, currentDept, date, patients, procedures, staff]);
 
   useEffect(() => {
     sessionStorage.setItem(`medflow_tl_sortBy_${deptKey}`, sortBy);
@@ -1099,17 +1064,41 @@ export const Timeline: React.FC<TimelineProps> = ({
                  </button>
                )}
 
+               {currentDept && (
+                 <button 
+                   onClick={() => setIsHistoryModalOpen(true)} 
+                   className="h-[40px] px-3.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-xl flex items-center gap-2 font-bold text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm relative cursor-pointer"
+                   title="Xem danh sách các thủ thuật biến động trong phiên và hoàn tác"
+                 >
+                   <History size={14} className="text-amber-600" />
+                   <span>Lịch sử chỉnh sửa</span>
+                   {deviations.length > 0 && (
+                     <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-white shadow-sm animate-pulse">
+                       {deviations.length}
+                     </span>
+                   )}
+                 </button>
+               )}
+
                {currentDept && onSaveScheduleSnapshot && (
                  <button 
                    onClick={async () => {
-                     await onSaveScheduleSnapshot(currentDept.id, date);
-                     setFilterModifiedOnly(false);
+                     setIsSavingSnapshot(true);
+                     try {
+                       await onSaveScheduleSnapshot(currentDept.id, date);
+                       const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
+                       setSessionBaseline(currentDept.id, date, deptAppts);
+                       setFilterModifiedOnly(false);
+                     } finally {
+                       setIsSavingSnapshot(false);
+                     }
                    }} 
-                   className="h-[40px] px-3.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-xl flex items-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm"
+                   disabled={isSavingSnapshot}
+                   className="h-[40px] px-3.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-xl flex items-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm disabled:opacity-50"
                    title="Lưu lại phiên bản chốt hiện tại làm mốc so sánh biến động"
                  >
                    <Check size={14} />
-                   <span>Lưu phiên bản</span>
+                   <span>{isSavingSnapshot ? "Đang lưu..." : "Lưu phiên bản"}</span>
                  </button>
                )}
 
@@ -1475,6 +1464,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-100">
               {filteredAppointments.map((appt, idx) => {
+                const devItem = deviations.find(d => d.id === appt.id);
                 const patient = patients.find(p => p.id === appt.patientId);
                 const staffMember = staff.find(s => s.id === appt.staffId);
                 const procedure = procedures.find(p => p.id === appt.procedureId);
@@ -1533,7 +1523,16 @@ export const Timeline: React.FC<TimelineProps> = ({
                       className={`p-3 sticky left-[500px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[220px] min-w-[220px] max-w-[220px] cursor-pointer hover:opacity-85 transition-opacity`}
                     >
                         <div className={`flex flex-col gap-1 p-2 rounded-xl border ${getProcedureColor(appt.procedureId).bg}`}>
-                            <span className={`font-bold text-xs ${hasConflict || isOutside ? 'text-rose-700 font-extrabold' : getProcedureColor(appt.procedureId).text}`}>{procedure?.name || 'Thủ thuật đã xóa'}</span>
+                            <div className="flex items-center justify-between gap-1 flex-wrap">
+                              <span className={`font-bold text-xs ${hasConflict || isOutside ? 'text-rose-700 font-extrabold' : getProcedureColor(appt.procedureId).text}`}>{procedure?.name || 'Thủ thuật đã xóa'}</span>
+                              {devItem && (
+                                <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border shrink-0 ${
+                                  devItem.type === 'NEW' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-amber-50 text-amber-700 border-amber-300'
+                                }`}>
+                                  {devItem.type === 'NEW' ? '+ Mới' : '✎ Đã sửa'}
+                                </span>
+                              )}
+                            </div>
                             {isOutside && (
                                 <div className="flex items-center gap-1 text-[10px] text-amber-600 font-black uppercase tracking-tight">
                                     <Clock size={11} /> Ngoài giờ HC
@@ -1616,11 +1615,60 @@ export const Timeline: React.FC<TimelineProps> = ({
                   </tr>
                 );
               })}
+              {filteredAppointments.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-center py-16 px-4 bg-slate-50/50">
+                    <div className="max-w-md mx-auto space-y-3">
+                      {filterModifiedOnly ? (
+                        <>
+                          <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                            <CheckCircle2 size={24} />
+                          </div>
+                          <div className="text-sm font-extrabold text-slate-700">Không có biến động nào trong phiên này</div>
+                          <p className="text-xs text-slate-500">Mọi thủ thuật đều đang khớp hoàn toàn với mốc chuẩn. Khi có thao tác dời giờ, đổi nhân sự hoặc thêm mới ca, các thủ thuật đó sẽ xuất hiện tại đây.</p>
+                          <button 
+                            onClick={() => setFilterModifiedOnly(false)} 
+                            className="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-xl hover:bg-slate-900 transition-all shadow-sm"
+                          >
+                            Hiển thị toàn bộ lịch trình
+                          </button>
+                        </>
+                      ) : (
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Không tìm thấy lịch trình phù hợp với bộ lọc</div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
           );
         })()}
         </div>
+
+        {currentDept && (
+          <ScheduleHistoryModal
+            isOpen={isHistoryModalOpen}
+            onClose={() => setIsHistoryModalOpen(false)}
+            currentDate={date}
+            currentDept={currentDept}
+            deviations={deviations}
+            isExplicitSnapshot={baselineInfo.isExplicitSnapshot}
+            snapshotInfo={baselineInfo.snapshotInfo}
+            onSaveSnapshot={onSaveScheduleSnapshot ? async () => {
+              setIsSavingSnapshot(true);
+              try {
+                await onSaveScheduleSnapshot(currentDept.id, date);
+                const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
+                setSessionBaseline(currentDept.id, date, deptAppts);
+              } finally {
+                setIsSavingSnapshot(false);
+              }
+            } : undefined}
+            isSavingSnapshot={isSavingSnapshot}
+            onUndoChange={onUndoAppointmentChange}
+          />
+        )}
       </div>
     );
   }
@@ -1769,6 +1817,30 @@ export const Timeline: React.FC<TimelineProps> = ({
           ))}
         </div>
       </div>
+
+      {currentDept && (
+        <ScheduleHistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          currentDate={date}
+          currentDept={currentDept}
+          deviations={deviations}
+          isExplicitSnapshot={baselineInfo.isExplicitSnapshot}
+          snapshotInfo={baselineInfo.snapshotInfo}
+          onSaveSnapshot={onSaveScheduleSnapshot ? async () => {
+            setIsSavingSnapshot(true);
+            try {
+              await onSaveScheduleSnapshot(currentDept.id, date);
+              const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
+              setSessionBaseline(currentDept.id, date, deptAppts);
+            } finally {
+              setIsSavingSnapshot(false);
+            }
+          } : undefined}
+          isSavingSnapshot={isSavingSnapshot}
+          onUndoChange={onUndoAppointmentChange}
+        />
+      )}
     </div>
   );
 };

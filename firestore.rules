@@ -58,6 +58,14 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /scheduleSnapshots/{snapshotId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /schedule_snapshots/{snapshotId} {
+      allow read, write: if isAuthenticated();
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;

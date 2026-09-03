@@ -11,6 +11,8 @@ import { MachineShiftManager } from './MachineShiftManager';
 import { TemplateManager } from './TemplateManager';
 import { QuickScheduleModal } from './QuickScheduleModal';
 import { DateInput } from './DateInput';
+import { ScheduleHistoryModal } from './ScheduleHistoryModal';
+import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { DEPARTMENTS, OFFICE_SHIFTS } from '../constants';
 import { db } from '../firebase';
 import { doc, collection } from 'firebase/firestore';
@@ -145,126 +147,24 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     setIsSavingVersion(true);
     try {
       await onSaveScheduleSnapshot(currentDept.id, currentDate);
+      const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === currentDate);
+      setSessionBaseline(currentDept.id, currentDate, deptAppts);
+      setFilterModifiedOnly(false);
     } finally {
       setIsSavingVersion(false);
     }
   };
 
-  const currentSnapshot = useMemo(() => {
-    return (scheduleSnapshots || []).find(s => s.deptId === currentDept.id && s.date === currentDate);
-  }, [scheduleSnapshots, currentDept.id, currentDate]);
+  const [filterModifiedOnly, setFilterModifiedOnly] = useState<boolean>(false);
 
-  const deviations = useMemo(() => {
+  const baselineInfo = useMemo(() => {
+    return getBaselineAppointments(currentDept.id, currentDate, appointments, scheduleSnapshots);
+  }, [currentDept.id, currentDate, appointments, scheduleSnapshots]);
+
+  const deviations: DeviationItem[] = useMemo(() => {
     const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === currentDate);
-    const snapshot = currentSnapshot;
-    
-    if (!snapshot) {
-      return [];
-    }
-    
-    const baselineAppts = snapshot.appointments || [];
-    const baselineMap = new Map<string, Appointment>();
-    baselineAppts.forEach(a => baselineMap.set(a.id, a));
-    
-    const currentMap = new Map<string, Appointment>();
-    deptAppts.forEach(a => currentMap.set(a.id, a));
-    
-    const list: {
-      id: string;
-      patientId: string;
-      patientName: string;
-      procedureName: string;
-      type: 'NEW' | 'MODIFIED' | 'DELETED';
-      changeDetails: string;
-      currentAppt?: Appointment;
-      originalAppt?: Appointment;
-    }[] = [];
-    
-    // Check for NEW or MODIFIED
-    deptAppts.forEach(appt => {
-      const patient = patients.find(p => p.id === appt.patientId);
-      const patientName = patient?.name || 'Bệnh nhân không rõ';
-      const proc = procedures.find(p => p.id === appt.procedureId);
-      const procedureName = proc?.name || 'Thủ thuật không rõ';
-      
-      const baseline = baselineMap.get(appt.id);
-      if (!baseline) {
-        list.push({
-          id: appt.id,
-          patientId: appt.patientId,
-          patientName,
-          procedureName,
-          type: 'NEW',
-          changeDetails: 'Thủ thuật mới được thêm vào lịch trình',
-          currentAppt: appt
-        });
-      } else {
-        const norm = (val: any) => (val === null || val === undefined) ? '' : String(val).trim();
-        const diffs: string[] = [];
-        
-        if (norm(appt.startTime) !== norm(baseline.startTime) || norm(appt.endTime) !== norm(baseline.endTime)) {
-          diffs.push(`Dời giờ (${baseline.startTime} ➔ ${appt.startTime})`);
-        }
-        if (norm(appt.staffId) !== norm(baseline.staffId)) {
-          const oldStaff = staff.find(s => s.id === baseline.staffId)?.name || 'Chưa phân công';
-          const newStaff = staff.find(s => s.id === appt.staffId)?.name || 'Chưa phân công';
-          diffs.push(`Đổi Bác sĩ chính (${oldStaff} ➔ ${newStaff})`);
-        }
-        if (norm(appt.assistant1Id) !== norm(baseline.assistant1Id)) {
-          const oldAsst1 = staff.find(s => s.id === baseline.assistant1Id)?.name || 'Không có';
-          const newAsst1 = staff.find(s => s.id === appt.assistant1Id)?.name || 'Không có';
-          diffs.push(`Đổi Phụ 1 (${oldAsst1} ➔ ${newAsst1})`);
-        }
-        if (norm(appt.assistant2Id) !== norm(baseline.assistant2Id)) {
-          const oldAsst2 = staff.find(s => s.id === baseline.assistant2Id)?.name || 'Không có';
-          const newAsst2 = staff.find(s => s.id === appt.assistant2Id)?.name || 'Không có';
-          diffs.push(`Đổi Phụ 2 (${oldAsst2} ➔ ${newAsst2})`);
-        }
-        if (norm(appt.assignedMachineId) !== norm(baseline.assignedMachineId)) {
-          const oldMachine = baseline.assignedMachineId ? `Thiết bị ${baseline.assignedMachineId}` : 'Chưa phân ca';
-          const newMachine = appt.assignedMachineId ? `Thiết bị ${appt.assignedMachineId}` : 'Chưa phân ca';
-          diffs.push(`Thay đổi thiết bị/phòng (${oldMachine} ➔ ${newMachine})`);
-        }
-        
-        if (diffs.length > 0) {
-          list.push({
-            id: appt.id,
-            patientId: appt.patientId,
-            patientName,
-            procedureName,
-            type: 'MODIFIED',
-            changeDetails: diffs.join(', '),
-            currentAppt: appt,
-            originalAppt: baseline
-          });
-        }
-      }
-    });
-    
-    // Check for DELETED
-    baselineAppts.forEach(baseline => {
-      if (!currentMap.has(baseline.id)) {
-        const patient = patients.find(p => p.id === baseline.patientId);
-        const patientName = patient?.name || 'Bệnh nhân không rõ';
-        const proc = procedures.find(p => p.id === baseline.procedureId);
-        const procedureName = proc?.name || 'Thủ thuật không rõ';
-        
-        list.push({
-          id: baseline.id,
-          patientId: baseline.patientId,
-          patientName,
-          procedureName,
-          type: 'DELETED',
-          changeDetails: `Đã xóa lịch trình (${baseline.startTime} - BS: ${staff.find(s => s.id === baseline.staffId)?.name || 'Không rõ'})`,
-          originalAppt: baseline
-        });
-      }
-    });
-    
-    return list;
-  }, [appointments, scheduleSnapshots, currentDept.id, currentDate, patients, procedures, staff]);
-  
-
+    return calculateDeviations(deptAppts, baselineInfo.baselineAppts, patients, procedures, staff);
+  }, [appointments, baselineInfo, currentDept.id, currentDate, patients, procedures, staff]);
 
   const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -369,29 +269,47 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       const admissionDateStr = getLocalDateString(p.admissionDate);
       if (currentDate < admissionDateStr) return false;
 
-      // Logic lọc theo trạng thái điều trị (Tab Đang điều trị / Ra viện / Tất cả)
+      // Logic lọc theo trạng thái điều trị gắn chặt với currentDate
       const isDischarged = p.status === 'DISCHARGED';
       const dischargeDateStr = getLocalDateString(p.dischargeDate);
 
-      // Loại bỏ hoàn toàn bệnh nhân đã ra viện từ ngày trước ngày hiện tại (currentDate)
+      // Loại bỏ hoàn toàn bệnh nhân đã ra viện từ trước ngày làm việc (currentDate)
       if (isDischarged && dischargeDateStr && dischargeDateStr < currentDate) {
         return false;
       }
 
-      if (showDischarged === 'DISCHARGED') {
-        // Tab "Ra viện": Chỉ giữ BN ra viện trong ngày hiện tại (currentDate)
-        if (!isDischarged) return false;
-        if (dischargeDateStr && dischargeDateStr !== currentDate) return false;
-      } else if (showDischarged === 'TREATING') {
-        // Tab "Đang điều trị": Loại bỏ nếu đã ra viện hôm nay hoặc quá khứ
-        if (isDischarged && (!dischargeDateStr || dischargeDateStr <= currentDate)) return false;
-      }
-
       if (currentDept.type === DepartmentType.CLINICAL) {
-        return p.admittedByDeptId === currentDept.id;
+        if (p.admittedByDeptId !== currentDept.id) return false;
+
+        const isDischargedOnActiveDate = isDischarged && dischargeDateStr === currentDate;
+        const isTreatingOnActiveDate = !isDischarged || (dischargeDateStr && dischargeDateStr > currentDate);
+
+        if (showDischarged === 'DISCHARGED') {
+          // Tab "Ra viện": Chỉ giữ BN ra viện trong ngày hiện tại (currentDate)
+          if (!isDischargedOnActiveDate) return false;
+        } else if (showDischarged === 'TREATING') {
+          // Tab "Đang điều trị": Chỉ giữ BN đang điều trị trong ngày hiện tại (currentDate)
+          if (!isTreatingOnActiveDate) return false;
+        } else {
+          // Tab "Tất cả": Chỉ giữ BN hiện diện trong ngày hiện tại (đang điều trị hoặc ra viện trong ngày)
+          if (!isTreatingOnActiveDate && !isDischargedOnActiveDate) return false;
+        }
+        return true;
       } else {
         // Logic chuyên khoa: Hiển thị nếu đã được referral HOẶC được admit trực tiếp
-        if (p.admittedByDeptId === currentDept.id) return true;
+        if (p.admittedByDeptId === currentDept.id) {
+          const isDischargedOnActiveDate = isDischarged && dischargeDateStr === currentDate;
+          const isTreatingOnActiveDate = !isDischarged || (dischargeDateStr && dischargeDateStr > currentDate);
+
+          if (showDischarged === 'DISCHARGED') {
+            if (!isDischargedOnActiveDate) return false;
+          } else if (showDischarged === 'TREATING') {
+            if (!isTreatingOnActiveDate) return false;
+          } else {
+            if (!isTreatingOnActiveDate && !isDischargedOnActiveDate) return false;
+          }
+          return true;
+        }
         
         return p.referrals?.some(r => {
             const s = (r.specialty || '').toLowerCase().trim();
@@ -423,13 +341,18 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
               return false;
             }
 
+            const isFinishedOnActiveDate = isFinished && finishedDateStr === currentDate;
+            const isTreatingOnActiveDateRef = !isFinished || (finishedDateStr && finishedDateStr > currentDate);
+
             if (showDischarged === 'DISCHARGED') {
               // Tab "Ra viện": Chỉ giữ BN hoàn thành trong ngày làm việc hiện tại
-              if (!isFinished) return false;
-              if (finishedDateStr && finishedDateStr !== currentDate) return false;
+              if (!isFinishedOnActiveDate) return false;
             } else if (showDischarged === 'TREATING') {
-              // Tab "Đang điều trị": Loại bỏ nếu đã hoàn thành hôm nay hoặc quá khứ
-              if (isFinished && (!finishedDateStr || finishedDateStr <= currentDate)) return false;
+              // Tab "Đang điều trị": Chỉ giữ BN đang điều trị tại khoa trong ngày làm việc
+              if (!isTreatingOnActiveDateRef) return false;
+            } else {
+              // Tab "Tất cả": Chỉ giữ BN hiện diện trong ngày làm việc
+              if (!isTreatingOnActiveDateRef && !isFinishedOnActiveDate) return false;
             }
 
             return true;
@@ -466,7 +389,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     // Fix: Discharged patients should be visible if showDischarged is true, even if they are "scheduled"
     const isDischarged = p.status === 'DISCHARGED';
     
-    return matchesSearch && matchesDept && matchesAdmissionDate && matchesProcedure && matchesNoProcedure && matchesStaff && matchesBedType && matchesConflict;
+    const matchesModified = !filterModifiedOnly || deviations.some(d => d.patientId === p.id);
+    
+    return matchesSearch && matchesDept && matchesAdmissionDate && matchesProcedure && matchesNoProcedure && matchesStaff && matchesBedType && matchesConflict && matchesModified;
   }).sort((a, b) => {
     // Prioritize patients admitted by current department
     const aIsCurrent = a.admittedByDeptId === currentDept.id;
@@ -1284,6 +1209,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           </button>
         )}
 
+        {/* Nút Lọc biến động */}
+        <button 
+          onClick={() => setFilterModifiedOnly(prev => !prev)} 
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm border ${
+            filterModifiedOnly 
+              ? 'bg-amber-600 border-amber-600 text-white shadow-amber-500/20 hover:bg-amber-700' 
+              : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'
+          }`}
+          title="Chỉ lọc danh sách bệnh nhân có thủ thuật biến động trong phiên này"
+        >
+          <Filter size={14} />
+          Lọc biến động {deviations.length > 0 ? `(${deviations.length})` : ''}
+        </button>
+
         {/* Nút Lịch sử chỉnh sửa */}
         <button 
           onClick={() => setIsHistoryModalOpen(true)} 
@@ -1628,8 +1567,23 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                 );
             })}
             {filteredPatients.length === 0 && (
-                <div className="p-10 text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                    Không có bệnh nhân
+                <div className="p-8 text-center space-y-2">
+                    {filterModifiedOnly ? (
+                      <div className="space-y-2">
+                        <div className="text-amber-700 text-xs font-bold">Không có bệnh nhân nào có biến động</div>
+                        <p className="text-[11px] text-slate-500">Mọi thủ thuật của bệnh nhân trong ngày đang khớp hoàn toàn với mốc chuẩn.</p>
+                        <button 
+                          onClick={() => setFilterModifiedOnly(false)} 
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
+                        >
+                          Hiển thị tất cả
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                        Không có bệnh nhân
+                      </div>
+                    )}
                 </div>
             )}
         </div>
@@ -2464,150 +2418,18 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       />
 
       {/* Modal Lịch sử biến động và hoàn tác chỉnh sửa */}
-      {isHistoryModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[150] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[32px] shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
-                  <History size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-800 tracking-tight">Nhật ký biến động lịch trình</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">Ngày {currentDate} - {currentDept.name}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setIsHistoryModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-4">
-              {!currentSnapshot ? (
-                <div className="text-center py-12 px-4 space-y-4">
-                  <div className="w-16 h-16 bg-sky-50 rounded-full flex items-center justify-center mx-auto text-sky-500">
-                    <History size={32} />
-                  </div>
-                  <div>
-                    <h4 className="text-base font-extrabold text-slate-800">Chưa lưu phiên bản chốt mẫu</h4>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Lịch trình ngày này chưa tạo mốc so sánh</p>
-                  </div>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                    Hãy bấm nút <strong className="text-sky-700 font-extrabold">"Lưu phiên bản"</strong> bên dưới khi quý khoa đã phân lịch xong để làm mốc chuẩn. Mọi thay đổi sau đó (dời giờ, đổi bác sĩ, xóa/thêm ca) sẽ được theo dõi chi tiết tại đây.
-                  </p>
-                </div>
-              ) : deviations.length === 0 ? (
-                <div className="text-center py-12 px-4 space-y-4">
-                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-500">
-                    <CheckCircle2 size={32} />
-                  </div>
-                  <div>
-                    <h4 className="text-base font-extrabold text-slate-800">Không có biến động nào!</h4>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Lịch trình ngày này đang hoàn toàn khớp với phiên bản chốt mẫu</p>
-                  </div>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto">
-                    Mọi sửa đổi, đổi giờ, đổi kíp bác sĩ chính, người phụ hoặc xóa/thêm mới thủ thuật sau khi đã bấm "Lưu phiên bản" sẽ xuất hiện tại đây để hoàn tác khi cần.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs font-black text-slate-400 uppercase tracking-widest px-1">
-                    <span>Thủ thuật bị biến động ({deviations.length})</span>
-                    <span>Hành động khôi phục</span>
-                  </div>
-                  <div className="divide-y divide-slate-100 border border-slate-200/60 rounded-3xl overflow-hidden bg-slate-50/20 shadow-sm">
-                    {deviations.map((dev) => {
-                      let badgeBg = "bg-amber-50 text-amber-700 border-amber-200";
-                      let badgeText = "✎ Chỉnh sửa";
-                      if (dev.type === 'NEW') {
-                        badgeBg = "bg-emerald-50 text-emerald-700 border-emerald-200";
-                        badgeText = "+ Thêm mới";
-                      } else if (dev.type === 'DELETED') {
-                        badgeBg = "bg-rose-50 text-rose-700 border-rose-200";
-                        badgeText = "✗ Đã xóa";
-                      }
-
-                      return (
-                        <div key={dev.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
-                          <div className="space-y-1.5 flex-1 pr-4">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-extrabold text-slate-800">{dev.patientName}</span>
-                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeBg}`}>
-                                {badgeText}
-                              </span>
-                            </div>
-                            <div className="text-xs font-semibold text-slate-500">
-                              Thủ thuật: <span className="font-extrabold text-slate-700">{dev.procedureName}</span>
-                            </div>
-                            <div className="text-xs font-bold text-amber-600 bg-amber-50/30 px-2.5 py-1 rounded-xl inline-block">
-                              {dev.changeDetails}
-                            </div>
-                          </div>
-                          
-                          <button
-                            onClick={() => {
-                              if (onUndoAppointmentChange) {
-                                onUndoAppointmentChange(dev.id, dev.type, dev.originalAppt);
-                              }
-                            }}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-300 shadow-sm border border-slate-200/40"
-                          >
-                            <RotateCcw size={12} />
-                            Hoàn tác
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between flex-wrap gap-3">
-              <div className="text-xs font-bold uppercase tracking-wide">
-                {deviations.length > 0 ? (
-                  <span className="text-amber-600 font-bold">
-                    Có {deviations.length} thủ thuật biến động so với bản chốt
-                  </span>
-                ) : !currentSnapshot ? (
-                  <span className="text-slate-400">
-                    Chưa lưu phiên bản chốt cho ngày này
-                  </span>
-                ) : (
-                  <span className="text-slate-400">
-                    Lịch trình khớp hoàn toàn với phiên bản chốt
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                {currentDept && onSaveScheduleSnapshot && (
-                  <button
-                    onClick={handleSaveSnapshot}
-                    disabled={isSavingVersion}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-sky-200 disabled:opacity-50"
-                    title="Lưu lại phiên bản chốt hiện tại và làm sạch nhật ký biến động"
-                  >
-                    <Check size={15} />
-                    <span>{isSavingVersion ? "Đang lưu..." : "Lưu phiên bản"}</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsHistoryModalOpen(false)}
-                  className="px-6 py-2.5 bg-slate-800 text-white hover:bg-slate-900 active:scale-95 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
-                >
-                  Đóng nhật ký
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ScheduleHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        currentDate={currentDate}
+        currentDept={currentDept}
+        deviations={deviations}
+        isExplicitSnapshot={baselineInfo.isExplicitSnapshot}
+        snapshotInfo={baselineInfo.snapshotInfo}
+        onSaveSnapshot={onSaveScheduleSnapshot ? handleSaveSnapshot : undefined}
+        isSavingSnapshot={isSavingVersion}
+        onUndoChange={onUndoAppointmentChange}
+      />
 
       {isProcessingBatch && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6 text-center">

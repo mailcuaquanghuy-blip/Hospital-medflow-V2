@@ -21,11 +21,14 @@ if (dbBroadcastChannel) {
 }
 
 export const getRefDetails = (docRef: any) => {
-  let collectionName = docRef.parent?.id || '';
-  if (!collectionName && docRef.path) {
+  let collectionName = docRef?.parent?.id || '';
+  if (!collectionName && docRef?.path) {
     collectionName = docRef.path.split('/')[0];
   }
-  const docId = docRef.id || '';
+  if (!collectionName && docRef?.collectionName) {
+    collectionName = docRef.collectionName;
+  }
+  const docId = docRef?.id || '';
   let tableName = collectionName;
   if (collectionName === 'machineShifts') {
     tableName = 'machine_shifts';

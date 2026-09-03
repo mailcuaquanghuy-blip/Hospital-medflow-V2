@@ -109,7 +109,7 @@ export async function deleteSupabaseBatch(tableName: string, ids: string[]): Pro
 
 export async function resetSupabaseDatabase(): Promise<boolean> {
   try {
-    const tables = ['patients', 'staff', 'appointments', 'machine_shifts', 'attendance', 'procedures', 'users', 'schedule_snapshots', 'scheduleSnapshots'];
+    const tables = ['patients', 'staff', 'appointments', 'machine_shifts', 'attendance', 'procedures', 'users', 'schedule_snapshots', 'scheduleSnapshots', 'backups'];
     for (const tableName of tables) {
       const { error } = await supabase.from(tableName).delete().neq('id', 'dummy_nonexistent_id');
       if (error) {
