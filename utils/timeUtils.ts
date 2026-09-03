@@ -52,74 +52,23 @@ export const formatDate = (dateStr: string): string => {
 };
 
 const getProcFromCache = (arr: Procedure[], id: string | undefined): Procedure | undefined => {
-  if (!id) return undefined;
-  let cache = (arr as any).__cacheMap;
-  if (!cache) {
-    cache = new Map<string, Procedure>();
-    for (let i = 0; i < arr.length; i++) {
-      cache.set(arr[i].id, arr[i]);
-    }
-    try {
-      Object.defineProperty(arr, '__cacheMap', { value: cache, writable: true, enumerable: false });
-    } catch (e) {
-      (arr as any).__cacheMap = cache;
-    }
-  }
-  return cache.get(id);
+  if (!id || !arr) return undefined;
+  return arr.find(p => p.id === id);
 };
 
 const getStaffFromCache = (arr: Staff[], id: string | undefined): Staff | undefined => {
-  if (!id) return undefined;
-  let cache = (arr as any).__cacheMap;
-  if (!cache) {
-    cache = new Map<string, Staff>();
-    for (let i = 0; i < arr.length; i++) {
-      cache.set(arr[i].id, arr[i]);
-    }
-    try {
-      Object.defineProperty(arr, '__cacheMap', { value: cache, writable: true, enumerable: false });
-    } catch (e) {
-      (arr as any).__cacheMap = cache;
-    }
-  }
-  return cache.get(id);
+  if (!id || !arr) return undefined;
+  return arr.find(s => s.id === id);
 };
 
 const getPatientFromCache = (arr: Patient[], id: string | undefined): Patient | undefined => {
-  if (!id) return undefined;
-  let cache = (arr as any).__cacheMap;
-  if (!cache) {
-    cache = new Map<string, Patient>();
-    for (let i = 0; i < arr.length; i++) {
-      cache.set(arr[i].id, arr[i]);
-    }
-    try {
-      Object.defineProperty(arr, '__cacheMap', { value: cache, writable: true, enumerable: false });
-    } catch (e) {
-      (arr as any).__cacheMap = cache;
-    }
-  }
-  return cache.get(id);
+  if (!id || !arr) return undefined;
+  return arr.find(p => p.id === id);
 };
 
 const getDayAppointmentsFromCache = (arr: Appointment[], date: string): Appointment[] => {
-  let dayMap = (arr as any).__dayMap;
-  if (!dayMap) {
-    dayMap = {};
-    for (let i = 0; i < arr.length; i++) {
-      const appt = arr[i];
-      if (!dayMap[appt.date]) {
-        dayMap[appt.date] = [];
-      }
-      dayMap[appt.date].push(appt);
-    }
-    try {
-      Object.defineProperty(arr, '__dayMap', { value: dayMap, writable: true, enumerable: false });
-    } catch (e) {
-      (arr as any).__dayMap = dayMap;
-    }
-  }
-  return dayMap[date] || [];
+  if (!arr || !date) return [];
+  return arr.filter(a => a.date === date);
 };
 
 export const checkConflict = (
@@ -165,22 +114,23 @@ export const checkConflict = (
           const s = (r.specialty || '').toLowerCase();
           const dId = procDept.id.toLowerCase();
           const dName = procDept.name.toLowerCase();
-          const isMatch = s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
-                         (s.includes('phcn') && dId.includes('phcn')) ||
-                         (s.includes('cdha') && dId.includes('cdha')) ||
-                         (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
-                         (s.includes('duoc') && dId.includes('duoc')) ||
-                         (dId === 'dept_phcn' && s === 'dept_phcn') ||
-                         (dId === 'dept_cdha' && s === 'dept_cdha') ||
-                         (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
-          return isMatch && r.status !== 'FINISHED';
+          return (
+            s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
+            (s.includes('phcn') && dId.includes('phcn')) ||
+            (s.includes('cdha') && dId.includes('cdha')) ||
+            (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
+            (s.includes('duoc') && dId.includes('duoc')) ||
+            (dId === 'dept_phcn' && s === 'dept_phcn') ||
+            (dId === 'dept_cdha' && s === 'dept_cdha') ||
+            (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem')
+          );
         });
         if (!referral) {
           conflictDetails.push({ message: `Bệnh nhân chưa được gửi khám chuyên khoa này.`, level: 1 });
         } else if (procDept.id === 'dept_cdha' || procDept.id === 'dept_xetnghiem') {
           // Check if designated
           const allowedIds = referral.procedureIds || [];
-          if (!allowedIds.includes(procedureId)) {
+          if (allowedIds.length > 0 && !allowedIds.includes(procedureId)) {
             conflictDetails.push({ message: `Lịch trình này chưa được khoa lâm sàng chỉ định cho chuyên khoa này.`, level: 1 });
           }
           
@@ -195,10 +145,12 @@ export const checkConflict = (
             conflictDetails.push({ message: `Lịch trình này chỉ được thực hiện tối đa 1 lần trong ngày.`, level: 1 });
           }
           
-          // Check after referral time
-          const refMin = timeStringToMinutes(referral.timestamp || '07:00');
-          if (startMin < refMin) {
-            conflictDetails.push({ message: `Thời gian thực hiện lịch trình phải sau thời gian gửi khám (${referral.timestamp}).`, level: 1 });
+          // Check after referral time (if timestamp exists)
+          if (referral.timestamp) {
+            const refMin = timeStringToMinutes(referral.timestamp);
+            if (startMin < refMin) {
+              conflictDetails.push({ message: `Thời gian thực hiện lịch trình phải sau thời gian gửi khám (${referral.timestamp}).`, level: 1 });
+            }
           }
         }
       }
@@ -209,21 +161,19 @@ export const checkConflict = (
   if (patientId && patients.length > 0) {
     const currentPatient = getPatientFromCache(patients, patientId);
     if (currentPatient) {
-      // Check admission date
+      // Check admission date (date string comparison YYYY-MM-DD)
       if (currentPatient.admissionDate) {
-        const admissionDateObj = new Date(currentPatient.admissionDate);
-        const apptDateObj = new Date(`${newDate}T${newStart}:00`);
-        if (apptDateObj < admissionDateObj) {
-          conflictDetails.push({ message: `Bệnh nhân chưa vào viện vào thời điểm này (Vào viện: ${admissionDateObj.toLocaleString('vi-VN')}).`, level: 1 });
+        const admissionDateStr = currentPatient.admissionDate.split('T')[0];
+        if (newDate < admissionDateStr) {
+          conflictDetails.push({ message: `Bệnh nhân chưa vào viện vào ngày này (Vào viện: ${formatDate(admissionDateStr)}).`, level: 1 });
         }
       }
 
-      // Check discharge date
+      // Check discharge date (date string comparison YYYY-MM-DD)
       if (currentPatient.dischargeDate) {
-        const dischargeDateObj = new Date(currentPatient.dischargeDate);
-        const apptDateObj = new Date(`${newDate}T${newEnd}:00`);
-        if (apptDateObj > dischargeDateObj) {
-          conflictDetails.push({ message: `Bệnh nhân đã ra viện vào thời điểm này (Ra viện: ${dischargeDateObj.toLocaleString('vi-VN')}).`, level: 1 });
+        const dischargeDateStr = currentPatient.dischargeDate.split('T')[0];
+        if (newDate > dischargeDateStr) {
+          conflictDetails.push({ message: `Bệnh nhân đã ra viện vào ngày này (Ra viện: ${formatDate(dischargeDateStr)}).`, level: 1 });
         }
       }
     }
@@ -327,10 +277,20 @@ export const checkConflict = (
 
         if (attendance.status === AttendanceStatus.OFF_FULL) {
           conflictDetails.push({ message: `${getRoleLabel(role)} ${name} nghỉ làm cả ngày ${formatDate(newDate)}.`, level: 1 });
-        } else if (attendance.status === AttendanceStatus.OFF_MORNING && startMin < morningEndMin) {
-          conflictDetails.push({ message: `${getRoleLabel(role)} ${name} nghỉ buổi sáng ngày ${formatDate(newDate)}.`, level: 1 });
-        } else if (attendance.status === AttendanceStatus.OFF_AFTERNOON && endMin > afternoonStartMin) {
-          conflictDetails.push({ message: `${getRoleLabel(role)} ${name} nghỉ buổi chiều ngày ${formatDate(newDate)}.`, level: 1 });
+        } else if (attendance.status === AttendanceStatus.OFF_MORNING) {
+          const shift1 = OFFICE_SHIFTS[0];
+          const shift1Start = timeStringToMinutes(shift1.start);
+          const shift1End = timeStringToMinutes(shift1.end);
+          if (Math.max(startMin, shift1Start) < Math.min(endMin, shift1End)) {
+            conflictDetails.push({ message: `${getRoleLabel(role)} ${name} nghỉ buổi sáng ngày ${formatDate(newDate)}.`, level: 1 });
+          }
+        } else if (attendance.status === AttendanceStatus.OFF_AFTERNOON) {
+          const shift2 = OFFICE_SHIFTS[1];
+          const shift2Start = timeStringToMinutes(shift2.start);
+          const shift2End = timeStringToMinutes(shift2.end);
+          if (Math.max(startMin, shift2Start) < Math.min(endMin, shift2End)) {
+            conflictDetails.push({ message: `${getRoleLabel(role)} ${name} nghỉ buổi chiều ngày ${formatDate(newDate)}.`, level: 1 });
+          }
         }
       }
     }
@@ -511,14 +471,14 @@ export const checkConflict = (
         const currentPatientEnd = endMin + currentRest;
         const apptPatientEnd = apptEnd + apptRest;
 
-        if (Math.max(startMin, apptStart) <= Math.min(currentPatientEnd, apptPatientEnd)) {
-          if (Math.max(startMin, apptStart) <= Math.min(endMin, apptEnd)) {
+        if (Math.max(startMin, apptStart) < Math.min(currentPatientEnd, apptPatientEnd)) {
+          if (Math.max(startMin, apptStart) < Math.min(endMin, apptEnd)) {
             conflictDetails.push({ message: `Bệnh nhân đang có lịch trình "${apptProc?.name}" (${appt.startTime}-${appt.endTime}).`, level: 1 });
-          } else if (startMin >= apptEnd && startMin <= apptPatientEnd) {
+          } else if (apptRest > 0 && startMin >= apptEnd && startMin < apptPatientEnd) {
             conflictDetails.push({ message: `Bệnh nhân đang trong thời gian nghỉ của lịch trình "${apptProc?.name}".`, level: 1 });
-          } else if (apptStart >= endMin && apptStart <= currentPatientEnd) {
+          } else if (currentRest > 0 && apptStart >= endMin && apptStart < currentPatientEnd) {
             conflictDetails.push({ message: `Thời gian nghỉ của lịch trình này trùng với lịch trình "${apptProc?.name}".`, level: 1 });
-          } else {
+          } else if (apptRest > 0 || currentRest > 0) {
             conflictDetails.push({ message: `Xung đột thời gian nghỉ với lịch trình "${apptProc?.name}".`, level: 1 });
           }
         }
@@ -553,9 +513,13 @@ export const checkConflict = (
         option = proc.durationOptions?.find(o => o.isDefault);
       }
 
+      const allowSame = apptData?.allowSameAssistant !== undefined 
+        ? apptData.allowSameAssistant 
+        : (option?.allowSameAssistant !== undefined ? option.allowSameAssistant : (proc.allowSameAssistant || false));
+
       const isMain = (apptData?.staffId === personId);
       const isAsst1 = (apptData?.assistant1Id === personId);
-      const isAsst2 = (apptData?.assistant2Id === personId);
+      const isAsst2 = (apptData?.assistant2Id === personId) || (allowSame && isAsst1 && (!apptData?.assistant2Id || apptData?.assistant2Id === apptData?.assistant1Id));
 
       if (!isMain && !isAsst1 && !isAsst2) return [];
 
@@ -563,24 +527,21 @@ export const checkConflict = (
 
       if (isMain) {
         const s = apptData?.mainBusyStart ?? option?.mainBusyStart ?? proc.mainBusyStart ?? 0;
-        const rawE = apptData?.mainBusyEnd ?? option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? 0;
-        const e = Math.max(s, rawE);
+        const e = apptData?.mainBusyEnd ?? option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration;
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
       }
       if (isAsst1) {
         const s = apptData?.asst1BusyStart ?? option?.asst1BusyStart ?? proc.asst1BusyStart ?? 0;
-        const rawE = apptData?.asst1BusyEnd ?? option?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.busyMinutes ?? proc.durationMinutes ?? 0;
-        const e = Math.max(s, rawE);
+        const e = apptData?.asst1BusyEnd ?? option?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? 0;
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
       }
       if (isAsst2) {
         const s = apptData?.asst2BusyStart ?? option?.asst2BusyStart ?? proc.asst2BusyStart ?? 0;
-        const rawE = apptData?.asst2BusyEnd ?? option?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0;
-        const e = Math.max(s, rawE);
+        const e = apptData?.asst2BusyEnd ?? option?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0;
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
@@ -619,8 +580,8 @@ export const checkConflict = (
       if (currentIntervals.length > 0 && apptIntervals.length > 0) {
         for (const cInt of currentIntervals) {
           for (const aInt of apptIntervals) {
-            // Closed-interval overlap check (<=), meaning touching is considered an overlap.
-            const isOverlap = Math.max(cInt.start, aInt.start) <= Math.min(cInt.end, aInt.end);
+            // Strict interval overlap check (<), so touching at boundary (e.g. 08:00 end / 08:00 start) is NOT an overlap.
+            const isOverlap = Math.max(cInt.start, aInt.start) < Math.min(cInt.end, aInt.end);
             if (isOverlap) {
               const otherPatient = getPatientFromCache(patients, appt.patientId);
               conflictDetails.push({ 
