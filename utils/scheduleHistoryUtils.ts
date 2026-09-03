@@ -97,7 +97,7 @@ export const calculateDeviations = (
     const patient = patients.find(p => p.id === appt.patientId);
     const patientName = patient?.name || 'Bệnh nhân không rõ';
     const proc = procedures.find(p => p.id === appt.procedureId);
-    const procedureName = proc?.name || 'Thủ thuật không rõ';
+    const procedureName = proc?.name || 'Lịch trình không rõ';
 
     const baseline = baselineMap.get(appt.id);
     if (!baseline) {
@@ -107,7 +107,7 @@ export const calculateDeviations = (
         patientName,
         procedureName,
         type: 'NEW',
-        changeDetails: 'Thủ thuật mới được thêm vào lịch trình',
+        changeDetails: 'Lịch trình mới được thêm vào danh sách',
         currentAppt: appt
       });
     } else {
@@ -138,9 +138,9 @@ export const calculateDeviations = (
         diffs.push(`Thay đổi thiết bị/phòng (${oldMachine} ➔ ${newMachine})`);
       }
       if (norm(appt.procedureId) !== norm(baseline.procedureId)) {
-        const oldP = procedures.find(p => p.id === baseline.procedureId)?.name || 'Thủ thuật cũ';
-        const newP = proc?.name || 'Thủ thuật mới';
-        diffs.push(`Đổi thủ thuật (${oldP} ➔ ${newP})`);
+        const oldP = procedures.find(p => p.id === baseline.procedureId)?.name || 'Lịch trình cũ';
+        const newP = proc?.name || 'Lịch trình mới';
+        diffs.push(`Đổi lịch trình (${oldP} ➔ ${newP})`);
       }
 
       if (diffs.length > 0) {
@@ -158,13 +158,13 @@ export const calculateDeviations = (
     }
   });
 
-  // 2. Kiểm tra các thủ thuật đã bị xóa
+  // 2. Kiểm tra các lịch trình đã bị xóa
   baselineAppts.forEach(baseline => {
     if (!currentMap.has(baseline.id)) {
       const patient = patients.find(p => p.id === baseline.patientId);
       const patientName = patient?.name || 'Bệnh nhân không rõ';
       const proc = procedures.find(p => p.id === baseline.procedureId);
-      const procedureName = proc?.name || 'Thủ thuật không rõ';
+      const procedureName = proc?.name || 'Lịch trình không rõ';
 
       list.push({
         id: baseline.id,

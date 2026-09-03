@@ -541,7 +541,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     const procMap = new Map<string, Procedure>();
     procedures.forEach(pr => procMap.set(pr.id, pr));
 
-    // Lọc các thủ thuật có biến động so với bản chốt
+    // Lọc các lịch trình có biến động so với bản chốt
     if (filterModifiedOnly) {
       const changedIds = new Set(deviations.map(d => d.id));
       result = result.filter(a => changedIds.has(a.id));
@@ -867,7 +867,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           <td><b>${patient?.name || 'Không yêu cầu BN'}</b><br/><small>${patient ? `${patient.gender} • ${calculateAge(patient.dob)}t • ${patient.bedType || 'Nội trú'}` : '-'}</small></td>
           <td style="text-align:center">${patient ? `${patient.bedNumber} - P:${patient.roomNumber || '?'}` : '-'}</td>
           <td>${performingDept?.name || '-'}</td>
-          <td>${procedure?.name || 'Thủ thuật đã xóa'}</td>
+          <td>${procedure?.name || 'Lịch trình đã xóa'}</td>
           <td style="text-align:center">${timeStringToMinutes(appt.endTime) - timeStringToMinutes(appt.startTime)}p</td>
           <td>
             ${staffMember?.name || '-'}
@@ -902,7 +902,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         </head>
         <body>
           <div class="header">
-            <h1>Lịch Trình Thủ Thuật Tổng Quát</h1>
+            <h1>Lịch Trình Tổng Quát</h1>
             <p>Khoa: ${deptName} | Ngày: ${formattedDate}</p>
           </div>
           <table>
@@ -912,7 +912,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                 <th>Bệnh nhân</th>
                 <th>Giường/Phòng</th>
                 <th>Khoa thực hiện</th>
-                <th>Thủ thuật</th>
+                <th>Lịch trình</th>
                 <th>Thời lượng</th>
                 <th>Nhân viên</th>
                 <th>Thời gian</th>
@@ -979,7 +979,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         patientInfo: patient ? `${patient.gender} • ${calculateAge(patient.dob)}t • ${patient.bedType || 'Nội trú'}` : '-',
         bedRoom: patient ? `${patient.bedNumber} - P:${patient.roomNumber || '?'}` : '-',
         dept: performingDept?.name || '-',
-        procedure: procedure?.name || 'Thủ thuật đã xóa',
+        procedure: procedure?.name || 'Lịch trình đã xóa',
         duration: `${timeStringToMinutes(appt.endTime) - timeStringToMinutes(appt.startTime)}p`,
         staff: staffMember?.name || '-',
         assistant1: appt.assistant1Id ? staff.find(s => s.id === appt.assistant1Id)?.name : '',
@@ -995,7 +995,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       { label: 'Thông tin BN', key: 'patientInfo' },
       { label: 'Giường/Phòng', key: 'bedRoom' },
       { label: 'Khoa thực hiện', key: 'dept' },
-      { label: 'Thủ thuật', key: 'procedure' },
+      { label: 'Lịch trình', key: 'procedure' },
       { label: 'Thời lượng', key: 'duration' },
       { label: 'Nhân viên', key: 'staff' },
       { label: 'Phụ 1', key: 'assistant1' },
@@ -1057,7 +1057,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                  <button 
                    onClick={() => setFilterModifiedOnly(prev => !prev)} 
                    className={`h-[40px] px-3.5 border rounded-xl flex items-center gap-2 font-bold text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm ${filterModifiedOnly ? 'bg-amber-600 border-amber-600 text-white hover:bg-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
-                   title="Chỉ hiển thị các thủ thuật đã được chỉnh sửa hoặc thêm mới trong phiên làm việc hiện tại"
+                   title="Chỉ hiển thị các lịch trình đã được chỉnh sửa hoặc thêm mới trong phiên làm việc hiện tại"
                  >
                    <Filter size={14} />
                    <span>Lọc biến động {deviations.length > 0 ? `(${deviations.length})` : ''}</span>
@@ -1068,7 +1068,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                  <button 
                    onClick={() => setIsHistoryModalOpen(true)} 
                    className="h-[40px] px-3.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-xl flex items-center gap-2 font-bold text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm relative cursor-pointer"
-                   title="Xem danh sách các thủ thuật biến động trong phiên và hoàn tác"
+                   title="Xem danh sách các lịch trình biến động trong phiên và hoàn tác"
                  >
                    <History size={14} className="text-amber-600" />
                    <span>Lịch sử chỉnh sửa</span>
@@ -1288,7 +1288,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                     >
                       <div className="flex flex-col items-start gap-1">
                         <div className="flex items-center gap-1">
-                          <span>Thủ thuật & Cảnh báo</span>
+                          <span>Lịch trình & Cảnh báo</span>
                           <span className="text-slate-400 group-hover:text-slate-600 transition-colors shrink-0">
                             {sortBy === 'PROCEDURE' ? (
                               sortDir === 'asc' ? <ChevronUp size={14} className="text-primary font-bold inline-block" /> : <ChevronDown size={14} className="text-primary font-bold inline-block" />
@@ -1304,8 +1304,8 @@ export const Timeline: React.FC<TimelineProps> = ({
                             setOpenFilterId={setOpenFilterId}
                             placeholder="Cảnh báo..."
                             options={[
-                              { id: 'ERROR', label: 'Thủ thuật lỗi ⚠️' },
-                              { id: 'NO_ERROR', label: 'Thủ thuật an toàn ✅' }
+                              { id: 'ERROR', label: 'Lịch trình lỗi ⚠️' },
+                              { id: 'NO_ERROR', label: 'Lịch trình an toàn ✅' }
                             ]}
                             selectedIds={headerProcedureStatusFilters}
                             onChange={setHeaderProcedureStatusFilters}
@@ -1314,7 +1314,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                             id="procedure"
                             openFilterId={openFilterId}
                             setOpenFilterId={setOpenFilterId}
-                            placeholder="Lọc thủ thuật..."
+                            placeholder="Lọc lịch trình..."
                             options={activeProcedures.map(p => ({
                               id: p.id,
                               label: p.name
@@ -1483,7 +1483,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const stickyCellBg = isBgHighlight ? 'bg-[#fff5f5]' : 'bg-white';
                 const stickyCellHover = isBgHighlight ? 'group-hover:bg-rose-100/60' : 'group-hover:bg-slate-50';
                 
-                const marqueeContent = `(${procedure?.name || 'Thủ thuật đã xóa'}) ${appt.startTime} - ${appt.endTime}, ${staffMember?.name}${appt.assistant1Id ? `, Phụ 1: ${staff.find(s => s.id === appt.assistant1Id)?.name}` : ''}${appt.assistant2Id ? `, Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}` : ''}${appt.assignedMachineId ? `, Máy: ${appt.assignedMachineId.replace(/-/g, '')}` : ''}`;
+                const marqueeContent = `(${procedure?.name || 'Lịch trình đã xóa'}) ${appt.startTime} - ${appt.endTime}, ${staffMember?.name}${appt.assistant1Id ? `, Phụ 1: ${staff.find(s => s.id === appt.assistant1Id)?.name}` : ''}${appt.assistant2Id ? `, Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}` : ''}${appt.assignedMachineId ? `, Máy: ${appt.assignedMachineId.replace(/-/g, '')}` : ''}`;
 
                 return (
                   <tr key={appt.id} className={`hover:bg-slate-50 transition-all group min-h-[5rem] ${hasConflict || isOutside ? 'bg-rose-50/20' : ''}`}>
@@ -1524,7 +1524,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                     >
                         <div className={`flex flex-col gap-1 p-2 rounded-xl border ${getProcedureColor(appt.procedureId).bg}`}>
                             <div className="flex items-center justify-between gap-1 flex-wrap">
-                              <span className={`font-bold text-xs ${hasConflict || isOutside ? 'text-rose-700 font-extrabold' : getProcedureColor(appt.procedureId).text}`}>{procedure?.name || 'Thủ thuật đã xóa'}</span>
+                              <span className={`font-bold text-xs ${hasConflict || isOutside ? 'text-rose-700 font-extrabold' : getProcedureColor(appt.procedureId).text}`}>{procedure?.name || 'Lịch trình đã xóa'}</span>
                               {devItem && (
                                 <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border shrink-0 ${
                                   devItem.type === 'NEW' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-amber-50 text-amber-700 border-amber-300'
@@ -1601,13 +1601,13 @@ export const Timeline: React.FC<TimelineProps> = ({
                           onClick={() => onAppointmentClick(appt)} 
                           className={`absolute top-1/2 -translate-y-1/2 rounded-lg border shadow-sm flex flex-col justify-center px-2 cursor-pointer hover:z-30 hover:scale-[1.02] hover:shadow-md transition-all z-10 ${getBarColor(appt.procedureId, appt.status, isOutside, procedures.find(p => p.id === appt.procedureId)?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} 
                           style={{ left, width: displayWidth, height: 44 }}
-                          title={`${appt.startTime} - ${appt.endTime}: ${procedure?.name || 'Thủ thuật đã xóa'}`}
+                          title={`${appt.startTime} - ${appt.endTime}: ${procedure?.name || 'Lịch trình đã xóa'}`}
                         >
                           <div className="font-black text-[9px] leading-tight truncate">
                             {appt.startTime} - {appt.endTime}
                           </div>
                           <div className="font-bold text-[9px] leading-tight truncate mt-0.5">
-                            {procedure?.name || 'Thủ thuật đã xóa'}
+                            {procedure?.name || 'Lịch trình đã xóa'}
                           </div>
                         </div>
                       </div>
@@ -1625,7 +1625,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                             <CheckCircle2 size={24} />
                           </div>
                           <div className="text-sm font-extrabold text-slate-700">Không có biến động nào trong phiên này</div>
-                          <p className="text-xs text-slate-500">Mọi thủ thuật đều đang khớp hoàn toàn với mốc chuẩn. Khi có thao tác dời giờ, đổi nhân sự hoặc thêm mới ca, các thủ thuật đó sẽ xuất hiện tại đây.</p>
+                          <p className="text-xs text-slate-500">Mọi lịch trình đều đang khớp hoàn toàn với mốc chuẩn. Khi có thao tác dời giờ, đổi nhân sự hoặc thêm mới ca, các lịch trình đó sẽ xuất hiện tại đây.</p>
                           <button 
                             onClick={() => setFilterModifiedOnly(false)} 
                             className="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-xl hover:bg-slate-900 transition-all shadow-sm"
@@ -1680,7 +1680,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           <div className="flex border-b border-slate-200 sticky top-0 bg-slate-50 z-40 h-12 shadow-sm">
             <div className="w-72 px-6 flex items-center font-bold text-slate-500 bg-slate-50 border-r border-slate-200 sticky left-0 z-50 text-xs uppercase tracking-wider">
                {viewMode === 'STAFF' && 'Nhân sự'}
-               {viewMode === 'PROCEDURE' && 'Thủ thuật'}
+               {viewMode === 'PROCEDURE' && 'Lịch trình'}
                {viewMode === 'PATIENT' && 'Bệnh nhân'}
             </div>
             <div className="relative h-full" style={{ width: timelineWidth }}>
@@ -1797,7 +1797,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                             {viewMode === 'STAFF' && appt.assistant2Id === row.originalId && <span className="ml-1 text-[9px] bg-white/30 px-1 rounded">Phụ 2</span>}
                          </div>
                          <div className={`text-[10px] font-medium truncate flex items-center gap-1 ${hasConflict || isOutside ? 'text-white/80' : 'text-slate-500'}`}>
-                            <Zap size={10} />{viewMode !== 'PROCEDURE' ? (procedure?.name || 'Thủ thuật đã xóa') : staffMember?.name}
+                            <Zap size={10} />{viewMode !== 'PROCEDURE' ? (procedure?.name || 'Lịch trình đã xóa') : staffMember?.name}
                             {viewMode !== 'STAFF' && (appt.assistant1Id || appt.assistant2Id) && row.role === 'ALL' && (
                                 <span className="ml-1 text-[9px] opacity-70">
                                     (Phụ: {[

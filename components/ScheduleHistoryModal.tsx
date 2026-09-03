@@ -87,13 +87,13 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
                 </p>
               </div>
               <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                Mọi sửa đổi, dời giờ, đổi bác sĩ chính, người phụ hoặc xóa/thêm mới thủ thuật sẽ tự động xuất hiện tại đây để theo dõi và hoàn tác bất cứ lúc nào.
+                Mọi sửa đổi, dời giờ, đổi bác sĩ chính, người phụ hoặc xóa/thêm mới lịch trình sẽ tự động xuất hiện tại đây để theo dõi và hoàn tác bất cứ lúc nào.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs font-black text-slate-400 uppercase tracking-widest px-1">
-                <span>Thủ thuật bị biến động ({deviations.length})</span>
+                <span>Lịch trình bị biến động ({deviations.length})</span>
                 <span>Hành động khôi phục</span>
               </div>
               <div className="divide-y divide-slate-100 border border-slate-200/60 rounded-3xl overflow-hidden bg-slate-50/20 shadow-sm">
@@ -118,7 +118,7 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
                           </span>
                         </div>
                         <div className="text-xs font-semibold text-slate-500">
-                          Thủ thuật: <span className="font-extrabold text-slate-700">{dev.procedureName}</span>
+                          Lịch trình: <span className="font-extrabold text-slate-700">{dev.procedureName}</span>
                         </div>
                         <div className="text-xs font-bold text-amber-600 bg-amber-50/40 px-2.5 py-1 rounded-xl inline-block border border-amber-100">
                           {dev.changeDetails}
@@ -129,7 +129,7 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
                         <button
                           onClick={() => onUndoChange(dev.id, dev.type, dev.originalAppt)}
                           className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all duration-300 shadow-sm border border-slate-200/40 shrink-0"
-                          title="Khôi phục thủ thuật về trạng thái mốc ban đầu"
+                          title="Khôi phục lịch trình về trạng thái mốc ban đầu"
                         >
                           <RotateCcw size={12} />
                           Hoàn tác
@@ -148,7 +148,7 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
           <div className="text-xs font-bold uppercase tracking-wide">
             {deviations.length > 0 ? (
               <span className="text-amber-600 font-bold">
-                Có {deviations.length} thủ thuật biến động so với bản chốt
+                Có {deviations.length} lịch trình biến động so với bản chốt
               </span>
             ) : (
               <span className="text-slate-400">

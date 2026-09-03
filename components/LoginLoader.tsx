@@ -12,7 +12,7 @@ export const LoginLoader: React.FC<LoginLoaderProps> = ({ loadedCollections, onC
   
   // Staged loading status text matching the firebase collection keys
   const stages = [
-    { key: 'procedures', label: 'Cập nhật danh mục 47 thủ thuật lâm sàng', progress: 15 },
+    { key: 'procedures', label: 'Cập nhật danh mục 47 lịch trình lâm sàng', progress: 15 },
     { key: 'staff', label: 'Đồng bộ thông tin nhân sự & phân quyền khoa', progress: 30 },
     { key: 'patients', label: 'Đồng bộ hồ sơ bệnh án & tiến trình điều trị', progress: 50 },
     { key: 'attendance', label: 'Tải sơ đồ lịch trực & timeline rảnh bận nhân sự', progress: 65 },

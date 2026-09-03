@@ -463,7 +463,7 @@ export const checkConflict = (
         conflictDetails.push({ message: `Bệnh nhân đã có lịch trình "${apptProc?.name}" vào lúc ${appt.startTime}.`, level: 1 });
       }
 
-      // Bỏ qua kiểm tra trùng lịch bệnh nhân nếu một trong hai thủ thuật là độc lập, nhưng vẫn cảnh báo nếu cả hai đều là độc lập
+      // Bỏ qua kiểm tra trùng lịch bệnh nhân nếu một trong hai lịch trình là độc lập, nhưng vẫn cảnh báo nếu cả hai đều là độc lập
       if ((!currentProc?.isIndependent && !apptProc?.isIndependent) || (currentProc?.isIndependent && apptProc?.isIndependent)) {
         const currentRest = newApptData?.restMinutes ?? currentProc?.restMinutes ?? 0;
         const apptRest = appt.restMinutes ?? apptProc?.restMinutes ?? 0;

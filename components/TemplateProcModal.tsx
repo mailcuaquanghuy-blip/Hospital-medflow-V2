@@ -75,7 +75,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-slate-50 w-full max-w-4xl h-[700px] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-6 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">Thêm Mẫu Chỉ Định Thủ Thuật</h2>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">Thêm Mẫu Chỉ Định Lịch Trình</h2>
             <p className="text-sm font-medium text-slate-500 mt-1">Cấu hình thời gian và nhân sự cho mẫu</p>
           </div>
           <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-100 hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center transition-colors text-slate-500">
@@ -87,7 +87,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
           <div className="grid grid-cols-12 gap-8">
             <div className="col-span-8 space-y-6">
               <div className="p-6 bg-white rounded-3xl shadow-sm border border-slate-100">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-3 block flex items-center gap-1.5"><Search size={14} className="text-primary" /> Chọn thủ thuật</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-3 block flex items-center gap-1.5"><Search size={14} className="text-primary" /> Chọn lịch trình</label>
                 <div className="relative">
                   <div className={`w-full p-4 border rounded-2xl flex items-center justify-between cursor-pointer transition-all ${isProcDropdownOpen ? 'border-primary ring-2 ring-primary/20 bg-white' : 'border-slate-200 bg-slate-50 hover:border-slate-300'}`} onClick={() => setIsProcDropdownOpen(!isProcDropdownOpen)}>
                     {currentProc ? (
@@ -96,7 +96,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                         <span className="text-xs font-medium text-slate-400">{currentProc.durationMinutes} phút</span>
                       </div>
                     ) : (
-                      <span className="font-semibold text-slate-400">-- Tìm và chọn thủ thuật --</span>
+                      <span className="font-semibold text-slate-400">-- Tìm và chọn lịch trình --</span>
                     )}
                   </div>
                   {isProcDropdownOpen && (
@@ -104,7 +104,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                       <div className="p-3 border-b border-slate-100 bg-slate-50/50">
                         <div className="relative">
                           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                          <input type="text" placeholder="Tìm tên thủ thuật..." value={procSearchTerm} onChange={e => setProcSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-medium text-sm" autoFocus />
+                          <input type="text" placeholder="Tìm tên lịch trình..." value={procSearchTerm} onChange={e => setProcSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 font-medium text-sm" autoFocus />
                         </div>
                       </div>
                       <div className="max-h-60 overflow-y-auto scrollbar-thin">
@@ -250,7 +250,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
               onSave(finalData as TemplateProcedure);
             }
           }} className="px-8 h-12 rounded-xl text-sm font-bold shadow-lg shadow-primary/20">
-            <Save size={18} className="mr-2" /> Lưu thủ thuật
+            <Save size={18} className="mr-2" /> Lưu lịch trình
           </Button>
         </div>
       </motion.div>

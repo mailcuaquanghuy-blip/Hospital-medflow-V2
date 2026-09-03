@@ -619,7 +619,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     );
     
     if (patientAppointments.length === 0) {
-      alert('Bệnh nhân chưa có thủ thuật nào trong ngày này để lưu mẫu.');
+      alert('Bệnh nhân chưa có lịch trình nào trong ngày này để lưu mẫu.');
       return;
     }
 
@@ -931,10 +931,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       setSelectedTemplateId(null);
       setEditingTemplate(null);
       onRecheckConflicts?.();
-      alert('Đã tải mẫu thủ thuật thành công!');
+      alert('Đã tải mẫu lịch trình thành công!');
     } catch (error) {
       console.error("Error applying template:", error);
-      alert("Lỗi khi áp dụng mẫu thủ thuật.");
+      alert("Lỗi khi áp dụng mẫu lịch trình.");
     }
   };
 
@@ -1049,7 +1049,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       alert(`Đã áp dụng mẫu "${template.name}" cho bệnh nhân ${patient?.name || 'này'} thành công!`);
     } catch (error) {
       console.error("Error applying template:", error);
-      alert("Lỗi khi áp dụng mẫu thủ thuật.");
+      alert("Lỗi khi áp dụng mẫu lịch trình.");
     }
   };
 
@@ -1217,7 +1217,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
               ? 'bg-amber-600 border-amber-600 text-white shadow-amber-500/20 hover:bg-amber-700' 
               : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'
           }`}
-          title="Chỉ lọc danh sách bệnh nhân có thủ thuật biến động trong phiên này"
+          title="Chỉ lọc danh sách bệnh nhân có lịch trình biến động trong phiên này"
         >
           <Filter size={14} />
           Lọc biến động {deviations.length > 0 ? `(${deviations.length})` : ''}
@@ -1227,7 +1227,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         <button 
           onClick={() => setIsHistoryModalOpen(true)} 
           className="flex items-center gap-2 px-6 py-2.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm relative"
-          title="Xem danh sách các thủ thuật biến động trong phiên hôm nay"
+          title="Xem danh sách các lịch trình biến động trong phiên hôm nay"
         >
           <History size={14} className="text-amber-600" />
           Lịch sử chỉnh sửa
@@ -1549,7 +1549,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                       const procedureDeptId = proc?.deptId || a.deptId;
                                       const isCurrentDeptProc = procedureDeptId === currentDept.id;
                                       return (proc) ? (
-                                          <div key={a.id} className={`p-1 rounded-lg shadow-sm border relative flex items-center justify-center ${isCurrentDeptProc ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-40 grayscale'}`} title={proc?.name || 'Thủ thuật đã xóa'}>
+                                          <div key={a.id} className={`p-1 rounded-lg shadow-sm border relative flex items-center justify-center ${isCurrentDeptProc ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-40 grayscale'}`} title={proc?.name || 'Lịch trình đã xóa'}>
                                               <div className={`w-6 h-6 rounded flex items-center justify-center text-[12px] font-black ${isCurrentDeptProc ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-400'}`}>{getAbbreviation(proc?.name || '??')}</div>
                                               {a.machineShiftId && (
                                                   <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 shadow-[0_0_5px_rgba(59,130,246,0.5)] border border-white">
@@ -1571,7 +1571,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                     {filterModifiedOnly ? (
                       <div className="space-y-2">
                         <div className="text-amber-700 text-xs font-bold">Không có bệnh nhân nào có biến động</div>
-                        <p className="text-[11px] text-slate-500">Mọi thủ thuật của bệnh nhân trong ngày đang khớp hoàn toàn với mốc chuẩn.</p>
+                        <p className="text-[11px] text-slate-500">Mọi lịch trình của bệnh nhân trong ngày đang khớp hoàn toàn với mốc chuẩn.</p>
                         <button 
                           onClick={() => setFilterModifiedOnly(false)} 
                           className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
@@ -1657,11 +1657,11 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                     {isSupportDept && (
                       <Button onClick={() => onBookAppointment(selectedPatient.id)} disabled={isReferralFinished} className={isReferralFinished ? "" : "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200"}>
                         {isReferralFinished ? <Lock size={18} /> : <Plus size={18} />}
-                        {isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch thủ thuật'}
+                        {isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}
                       </Button>
                     )}
                     <Button variant="secondary" onClick={() => setIsCopyModalOpen(true)} className="bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100" disabled={isReferralFinished}>
-                        <Copy size={18} /> Sao chép thủ thuật
+                        <Copy size={18} /> Sao chép lịch trình
                     </Button>
 
                     
@@ -1674,7 +1674,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                         <Button onClick={() => onBookAppointment(selectedPatient.id)} className="rounded-r-none border-r border-white/20">
                             <Plus size={18} /> Thêm chỉ định
                         </Button>
-                        <Button onClick={() => setIsLoadTemplateModalOpen(true)} className="rounded-l-none px-2" title="Tải mẫu thủ thuật">
+                        <Button onClick={() => setIsLoadTemplateModalOpen(true)} className="rounded-l-none px-2" title="Tải mẫu lịch trình">
                             <ChevronDown size={18} />
                         </Button>
                       </div>
@@ -1748,7 +1748,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                                    <div className="flex items-center gap-2 overflow-hidden mr-1">
                                                       <span className="font-black text-sm uppercase tracking-tighter shrink-0">{appt.startTime} - {appt.endTime}</span>
                                                       <div className="w-px h-3.5 bg-white/30" />
-                                                      <span className="font-extrabold text-base truncate uppercase tracking-tight">{proc?.name || 'Thủ thuật đã xóa'}</span>
+                                                      <span className="font-extrabold text-base truncate uppercase tracking-tight">{proc?.name || 'Lịch trình đã xóa'}</span>
                                                    </div>
                                                    <div className="flex items-center gap-1 shrink-0">
                                                       {appt.status === 'COMPLETED' && <CheckCircle2 size={15} className="shrink-0 text-white" />}
@@ -1757,7 +1757,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                                             id={`delete-btn-${appt.id}`}
                                                             onClick={(e) => {
                                                                e.stopPropagation();
-                                                               if (window.confirm(`Bạn có chắc chắn muốn xóa thủ thuật "${proc?.name || 'không tên'}" này không?`)) {
+                                                               if (window.confirm(`Bạn có chắc chắn muốn xóa lịch trình "${proc?.name || 'không tên'}" này không?`)) {
                                                                   onDeleteAppointment(appt.id);
                                                                }
                                                             }}
@@ -1765,7 +1765,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                                                e.stopPropagation();
                                                             }}
                                                             className="p-1 rounded-full text-white/80 hover:text-white hover:bg-black/15 transition-all cursor-pointer"
-                                                            title="Xóa nhanh thủ thuật"
+                                                            title="Xóa nhanh lịch trình"
                                                          >
                                                             <Trash2 size={15} />
                                                          </button>
@@ -1893,7 +1893,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                   <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                       <Save size={20} className="text-emerald-500" />
-                      Lưu mẫu thủ thuật
+                      Lưu mẫu lịch trình
                     </h3>
                     <button onClick={() => setIsSaveTemplateModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                       <X size={20} />
@@ -1901,7 +1901,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                   </div>
                   <div className="p-6 space-y-4">
                     <p className="text-sm text-slate-600 font-medium">
-                      Lưu các thủ thuật hiện tại của bệnh nhân thành một mẫu để sử dụng lại sau này.
+                      Lưu các lịch trình hiện tại của bệnh nhân thành một mẫu để sử dụng lại sau này.
                     </p>
                     
                     <div>
@@ -1966,7 +1966,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                   <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                       <FolderOpen size={20} className="text-blue-500" />
-                      Kho mẫu thủ thuật ({currentDept.name})
+                      Kho mẫu lịch trình ({currentDept.name})
                     </h3>
                     <button onClick={() => setIsLoadTemplateModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                       <X size={20} />
@@ -1993,7 +1993,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                         <div className="relative">
                           <input
                             type="text"
-                            placeholder="Tìm kiếm mẫu, nhóm, thủ thuật..."
+                            placeholder="Tìm kiếm mẫu, nhóm, lịch trình..."
                             value={templateSearchQuery}
                             onChange={(e) => setTemplateSearchQuery(e.target.value)}
                             className="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
@@ -2167,7 +2167,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                     <div className="flex justify-between items-center">
                                       <div className="font-medium text-slate-800 flex items-center gap-2">
                                         <div className="w-5 h-5 rounded bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">{getAbbreviation(proc?.name || '??')}</div>
-                                        {proc?.name || 'Thủ thuật đã xóa'}
+                                        {proc?.name || 'Lịch trình đã xóa'}
                                       </div>
                                       <button 
                                         onClick={() => {
@@ -2176,7 +2176,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                           setEditingTemplate({...editingTemplate, procedures: newProcs});
                                         }}
                                         className="text-slate-400 hover:text-rose-500 transition-colors"
-                                        title="Xóa thủ thuật khỏi mẫu"
+                                        title="Xóa lịch trình khỏi mẫu"
                                       >
                                         <Trash2 size={16} />
                                       </button>

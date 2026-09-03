@@ -686,7 +686,7 @@ export const PatientList: React.FC<PatientListProps> = ({
           </style>
         </head>
         <body>
-          <h1>PHIẾU CHỈ ĐỊNH THỦ THUẬT</h1>
+          <h1>PHIẾU CHỈ ĐỊNH LỊCH TRÌNH</h1>
           <h2>Khoa: ${currentDept.name}</h2>
           
           <div class="info">
@@ -705,7 +705,7 @@ export const PatientList: React.FC<PatientListProps> = ({
                 <th>Ngày thực hiện</th>
                 <th>Giờ thực hiện</th>
                 <th>Thời lượng</th>
-                <th>Tên thủ thuật</th>
+                <th>Tên lịch trình</th>
                 <th>Người thực hiện</th>
                 <th>Khoa thực hiện</th>
               </tr>
@@ -819,7 +819,7 @@ export const PatientList: React.FC<PatientListProps> = ({
         date: new Date(appt.date).toLocaleDateString('vi-VN'),
         time: `${appt.startTime} - ${appt.endTime}`,
         duration: `${duration}p`,
-        procedure: proc?.name || 'Thủ thuật đã xóa',
+        procedure: proc?.name || 'Lịch trình đã xóa',
         staff: staffStr,
         dept: performingDept?.name || 'Không rõ'
       };
@@ -830,7 +830,7 @@ export const PatientList: React.FC<PatientListProps> = ({
       { label: 'Ngày thực hiện', key: 'date' },
       { label: 'Giờ thực hiện', key: 'time' },
       { label: 'Thời lượng', key: 'duration' },
-      { label: 'Tên thủ thuật', key: 'procedure' },
+      { label: 'Tên lịch trình', key: 'procedure' },
       { label: 'Người thực hiện', key: 'staff' },
       { label: 'Khoa thực hiện', key: 'dept' }
     ];
@@ -1148,14 +1148,14 @@ export const PatientList: React.FC<PatientListProps> = ({
                                   );
                                 })}
                                 {refProcIds.length === 0 && (
-                                  <span className="text-[10px] text-slate-400 font-bold italic">Không có thủ thuật chỉ định</span>
+                                  <span className="text-[10px] text-slate-400 font-bold italic">Không có lịch trình chỉ định</span>
                                 )}
                               </div>
                             );
                           } else {
                             const procNames = appointments
                               .filter(a => a.patientId === p.id && a.deptId === currentDept.id && a.date === activeDate)
-                              .map(a => procedures.find(pr => pr.id === a.procedureId)?.name || 'Thủ thuật');
+                              .map(a => procedures.find(pr => pr.id === a.procedureId)?.name || 'Lịch trình');
                             return (
                               <div key={idx} className="flex flex-wrap gap-2 justify-center">
                                 {procNames.length > 0 ? procNames.map((name, i) => (
@@ -1164,7 +1164,7 @@ export const PatientList: React.FC<PatientListProps> = ({
                                     <span className="truncate max-w-[300px]">{name}</span>
                                   </div>
                                 )) : (
-                                  <span className="text-[10px] text-slate-400 font-bold italic">Chờ chỉ định thủ thuật</span>
+                                  <span className="text-[10px] text-slate-400 font-bold italic">Chờ chỉ định lịch trình</span>
                                 )}
                               </div>
                             );
@@ -1259,7 +1259,7 @@ export const PatientList: React.FC<PatientListProps> = ({
                           <button onClick={() => {
                             const hasAppointments = appointments.some(a => a.patientId === p.id);
                             if (hasAppointments) {
-                              alert("Không thể xóa bệnh nhân này vì vẫn còn thủ thuật. Vui lòng xóa toàn bộ thủ thuật của bệnh nhân trước khi xóa hồ sơ.");
+                              alert("Không thể xóa bệnh nhân này vì vẫn còn lịch trình. Vui lòng xóa toàn bộ lịch trình của bệnh nhân trước khi xóa hồ sơ.");
                             } else {
                               setDeletingPatient(p);
                             }

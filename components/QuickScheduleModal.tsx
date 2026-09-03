@@ -194,7 +194,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
   const [quickScheduleTasks, setQuickScheduleTasks] = useState<Record<string, QuickScheduleTask[]>>({});
 
-  // Sub-dialog state for "+ Thêm thủ thuật"
+  // Sub-dialog state for "+ Thêm lịch trình"
   const [addProcState, setAddProcState] = useState<{
     isOpen: boolean;
     patientId: string;
@@ -405,7 +405,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     }
 
     if (tasks.length === 0) {
-      alert("Vui lòng chọn ít nhất một thủ thuật cần sắp xếp.");
+      alert("Vui lòng chọn ít nhất một lịch trình cần sắp xếp.");
       setIsProcessing(false);
       return;
     }
@@ -652,7 +652,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
   const handleAddProcedureConfirm = () => {
     if (!addProcState || !addProcState.selectedProcedureId) {
-      alert("Vui lòng chọn thủ thuật.");
+      alert("Vui lòng chọn lịch trình.");
       return;
     }
 
@@ -738,7 +738,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-violet-600 fill-violet-200 animate-pulse" />
-                  <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Cấu hình kíp thủ thuật chuyên biệt</span>
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Cấu hình kíp lịch trình chuyên biệt</span>
                   <button
                     onClick={() => setShowKipConfig(!showKipConfig)}
                     className="text-xs font-black text-violet-600 hover:text-violet-800 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-xl transition-colors ml-4"
@@ -762,7 +762,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                   {groups.length === 0 ? (
                     <div className="text-center py-4 border border-dashed border-slate-200 rounded-xl bg-white/50">
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Chưa thiết lập kíp nào</p>
-                      <p className="text-[10px] font-bold text-slate-400 mt-1">Bấm nút "+ Thêm kíp" để cấu hình cố định nhân sự cho từng thủ thuật ngày hôm nay</p>
+                      <p className="text-[10px] font-bold text-slate-400 mt-1">Bấm nút "+ Thêm kíp" để cấu hình cố định nhân sự cho từng lịch trình ngày hôm nay</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pr-1">
@@ -786,7 +786,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                             <div className="space-y-2">
                               {/* Procedure Selection */}
                               <div>
-                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Thủ thuật</label>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Lịch trình</label>
                                 <select
                                   value={group.procedureId}
                                   onChange={e => {
@@ -905,10 +905,10 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                           Danh sách bệnh nhân
                         </th>
                         <th className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider sticky top-0 bg-slate-50 border-r border-slate-200 min-w-[240px] w-[240px]">
-                          Thủ thuật đã có
+                          Lịch trình đã có
                         </th>
                         <th className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider sticky top-0 bg-slate-50 border-r border-slate-200 min-w-[340px] w-[340px]">
-                          Thủ thuật xếp lịch nhanh
+                          Lịch trình xếp lịch nhanh
                         </th>
                         <th className="p-4 text-xs font-black text-slate-600 uppercase tracking-wider sticky top-0 bg-slate-50 min-w-[300px] w-[300px]">
                           Chọn khung giờ
@@ -969,7 +969,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                       <div key={appt.id} className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-lg p-2 text-xs font-bold text-slate-600">
                                         <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
                                         <div className="flex flex-col">
-                                          <span className="text-slate-800 font-extrabold">{proc?.name || 'Thủ thuật'}</span>
+                                          <span className="text-slate-800 font-extrabold">{proc?.name || 'Lịch trình'}</span>
                                           <span className="text-[10px] text-slate-400 font-mono mt-0.5">{appt.startTime} - {appt.endTime}</span>
                                         </div>
                                       </div>
@@ -998,7 +998,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                           <span className={`font-black truncate ${task.isPriority ? 'text-amber-950' : 'text-violet-950'}`}>
-                                            {proc?.name || 'Thủ thuật'}
+                                            {proc?.name || 'Lịch trình'}
                                           </span>
                                           {task.isPriority && (
                                             <span className="inline-flex items-center gap-0.5 bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs shrink-0">
@@ -1024,7 +1024,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                               ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
                                               : 'bg-white text-slate-600 hover:text-slate-900 border-slate-200 hover:border-amber-300'
                                           }`}
-                                          title="Tick chọn để ưu tiên xếp lịch cho thủ thuật này"
+                                          title="Tick chọn để ưu tiên xếp lịch cho lịch trình này"
                                         >
                                           <input
                                             type="checkbox"
@@ -1050,7 +1050,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                             }));
                                           }}
                                           className="text-slate-400 hover:text-rose-500 transition-colors p-1 hover:bg-rose-50 rounded-lg"
-                                          title="Xóa thủ thuật"
+                                          title="Xóa lịch trình"
                                         >
                                           <X size={14} />
                                         </button>
@@ -1077,7 +1077,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                   className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-200 hover:border-slate-300 rounded-xl text-xs font-black text-slate-500 hover:text-slate-800 uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm"
                                 >
                                   <Plus size={14} className="stroke-slate-500 hover:stroke-slate-800" />
-                                  <span>+ Thêm thủ thuật</span>
+                                  <span>+ Thêm lịch trình</span>
                                 </button>
                               </div>
                             </td>
@@ -1234,7 +1234,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
               <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
                 {allPendingTasks.length > 0 ? (
                   <>
-                    <span>Đã chọn: <strong className="text-slate-800">{allPendingTasks.length}</strong> thủ thuật</span>
+                    <span>Đã chọn: <strong className="text-slate-800">{allPendingTasks.length}</strong> lịch trình</span>
                     {priorityPendingCount > 0 && (
                       <span className="inline-flex items-center gap-1 bg-amber-500 text-white px-2.5 py-1 rounded-lg font-black text-[11px] shadow-xs">
                         ★ {priorityPendingCount} ưu tiên
@@ -1242,7 +1242,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                     )}
                   </>
                 ) : (
-                  <span className="text-slate-400 italic">Chưa chọn thủ thuật nào để sắp xếp</span>
+                  <span className="text-slate-400 italic">Chưa chọn lịch trình nào để sắp xếp</span>
                 )}
               </div>
 
@@ -1320,7 +1320,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
                 {failedDetails.length > 0 && (
                   <div className="space-y-3">
-                    <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider text-left pl-1">Danh sách thủ thuật không xếp được:</h4>
+                    <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider text-left pl-1">Danh sách lịch trình không xếp được:</h4>
                     <div className="max-h-[180px] overflow-y-auto border border-slate-150 rounded-2xl divide-y divide-slate-100 text-left">
                       {failedDetails.map((f, idx) => (
                         <div key={idx} className="p-3 text-xs font-bold text-slate-600 flex items-start justify-between gap-4 bg-slate-50/30">
@@ -1388,7 +1388,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
           </div>
         )}
 
-        {/* "+ Thêm thủ thuật" Selection Dialog */}
+        {/* "+ Thêm lịch trình" Selection Dialog */}
         {addProcState?.isOpen && (() => {
           const selectedPatient = patients.find(p => p.id === addProcState.patientId);
           const selectedProc = procedures.find(p => p.id === addProcState.selectedProcedureId);
@@ -1424,7 +1424,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
               <div className="bg-white rounded-[32px] p-6 shadow-2xl max-w-lg w-full animate-in fade-in zoom-in-95 duration-200 border border-slate-100 flex flex-col gap-4 text-left">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="space-y-0.5 text-left">
-                    <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">Thêm thủ thuật xếp lịch nhanh</h3>
+                    <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">Thêm lịch trình xếp lịch nhanh</h3>
                     <p className="text-xs font-bold text-slate-400">
                       Bệnh nhân: <span className="text-slate-800 font-extrabold">{selectedPatient.name}</span> ({selectedPatient.gender} • {calculateAge(selectedPatient.dob)} tuổi)
                     </p>
@@ -1455,7 +1455,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
                 {/* Step 1: Chọn Nhóm */}
                 <div className="space-y-1.5 text-left">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bước 1: Chọn nhóm thủ thuật</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bước 1: Chọn nhóm lịch trình</label>
                   <div className="flex gap-1.5 p-1 bg-slate-100 rounded-2xl">
                     {categories.map(cat => {
                       const active = addProcState.selectedCategory === cat;
@@ -1485,9 +1485,9 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                   </div>
                 </div>
 
-                {/* Step 2: Chọn Thủ thuật */}
+                {/* Step 2: Chọn Lịch trình */}
                 <div className="space-y-1.5 text-left">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bước 2: Chọn thủ thuật trong nhóm</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Bước 2: Chọn lịch trình trong nhóm</label>
                   <select
                     value={addProcState.selectedProcedureId}
                     onChange={e => {
@@ -1505,7 +1505,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                     }}
                     className="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer"
                   >
-                    <option value="">-- Chọn thủ thuật --</option>
+                    <option value="">-- Chọn lịch trình --</option>
                     {filteredProcs.map(p => (
                       <option key={p.id} value={p.id}>
                         {p.name} ({p.durationMinutes} phút)
@@ -1513,7 +1513,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                     ))}
                   </select>
                   {filteredProcs.length === 0 && (
-                    <p className="text-[11px] font-bold text-slate-400 italic">Không tìm thấy thủ thuật nào thuộc nhóm này trong khoa của bạn.</p>
+                    <p className="text-[11px] font-bold text-slate-400 italic">Không tìm thấy lịch trình nào thuộc nhóm này trong khoa của bạn.</p>
                   )}
                 </div>
 
@@ -1676,7 +1676,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                         />
                         <div className="text-left">
                           <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                            Ưu tiên xếp lịch cho thủ thuật này
+                            Ưu tiên xếp lịch cho lịch trình này
                             {addProcState.isPriority && (
                               <span className="text-[9px] bg-amber-500 text-white font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 ★ Ưu tiên
@@ -1684,7 +1684,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                             )}
                           </p>
                           <p className="text-[10px] font-bold text-slate-500 mt-0.5">
-                            Khi tick chọn, thủ thuật này sẽ được hệ thống ưu tiên xếp lịch trước các thủ thuật thông thường
+                            Khi tick chọn, lịch trình này sẽ được hệ thống ưu tiên xếp lịch trước các lịch trình thông thường
                           </p>
                         </div>
                       </div>

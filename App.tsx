@@ -770,7 +770,7 @@ const App: React.FC = () => {
         const isDateChanged = originalPatient?.dischargeDate !== patient.dischargeDate;
 
         if (isNewDischarge || isDateChanged) {
-          const confirmDischarge = window.confirm("Khi cho bệnh nhân ra, các thủ thuật sau thời gian ra viện sẽ bị xóa. Bạn có chắc chắn muốn tiếp tục?");
+          const confirmDischarge = window.confirm("Khi cho bệnh nhân ra, các lịch trình sau thời gian ra viện sẽ bị xóa. Bạn có chắc chắn muốn tiếp tục?");
           if (!confirmDischarge) {
             return;
           }
@@ -827,11 +827,11 @@ const App: React.FC = () => {
       return;
     }
     try {
-      // Kiểm tra xem bệnh nhân còn thủ thuật nào không bằng local state
+      // Kiểm tra xem bệnh nhân còn lịch trình nào không bằng local state
       const hasAppointments = appointments.some(appt => appt.patientId === patientId);
       
       if (hasAppointments) {
-        alert("Không thể xóa bệnh nhân này vì vẫn còn thủ thuật. Vui lòng xóa toàn bộ thủ thuật của bệnh nhân trước khi xóa hồ sơ.");
+        alert("Không thể xóa bệnh nhân này vì vẫn còn lịch trình. Vui lòng xóa toàn bộ lịch trình của bệnh nhân trước khi xóa hồ sơ.");
         return;
       }
 
@@ -968,7 +968,7 @@ const App: React.FC = () => {
   const handleCleanupEmptyMachineShifts = async () => {
     if (!db || !canEditCurrentDept || !currentDept) return;
     
-    // Tìm các ca máy của khoa hiện tại không có thủ thuật nào liên kết
+    // Tìm các ca máy của khoa hiện tại không có lịch trình nào liên kết
     const emptyShifts = machineShifts.filter(shift => {
       const isFromCurrentDept = shift.deptId === currentDept.id;
       const isLinked = appointments.some(appt => appt.machineShiftId === shift.id);
@@ -1064,9 +1064,9 @@ const App: React.FC = () => {
       return;
     }
 
-    // Mỗi khoa chỉ được sửa đổi thủ thuật của riêng mình
+    // Mỗi khoa chỉ được sửa đổi lịch trình của riêng mình
     if (currentUser?.role !== UserRole.ADMIN && updatedAppt.deptId !== currentDept?.id) {
-      alert("Bạn không có quyền chỉnh sửa thủ thuật của khoa khác.");
+      alert("Bạn không có quyền chỉnh sửa lịch trình của khoa khác.");
       return;
     }
 
@@ -1121,9 +1121,9 @@ const App: React.FC = () => {
         return;
     }
 
-    // Mỗi khoa chỉ được sửa đổi thủ thuật của riêng mình
+    // Mỗi khoa chỉ được sửa đổi lịch trình của riêng mình
     if (currentUser?.role !== UserRole.ADMIN && appt.deptId !== currentDept?.id) {
-      alert("Bạn không có quyền xóa thủ thuật của khoa khác.");
+      alert("Bạn không có quyền xóa lịch trình của khoa khác.");
       return;
     }
 
@@ -1140,7 +1140,7 @@ const App: React.FC = () => {
   const handleCopyToDateRange = async (patientId: string, sourceDate: string, startDate: string, endDate: string, selectedApptIds?: string[]) => {
     if (!db || !canEditCurrentDept) return;
     
-    // Mỗi khoa chỉ được sao chép thủ thuật thuộc khoa của mình
+    // Mỗi khoa chỉ được sao chép lịch trình thuộc khoa của mình
     const targetDeptId = currentDept?.id;
     let sourceAppts = appointments.filter(a => 
       a.patientId === patientId && 
@@ -1206,7 +1206,7 @@ const App: React.FC = () => {
       });
 
       if (invalidDates.length > 0) {
-        alert(`Không thể sao chép thủ thuật sang ngày mới nếu bệnh nhân đã ra viện từ hôm trước.\nBệnh nhân ${patientObj.name} đã ra viện ngày ${patientObj.dischargeDate ? new Date(patientObj.dischargeDate).toLocaleDateString('vi-VN') : 'chưa xác định'}.\n\nCác ngày sau không thể sao chép do sau ngày ra viện:\n${invalidDates.map(d => new Date(d).toLocaleDateString('vi-VN')).join(', ')}`);
+        alert(`Không thể sao chép lịch trình sang ngày mới nếu bệnh nhân đã ra viện từ hôm trước.\nBệnh nhân ${patientObj.name} đã ra viện ngày ${patientObj.dischargeDate ? new Date(patientObj.dischargeDate).toLocaleDateString('vi-VN') : 'chưa xác định'}.\n\nCác ngày sau không thể sao chép do sau ngày ra viện:\n${invalidDates.map(d => new Date(d).toLocaleDateString('vi-VN')).join(', ')}`);
         return;
       }
     }
@@ -1226,7 +1226,7 @@ const App: React.FC = () => {
       sourceAppts.forEach(source => {
         const dupes = targetDateAppts.filter(a => a.procedureId === source.procedureId);
         if (dupes.length > 0) {
-          const procName = procedures.find(p => p.id === source.procedureId)?.name || 'Thủ thuật';
+          const procName = procedures.find(p => p.id === source.procedureId)?.name || 'Lịch trình';
           const [y, m, d] = targetDate.split('-');
           duplicateWarnings.push(`Ngày ${d}/${m}/${y}: Đã có "${procName}"`);
           dupes.forEach(dp => {
@@ -1254,7 +1254,7 @@ const App: React.FC = () => {
       }
     }
 
-    // Kiểm tra ca máy cho các thủ thuật chạy theo ca máy
+    // Kiểm tra ca máy cho các lịch trình chạy theo ca máy
     const missingShifts: { date: string, procedureName: string, sourceShift: MachineShift }[] = [];
     
     dateRange.forEach(targetDate => {
@@ -1273,7 +1273,7 @@ const App: React.FC = () => {
             if (!targetShift) {
               const proc = procedures.find(p => p.id === source.procedureId);
               if (!missingShifts.some(m => m.date === targetDate && m.sourceShift.id === sourceShift.id)) {
-                missingShifts.push({ date: targetDate, procedureName: proc?.name || 'Thủ thuật', sourceShift });
+                missingShifts.push({ date: targetDate, procedureName: proc?.name || 'Lịch trình', sourceShift });
               }
             }
           }
@@ -1281,7 +1281,7 @@ const App: React.FC = () => {
       });
     });
 
-    let autoCreateShifts = true; // Luôn tự động tạo ca máy khi sao chép thủ thuật
+    let autoCreateShifts = true; // Luôn tự động tạo ca máy khi sao chép lịch trình
     const shiftsToCreate: MachineShift[] = [];
     const shiftWarnings: string[] = [];
 
@@ -1369,7 +1369,7 @@ const App: React.FC = () => {
               s.endTime === sourceShift.endTime
             );
             if (!targetShift) {
-              if (!autoCreateShifts) return; // Bỏ qua thủ thuật này ở ngày này nếu không tạo ca máy
+              if (!autoCreateShifts) return; // Bỏ qua lịch trình này ở ngày này nếu không tạo ca máy
             } else {
               targetMachineShiftId = targetShift.id;
             }
@@ -1405,7 +1405,7 @@ const App: React.FC = () => {
         const apptPromises = newAppts.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
         await Promise.all(apptPromises);
         
-        let msg = `Đã sao chép thành công ${newAppts.length} lượt thủ thuật.`;
+        let msg = `Đã sao chép thành công ${newAppts.length} lượt lịch trình.`;
         if (holidayDates.length > 0) {
           msg += `\nLưu ý: Hệ thống đã tự động bỏ qua các ngày nghỉ toàn khoa: ${holidayDates.map(d => {
             const [y, m, day] = d.split('-');
@@ -1469,7 +1469,7 @@ const App: React.FC = () => {
       });
       const filteredDischargedCount = beforeFilterCount - targetAppts.length;
       if (filteredDischargedCount > 0) {
-        console.log(`Bỏ qua ${filteredDischargedCount} thủ thuật của bệnh nhân đã ra viện từ hôm trước.`);
+        console.log(`Bỏ qua ${filteredDischargedCount} lịch trình của bệnh nhân đã ra viện từ hôm trước.`);
       }
 
       const newAppointments: Appointment[] = [];
@@ -1945,7 +1945,7 @@ const App: React.FC = () => {
     const versionName = deptId === 'SYSTEM' ? `Backup_ToanHeThong_${date}` : `Backup_${dept?.name || deptId}_${date}`;
 
     // 1. Thu thập dữ liệu cần sao lưu
-    // User yêu cầu: "Sao lưu là sao lưu toàn bộ thông tin thủ thuật và tất cả thông tin bệnh nhân nhé."
+    // User yêu cầu: "Sao lưu là sao lưu toàn bộ thông tin lịch trình và tất cả thông tin bệnh nhân nhé."
     // Vì vậy ta sẽ lấy toàn bộ dữ liệu hệ thống bất kể deptId được truyền vào là gì.
     
     const snapshot = {
@@ -1954,7 +1954,7 @@ const App: React.FC = () => {
       staff: staff,
       attendance: attendanceRecords.filter(r => r.date === date),
       machineShifts: machineShifts.filter(s => s.date === date),
-      procedures: procedures // Bao gồm cả danh mục thủ thuật
+      procedures: procedures // Bao gồm cả danh mục lịch trình
     };
 
     const backupId = isAuto ? `backup_${deptId}_${date}_auto` : `backup_${deptId}_${date}_${Date.now()}`;
@@ -2057,7 +2057,7 @@ const App: React.FC = () => {
         });
       }
 
-      // 6. Khôi phục danh mục thủ thuật
+      // 6. Khôi phục danh mục lịch trình
       if (snapshot.procedures) {
         snapshot.procedures.forEach((pr: any) => {
           promises.push(setDoc(doc(db, "procedures", pr.id), pr));
@@ -2114,7 +2114,7 @@ const App: React.FC = () => {
         }));
 
         if (targetDeptId) {
-          // Xóa các thủ thuật cũ của khoa này khỏi DB để thay thế hoàn toàn
+          // Xóa các lịch trình cũ của khoa này khỏi DB để thay thế hoàn toàn
           const oldDeptProcs = procedures.filter(p => p.deptId === targetDeptId);
           oldDeptProcs.forEach(op => {
             promises.push(deleteDoc(doc(db, "procedures", op.id)));
@@ -2316,7 +2316,7 @@ const App: React.FC = () => {
       let apptsToDelete: Appointment[] = [];
 
       if (status === PatientStatus.DISCHARGED && dischargeDateIso) {
-        const confirmDischarge = window.confirm("Khi cho bệnh nhân ra, các thủ thuật sau thời gian ra viện sẽ bị xóa. Bạn có chắc chắn muốn tiếp tục?");
+        const confirmDischarge = window.confirm("Khi cho bệnh nhân ra, các lịch trình sau thời gian ra viện sẽ bị xóa. Bạn có chắc chắn muốn tiếp tục?");
         if (!confirmDischarge) {
           return false;
         }
@@ -2681,7 +2681,7 @@ const App: React.FC = () => {
                              </div>
                              <div>
                                <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">Khả năng chuyên môn (Tay nghề)</h4>
-                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Danh mục các thủ thuật nhân viên được phép thực hiện</p>
+                               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Danh mục các lịch trình nhân viên được phép thực hiện</p>
                              </div>
                              <div className="ml-auto flex gap-2">
                                 <div className="bg-blue-50 px-3 py-1.5 rounded-lg text-[10px] font-black text-blue-600 uppercase tracking-widest border border-blue-100">
@@ -2755,7 +2755,7 @@ const App: React.FC = () => {
                 <span className="text-primary">{DEPARTMENTS.find(d => d.id === referralModal.specialty)?.name || referralModal.specialty}</span>
               </h3>
               <p className="text-[13px] text-slate-500 text-center font-bold tracking-tight mt-1">
-                Bệnh nhân sẽ được chỉ định thực hiện các thủ thuật sau tại chuyên khoa.
+                Bệnh nhân sẽ được chỉ định thực hiện các lịch trình sau tại chuyên khoa.
               </p>
             </div>
 
@@ -2777,7 +2777,7 @@ const App: React.FC = () => {
               {(referralModal.specialty === 'dept_cdha' || referralModal.specialty === 'dept_xetnghiem') ? (
                 <div className="space-y-3">
                   <label className="text-xs font-black uppercase tracking-wider text-slate-500 block">
-                    CHỌN THỦ THUẬT CHỈ ĐỊNH (BẮT BUỘC)
+                    CHỌN LỊCH TRÌNH CHỈ ĐỊNH (BẮT BUỘC)
                   </label>
                   <div className="grid grid-cols-1 gap-2">
                     {procedures.filter(p => p.deptId === referralModal.specialty).map(proc => {
@@ -2816,7 +2816,7 @@ const App: React.FC = () => {
                 </div>
               ) : (
                 <p className="text-xs text-center font-bold text-slate-400 italic">
-                  Tự động chuyển tiếp toàn bộ danh mục thủ thuật cho khoa PHCN/Dược.
+                  Tự động chuyển tiếp toàn bộ danh mục lịch trình cho khoa PHCN/Dược.
                 </p>
               )}
             </div>
@@ -2832,7 +2832,7 @@ const App: React.FC = () => {
                 onClick={() => {
                   const isSupportWithProc = referralModal.specialty === 'dept_cdha' || referralModal.specialty === 'dept_xetnghiem';
                   if (isSupportWithProc && referralModal.procedureIds.length === 0) {
-                    alert("Vui lòng chọn ít nhất một thủ thuật chỉ định!");
+                    alert("Vui lòng chọn ít nhất một lịch trình chỉ định!");
                     return;
                   }
                   handlePatientReferral(referralModal.patientId, referralModal.specialty, referralModal.procedureIds, referralModal.referralTime);

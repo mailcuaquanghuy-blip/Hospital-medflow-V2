@@ -64,14 +64,14 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   const [procCategoryFilter, setProcCategoryFilter] = useState<string>('ALL');
   const [procSearchTerm, setProcSearchTerm] = useState<string>('');
 
-  // Trạng thái sao lưu & khôi phục danh mục thủ thuật
+  // Trạng thái sao lưu & khôi phục danh mục lịch trình
   const procFileInputRef = useRef<HTMLInputElement>(null);
   const [isRestoreProcsModalOpen, setIsRestoreProcsModalOpen] = useState(false);
   const [parsedRestoreProcs, setParsedRestoreProcs] = useState<Procedure[]>([]);
   const [restoreSourceDeptName, setRestoreSourceDeptName] = useState<string>('');
   const [restoreProcMode, setRestoreProcMode] = useState<'OVERWRITE' | 'MERGE'>('OVERWRITE');
 
-  // Trạng thái cấu hình thêm thời lượng lựa chọn cho thủ thuật
+  // Trạng thái cấu hình thêm thời lượng lựa chọn cho lịch trình
   const [newOpt, setNewOpt] = useState<{
     name: string;
     durationMinutes: number;
@@ -152,7 +152,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     const defaultOptId = `opt_${Math.random().toString(36).substr(2, 9)}`;
     const newProc: Procedure = {
         id: `pr_${Math.random().toString(36).substr(2, 9)}`,
-        name: 'Thủ thuật mới',
+        name: 'Lịch trình mới',
         category: (procCategoryFilter !== 'ALL' && PROCEDURE_CATEGORIES.includes(procCategoryFilter as any)) ? (procCategoryFilter as ProcedureCategory) : 'Lâm sàng',
         durationMinutes: 30,
         restMinutes: 0,
@@ -197,7 +197,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
       const proc = procedures.find(p => p.id === id);
       if (!proc || proc.deptId !== department.id) return;
 
-      if (confirm('Bạn có chắc muốn xóa thủ thuật này?')) {
+      if (confirm('Bạn có chắc muốn xóa lịch trình này?')) {
           onUpdateProcedures(procedures.filter(p => p.id !== id));
       }
   };
@@ -481,11 +481,11 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     printWindow.document.close();
   };
 
-  // Xuất file sao lưu riêng danh mục thủ thuật của khoa hiện tại
+  // Xuất file sao lưu riêng danh mục lịch trình của khoa hiện tại
   const handleExportProceduresBackup = () => {
     const deptProcs = procedures.filter(p => p.deptId === department.id);
     if (deptProcs.length === 0) {
-      alert(`Khoa ${department.name} hiện chưa có thủ thuật nào để sao lưu!`);
+      alert(`Khoa ${department.name} hiện chưa có lịch trình nào để sao lưu!`);
       return;
     }
 
@@ -515,7 +515,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     document.body.removeChild(link);
   };
 
-  // Đọc file JSON sao lưu danh mục thủ thuật (từ khoa này hoặc từ khoa khác)
+  // Đọc file JSON sao lưu danh mục lịch trình (từ khoa này hoặc từ khoa khác)
   const handleProcFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -543,7 +543,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
         }
 
         if (!extractedProcs || extractedProcs.length === 0) {
-          alert('Không tìm thấy danh sách thủ thuật hợp lệ trong file JSON đã chọn.');
+          alert('Không tìm thấy danh sách lịch trình hợp lệ trong file JSON đã chọn.');
           return;
         }
 
@@ -584,10 +584,10 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     if (restoreProcMode === 'OVERWRITE') {
       const otherDeptsProcs = procedures.filter(p => p.deptId !== department.id);
       onUpdateProcedures([...otherDeptsProcs, ...mappedProcs]);
-      alert(`Đã khôi phục thành công ${mappedProcs.length} thủ thuật cho khoa ${department.name}! (Đã ghi đè toàn bộ danh mục cũ)`);
+      alert(`Đã khôi phục thành công ${mappedProcs.length} lịch trình cho khoa ${department.name}! (Đã ghi đè toàn bộ danh mục cũ)`);
     } else {
       onUpdateProcedures([...procedures, ...mappedProcs]);
-      alert(`Đã gộp thành công ${mappedProcs.length} thủ thuật vào danh mục của khoa ${department.name}!`);
+      alert(`Đã gộp thành công ${mappedProcs.length} lịch trình vào danh mục của khoa ${department.name}!`);
     }
 
     setIsRestoreProcsModalOpen(false);
@@ -877,8 +877,8 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                  {/* Header controls & tips */}
                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Danh mục thủ thuật ({procedures.filter(p => p.deptId === department.id).length})</h3>
-                        <p className="text-gray-500 text-xs mt-0.5 italic">Mẹo: "Chặn trước" chặn các thủ thuật trước nó. "Chặn sau" chặn các thủ thuật sau nó.</p>
+                        <h3 className="text-lg font-black text-slate-800 tracking-tight">Danh mục lịch trình ({procedures.filter(p => p.deptId === department.id).length})</h3>
+                        <p className="text-gray-500 text-xs mt-0.5 italic">Mẹo: "Chặn trước" chặn các lịch trình trước nó. "Chặn sau" chặn các lịch trình sau nó.</p>
                     </div>
                      <div className="flex flex-wrap items-center gap-2">
                         <input 
@@ -889,20 +889,20 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                             className="hidden" 
                         />
                         <Button size="sm" variant="danger" onClick={() => {
-                            if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ thủ thuật của khoa này? Hành động này không thể hoàn tác.')) {
+                            if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ lịch trình của khoa này? Hành động này không thể hoàn tác.')) {
                                 onUpdateProcedures(procedures.filter(p => p.deptId !== department.id));
                             }
                         }}>
                             <Trash2 size={16} /> Xóa tất cả
                         </Button>
-                        <Button size="sm" variant="secondary" onClick={handleExportProceduresBackup} className="border border-sky-200 text-sky-600 hover:bg-sky-50 shadow-sm font-bold bg-white" title="Tải xuống file JSON sao lưu danh mục thủ thuật của khoa này">
+                        <Button size="sm" variant="secondary" onClick={handleExportProceduresBackup} className="border border-sky-200 text-sky-600 hover:bg-sky-50 shadow-sm font-bold bg-white" title="Tải xuống file JSON sao lưu danh mục lịch trình của khoa này">
                             <Download size={16} /> Sao lưu danh mục
                         </Button>
                         <Button size="sm" variant="secondary" onClick={() => procFileInputRef.current?.click()} className="border border-emerald-200 text-emerald-600 hover:bg-emerald-50 shadow-sm font-bold bg-white" title="Khôi phục danh mục từ file JSON (có thể từ khoa này hoặc từ khoa khác)">
                             <Upload size={16} /> Khôi phục danh mục
                         </Button>
                         <Button size="sm" onClick={handleAddProcedure} className="shadow-sm font-bold">
-                            <Plus size={16} /> Thêm thủ thuật
+                            <Plus size={16} /> Thêm lịch trình
                         </Button>
                     </div>
                  </div>
@@ -913,7 +913,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="text"
-                            placeholder="Tìm kiếm theo tên thủ thuật..."
+                            placeholder="Tìm kiếm theo tên lịch trình..."
                             value={procSearchTerm}
                             onChange={e => setProcSearchTerm(e.target.value)}
                             className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-colors"
@@ -1041,7 +1041,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                                 handleDeleteProcedure(proc.id);
                                             }}
                                             className="p-1.5 bg-slate-50 rounded-lg text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all"
-                                            title="Xóa thủ thuật"
+                                            title="Xóa lịch trình"
                                         >
                                             <Trash2 size={14} />
                                         </button>
@@ -1086,11 +1086,11 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                         )})}
                  </div>
                  {procedures.filter(p => p.deptId === department.id).length === 0 && (
-                     <div className="p-8 text-center text-gray-400">Chưa có thủ thuật nào.</div>
+                     <div className="p-8 text-center text-gray-400">Chưa có lịch trình nào.</div>
                  )}
                  {procedures.filter(p => p.deptId === department.id).length > 0 && 
                   procedures.filter(p => p.deptId === department.id && (procCategoryFilter === 'ALL' || (p.category || 'Lâm sàng') === procCategoryFilter) && (!procSearchTerm.trim() || p.name.toLowerCase().includes(procSearchTerm.toLowerCase()))).length === 0 && (
-                     <div className="p-8 text-center text-gray-400">Không tìm thấy thủ thuật nào phù hợp với bộ lọc.</div>
+                     <div className="p-8 text-center text-gray-400">Không tìm thấy lịch trình nào phù hợp với bộ lọc.</div>
                  )}
             </div>
         )}
@@ -1103,7 +1103,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                           <Settings2 className="text-primary" /> 
-                          {procedures.some(p => p.id === editingProcedure.id) ? 'Chỉnh sửa thủ thuật' : 'Thêm thủ thuật mới'}
+                          {procedures.some(p => p.id === editingProcedure.id) ? 'Chỉnh sửa lịch trình' : 'Thêm lịch trình mới'}
                       </h3>
                       <button onClick={() => setEditingProcedure(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
                           <X size={24} />
@@ -1118,12 +1118,12 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                               1. Thông tin chung
                           </h4>
                           <div className="space-y-1.5">
-                              <label className="text-xs font-black text-slate-500 uppercase tracking-wide">Tên thủ thuật</label>
+                              <label className="text-xs font-black text-slate-500 uppercase tracking-wide">Tên lịch trình</label>
                               <input 
                                   className="w-full p-3.5 border-2 border-slate-200 rounded-xl text-base font-bold text-slate-850 focus:border-primary outline-none transition-all focus:bg-white bg-white"
                                   value={editingProcedure.name}
                                   onChange={e => setEditingProcedure({...editingProcedure, name: e.target.value})}
-                                  placeholder="Nhập tên thủ thuật..."
+                                  placeholder="Nhập tên lịch trình..."
                               />
                           </div>
 
@@ -1154,7 +1154,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                               </div>
                           </div>
 
-                          {/* Tích chọn thủ thuật chặn trước, chặn sau, độc lập */}
+                          {/* Tích chọn lịch trình chặn trước, chặn sau, độc lập */}
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
                               <label className="flex items-center gap-3 cursor-pointer group select-none p-3 bg-white border border-slate-200 rounded-xl hover:border-amber-400 transition-all">
                                   <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${editingProcedure.isPreRequisite ? 'bg-amber-500 border-amber-500 shadow-sm' : 'border-slate-350 group-hover:border-amber-400'}`}>
@@ -1177,7 +1177,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                       {editingProcedure.isIndependent && <Check size={14} className="text-white" strokeWidth={4} />}
                                   </div>
                                   <input type="checkbox" className="hidden" checked={editingProcedure.isIndependent || false} onChange={e => setEditingProcedure({...editingProcedure, isIndependent: e.target.checked})} />
-                                  <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Thủ thuật độc lập (Vd: Sắc thuốc)</span>
+                                  <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Lịch trình độc lập (Vd: Sắc thuốc)</span>
                               </label>
                           </div>
 
@@ -1286,7 +1286,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                       <Clock size={16} className="text-primary" />
                                       2. Các phương án thời lượng
                                   </h4>
-                                  <p className="text-[11px] text-slate-400 font-bold">Thủ thuật của bạn có thể chứa nhiều phương án thời gian chạy khác nhau.</p>
+                                  <p className="text-[11px] text-slate-400 font-bold">Lịch trình của bạn có thể chứa nhiều phương án thời gian chạy khác nhau.</p>
                               </div>
                               {!showOptForm && (
                                   <button
@@ -1489,7 +1489,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                                   <span className="text-xs font-black text-amber-900">Cho phép người phụ 1 kiêm nhiệm luôn người phụ 2</span>
                                               </label>
                                               <p className="text-[11px] text-amber-800/80 pl-6.5 pt-0.5 font-medium leading-relaxed">
-                                                  Khi kích hoạt tùy chọn này, 1 nhân sự có thể làm cả 2 vị trí phụ trong cùng thủ thuật nếu không bị trùng lịch trình khác.
+                                                  Khi kích hoạt tùy chọn này, 1 nhân sự có thể làm cả 2 vị trí phụ trong cùng lịch trình nếu không bị trùng lịch trình khác.
                                               </p>
                                           </div>
                                       )}
@@ -1644,7 +1644,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                                               e.stopPropagation();
                                                               const opts = editingProcedure.durationOptions || [];
                                                               if (opts.length <= 1) {
-                                                                  alert("Thủ thuật cần có ít nhất một phương án thời lượng!");
+                                                                  alert("Lịch trình cần có ít nhất một phương án thời lượng!");
                                                                   return;
                                                               }
                                                               if (confirm("Bạn có chắc muốn xóa phương án thời lượng này?")) {
@@ -1738,7 +1738,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                               }
                               setEditingProcedure(null);
                           }} className="px-8 py-3.5 rounded-xl shadow-lg shadow-primary/30 text-base font-black tracking-wide">
-                              <Save size={18} /> LƯU THỦ THUẬT
+                              <Save size={18} /> LƯU LỊCH TRÌNH
                           </Button>
                       </div>
                   </div>
@@ -1752,7 +1752,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                   {/* Header */}
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                          <Upload className="text-emerald-500 animate-pulse" /> Khôi phục danh mục thủ thuật
+                          <Upload className="text-emerald-500 animate-pulse" /> Khôi phục danh mục lịch trình
                       </h3>
                       <button onClick={() => setIsRestoreProcsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
                           <X size={24} />
@@ -1764,7 +1764,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                       <div className="bg-emerald-50 text-emerald-950 p-4 rounded-2xl text-xs font-bold leading-relaxed flex items-start gap-2.5 border border-emerald-200">
                           <Info size={16} className="shrink-0 text-emerald-600 mt-0.5" />
                           <span>
-                              Hệ thống đã nhận diện <strong>{parsedRestoreProcs.length} thủ thuật</strong> từ file sao lưu. Bạn có thể khôi phục và áp dụng trực tiếp cho khoa <strong>{department.name}</strong> (kể cả file sao lưu từ khoa khác).
+                              Hệ thống đã nhận diện <strong>{parsedRestoreProcs.length} lịch trình</strong> từ file sao lưu. Bạn có thể khôi phục và áp dụng trực tiếp cho khoa <strong>{department.name}</strong> (kể cả file sao lưu từ khoa khác).
                           </span>
                       </div>
 
@@ -1779,8 +1779,8 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                               <span className="font-black text-emerald-600">{department.name}</span>
                           </div>
                           <div className="flex justify-between items-center">
-                              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Tổng thủ thuật:</span>
-                              <span className="font-black text-slate-800">{parsedRestoreProcs.length} thủ thuật</span>
+                              <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Tổng lịch trình:</span>
+                              <span className="font-black text-slate-800">{parsedRestoreProcs.length} lịch trình</span>
                           </div>
                       </div>
 
@@ -1799,7 +1799,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                   />
                                   <div>
                                       <p className="font-black text-xs text-slate-800 uppercase tracking-tight">Ghi đè (Khuyên dùng)</p>
-                                      <p className="text-[11px] text-slate-500 font-bold mt-0.5 leading-relaxed">Xóa toàn bộ thủ thuật hiện có của khoa {department.name} và thay thế bằng {parsedRestoreProcs.length} thủ thuật từ file sao lưu.</p>
+                                      <p className="text-[11px] text-slate-500 font-bold mt-0.5 leading-relaxed">Xóa toàn bộ lịch trình hiện có của khoa {department.name} và thay thế bằng {parsedRestoreProcs.length} lịch trình từ file sao lưu.</p>
                                   </div>
                               </label>
 
@@ -1814,7 +1814,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                   />
                                   <div>
                                       <p className="font-black text-xs text-slate-800 uppercase tracking-tight">Gộp thêm</p>
-                                      <p className="text-[11px] text-slate-500 font-bold mt-0.5 leading-relaxed">Giữ lại các thủ thuật hiện có của khoa {department.name} và gộp thêm {parsedRestoreProcs.length} thủ thuật từ file vào.</p>
+                                      <p className="text-[11px] text-slate-500 font-bold mt-0.5 leading-relaxed">Giữ lại các lịch trình hiện có của khoa {department.name} và gộp thêm {parsedRestoreProcs.length} lịch trình từ file vào.</p>
                                   </div>
                               </label>
                           </div>

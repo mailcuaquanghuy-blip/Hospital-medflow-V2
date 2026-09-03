@@ -609,7 +609,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         const mainStaff = staff.find(s => s.id === formData.staffId);
         if (mainStaff && !mainStaff.mainCapabilityIds?.includes(formData.procedureId || '')) {
           result.hasConflict = true;
-          result.conflictDetails.push({ message: `Nhân sự ${mainStaff.name} không phù hợp thực hiện chính thủ thuật này.`, level: 1 });
+          result.conflictDetails.push({ message: `Nhân sự ${mainStaff.name} không phù hợp thực hiện chính lịch trình này.`, level: 1 });
         }
       }
 
@@ -617,7 +617,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         const asst1 = staff.find(s => s.id === formData.assistant1Id);
         if (asst1 && !asst1.assistantCapabilityIds?.includes(formData.procedureId || '')) {
           result.hasConflict = true;
-          result.conflictDetails.push({ message: `Nhân sự ${asst1.name} không phù hợp phụ thủ thuật này.`, level: 1 });
+          result.conflictDetails.push({ message: `Nhân sự ${asst1.name} không phù hợp phụ lịch trình này.`, level: 1 });
         }
       }
 
@@ -625,14 +625,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         const asst2 = staff.find(s => s.id === formData.assistant2Id);
         if (asst2 && !asst2.assistantCapabilityIds?.includes(formData.procedureId || '')) {
           result.hasConflict = true;
-          result.conflictDetails.push({ message: `Nhân sự ${asst2.name} không phù hợp phụ thủ thuật này.`, level: 1 });
+          result.conflictDetails.push({ message: `Nhân sự ${asst2.name} không phù hợp phụ lịch trình này.`, level: 1 });
         }
       }
 
       if (formData.assignedMachineId && currentProc) {
         if (!currentProc.availableMachines?.includes(formData.assignedMachineId)) {
           result.hasConflict = true;
-          result.conflictDetails.push({ message: `Máy ${formData.assignedMachineId} không phù hợp với thủ thuật này.`, level: 1 });
+          result.conflictDetails.push({ message: `Máy ${formData.assignedMachineId} không phù hợp với lịch trình này.`, level: 1 });
         }
       }
 
@@ -802,11 +802,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const getDisabledReason = () => {
     if (!formData.patientId) return "Vui lòng chọn bệnh nhân";
-    if (!formData.procedureId) return "Vui lòng chọn thủ thuật";
+    if (!formData.procedureId) return "Vui lòng chọn lịch trình";
     if (!formData.staffId) return "Vui lòng chọn người thực hiện";
     if (!formData.startTime || !formData.endTime) return "Vui lòng nhập giờ thực hiện";
-    if (isMachineShiftRequired && !formData.machineShiftId) return "Thủ thuật này bắt buộc phải chọn ca máy làm việc";
-    if (currentProc?.requireMachine && !formData.assignedMachineId) return "Thủ thuật này yêu cầu chọn máy thực hiện";
+    if (isMachineShiftRequired && !formData.machineShiftId) return "Lịch trình này bắt buộc phải chọn ca máy làm việc";
+    if (currentProc?.requireMachine && !formData.assignedMachineId) return "Lịch trình này yêu cầu chọn máy thực hiện";
 
     // Enforce assistant selection if required by the procedure
     if (currentProc) {
@@ -853,7 +853,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                  {formData.id ? 'Cập nhật chỉ định' : 'Chỉ định thủ thuật'}
+                  {formData.id ? 'Cập nhật chỉ định' : 'Chỉ định lịch trình'}
                 </h2>
                 <p className="text-sm font-medium text-slate-500">Hệ thống quản lý lâm sàng Hospital medflow</p>
               </div>
@@ -1164,11 +1164,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </div>
               </div>
 
-              {/* CỘT 2: CHỈ ĐỊNH THỦ THUẬT */}
+              {/* CỘT 2: CHỈ ĐỊNH LỊCH TRÌNH */}
               <div className="flex flex-col overflow-hidden bg-white">
                 <div className="p-6 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                    <Activity size={16} className="text-primary" /> Chỉ định thủ thuật
+                    <Activity size={16} className="text-primary" /> Chỉ định lịch trình
                   </h3>
                 </div>
                 <div className="p-6 pb-80 space-y-8 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
@@ -1238,9 +1238,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                     <div className="space-y-2">
                       <div className="flex justify-between items-center ml-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tên thủ thuật ({selectedCategory})</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tên lịch trình ({selectedCategory})</label>
                         <span className="text-[10px] font-bold text-slate-400">
-                          {filteredProcedures.filter(p => p.deptId === currentDept.id && (p.category || 'Lâm sàng') === selectedCategory).length} thủ thuật
+                          {filteredProcedures.filter(p => p.deptId === currentDept.id && (p.category || 'Lâm sàng') === selectedCategory).length} lịch trình
                         </span>
                       </div>
                       <div className="relative" ref={procDropdownRef}>
@@ -1256,7 +1256,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 <span>{currentProc.name}</span>
                               </>
                             ) : (
-                              <span className="text-slate-400">-- Chọn thủ thuật nhóm {selectedCategory} --</span>
+                              <span className="text-slate-400">-- Chọn lịch trình nhóm {selectedCategory} --</span>
                             )}
                           </div>
                           <ChevronDown size={18} className={`text-slate-400 transition-transform ${isProcDropdownOpen ? 'rotate-180' : ''}`} />
@@ -1276,7 +1276,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   <input
                                     autoFocus
                                     className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-primary transition-all shadow-sm"
-                                    placeholder={`Tìm thủ thuật trong ${selectedCategory}...`}
+                                    placeholder={`Tìm lịch trình trong ${selectedCategory}...`}
                                     value={procSearchTerm}
                                     onChange={e => setProcSearchTerm(e.target.value)}
                                   />
@@ -1293,7 +1293,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   if (matchingProcs.length === 0) {
                                     return (
                                       <div className="p-8 text-center text-slate-400 italic text-xs font-bold">
-                                        Không tìm thấy thủ thuật nào thuộc nhóm {selectedCategory}
+                                        Không tìm thấy lịch trình nào thuộc nhóm {selectedCategory}
                                       </div>
                                     );
                                   }
@@ -1771,9 +1771,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               return <option key={m.code} value={m.code} disabled={m.isFull}>{label}</option>;
                             })
                           ) : formData.procedureId ? (
-                            <option value="" disabled>Không có máy cho thủ thuật này</option>
+                            <option value="" disabled>Không có máy cho lịch trình này</option>
                           ) : (
-                            <option value="" disabled>Vui lòng chọn thủ thuật trước</option>
+                            <option value="" disabled>Vui lòng chọn lịch trình trước</option>
                           )}
                         </select>
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors z-20">
@@ -1989,14 +1989,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm('Bạn có chắc chắn muốn xóa thủ thuật này?')) {
+                    if (window.confirm('Bạn có chắc chắn muốn xóa lịch trình này?')) {
                       onDelete(formData.id!);
                       onClose();
                     }
                   }}
                   className="px-6 py-3 text-rose-500 font-bold text-xs hover:text-white transition-all uppercase tracking-widest hover:bg-rose-500 border border-rose-200 hover:border-rose-500 rounded-xl flex items-center gap-2"
                 >
-                  <Trash2 size={16} /> XÓA THỦ THUẬT
+                  <Trash2 size={16} /> XÓA LỊCH TRÌNH
                 </button>
               ) : (
                 <div />
@@ -2080,7 +2080,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                        </div>
                        <div>
                           <h3 className="font-black text-sm uppercase tracking-widest">Quản lý ca máy</h3>
-                          <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-widest mt-0.5">Thủ thuật: {currentProc?.name}</p>
+                          <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-widest mt-0.5">Lịch trình: {currentProc?.name}</p>
                        </div>
                     </div>
                     <button onClick={() => setIsShiftModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-all">

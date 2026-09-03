@@ -51,7 +51,7 @@ export const MachineShiftManager: React.FC<MachineShiftManagerProps> = ({
   const [assistant1Id, setAssistant1Id] = useState('');
   const [assistant2Id, setAssistant2Id] = useState('');
 
-  // Lấy các thủ thuật có máy sức chứa > 1
+  // Lấy các lịch trình có máy sức chứa > 1
   const machineProcedures = useMemo(() => {
     return procedures.filter(p => p.deptId === currentDept.id && p.requireMachine && (p.machineCapacity || 1) > 1 && p.availableMachines && p.availableMachines.length > 0);
   }, [procedures, currentDept.id]);
@@ -325,7 +325,7 @@ export const MachineShiftManager: React.FC<MachineShiftManagerProps> = ({
                 </div>
               )}
               <div className="flex flex-col gap-2">
-                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Thủ thuật</label>
+                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Lịch trình</label>
                 <select value={procedureId} onChange={e => { setProcedureId(e.target.value); setMachineId(''); setAssistant1Id(''); setAssistant2Id(''); }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all">
                   {machineProcedures.map(p => <option key={p.id} value={p.id}>{p.name} (Sức chứa: {p.machineCapacity})</option>)}
                 </select>

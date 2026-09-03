@@ -70,14 +70,14 @@ export const CopyRangeModal: React.FC<CopyRangeModalProps> = ({
       return;
     }
     if (appointmentsToCopy.length > 0 && selectedApptIds.length === 0) {
-      alert("Vui lòng chọn ít nhất một thủ thuật để sao chép.");
+      alert("Vui lòng chọn ít nhất một lịch trình để sao chép.");
       return;
     }
     onConfirm(startDate, endDate, appointmentsToCopy.length > 0 ? selectedApptIds : undefined);
   };
 
   const getProcedureName = (procId: string) => {
-    return procedures.find(p => p.id === procId)?.name || 'Thủ thuật';
+    return procedures.find(p => p.id === procId)?.name || 'Lịch trình';
   };
 
   const toggleApptSelection = (id: string) => {
@@ -135,7 +135,7 @@ export const CopyRangeModal: React.FC<CopyRangeModalProps> = ({
 
           {appointmentsToCopy.length > 0 && (
             <div className="space-y-2">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chọn thủ thuật để sao chép</label>
+               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chọn lịch trình để sao chép</label>
                <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
                  {appointmentsToCopy.map(appt => (
                    <label key={appt.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">

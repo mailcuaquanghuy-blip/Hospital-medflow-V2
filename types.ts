@@ -49,8 +49,8 @@ export interface Staff {
   deptId: string;
   avatar?: string;
   capabilityIds: string[]; // Legacy field for backward compatibility if needed
-  mainCapabilityIds: string[]; // Danh sách ID các thủ thuật có thể làm chính
-  assistantCapabilityIds: string[]; // Danh sách ID các thủ thuật có thể làm phụ
+  mainCapabilityIds: string[]; // Danh sách ID các lịch trình có thể làm chính
+  assistantCapabilityIds: string[]; // Danh sách ID các lịch trình có thể làm phụ
 }
 
 export interface AttendanceRecord {
@@ -75,7 +75,7 @@ export interface PatientReferral {
   status?: 'ACTIVE' | 'FINISHED';
   finishedDate?: string | null;
   finishedTime?: string | null;
-  procedureIds?: string[]; // Các thủ thuật được khoa lâm sàng chỉ định
+  procedureIds?: string[]; // Các lịch trình được khoa lâm sàng chỉ định
 }
 
 export interface Patient {
@@ -134,7 +134,7 @@ export interface Procedure {
   assistant1BusyMinutes?: number; 
   assistant2BusyMinutes?: number; 
   
-  restMinutes?: number; // Thời gian nghỉ sau thủ thuật
+  restMinutes?: number; // Thời gian nghỉ sau lịch trình
   deptId?: string; 
   requireMachine?: boolean;
   machineCapacity?: number; 

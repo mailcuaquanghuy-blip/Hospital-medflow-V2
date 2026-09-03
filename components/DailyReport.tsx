@@ -133,7 +133,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
   });
   const [selectedTimelineStaff, setSelectedTimelineStaff] = useState<string[]>([]);
 
-  // States cho Bảng chấm công thủ thuật
+  // States cho Bảng chấm công lịch trình
   const [tcFromDate, setTcFromDate] = useState<string>(() => {
     const m = String(selectedMonth).padStart(2, '0');
     return `${selectedYear}-${m}-01`;
@@ -191,7 +191,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     });
   }, [appointments, selectedMonth, selectedYear, currentDept, filterDeptId, patients, procedures]);
 
-  // Thống kê số lượng thủ thuật và số lượng bệnh nhân theo từng ngày trong tháng
+  // Thống kê số lượng lịch trình và số lượng bệnh nhân theo từng ngày trong tháng
   const dailyStats = useMemo(() => {
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
     const statsList = [];
@@ -200,10 +200,10 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       const dayStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dayAppts = monthlyAppointments.filter(a => a.date === dayStr);
       
-      // Số lượng thủ thuật
+      // Số lượng lịch trình
       const procedureCount = dayAppts.length;
       
-      // Số lượng bệnh nhân độc nhất nhận thủ thuật trong ngày
+      // Số lượng bệnh nhân độc nhất nhận lịch trình trong ngày
       const uniquePatientIds = Array.from(new Set(dayAppts.map(a => a.patientId)));
       const patientCount = uniquePatientIds.length;
 
@@ -227,7 +227,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       statsList.push({
         dayLabel: `${String(day).padStart(2, '0')}/${String(selectedMonth).padStart(2, '0')}`,
         day: day,
-        "Thủ thuật": procedureCount,
+        "Lịch trình": procedureCount,
         "Bệnh nhân": patientCount,
         "BN Nội trú": inpatientCount,
         "BN Nội trú ban ngày": dayInpatientCount,
@@ -239,7 +239,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     return statsList;
   }, [monthlyAppointments, selectedMonth, selectedYear, patients]);
 
-  // Tổng số lượng thủ thuật và bệnh nhân trong tháng phục vụ hiển thị tổng quan
+  // Tổng số lượng lịch trình và bệnh nhân trong tháng phục vụ hiển thị tổng quan
   const totalMonthlyProcedures = useMemo(() => {
     return monthlyAppointments.length;
   }, [monthlyAppointments]);
@@ -249,7 +249,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     return uniquePatients.size;
   }, [monthlyAppointments]);
 
-  // Thống kê cơ cấu các loại giường (Nội trú, Nội trú ban ngày, Ngoại trú, Khác) trong các ca thủ thuật của tháng
+  // Thống kê cơ cấu các loại giường (Nội trú, Nội trú ban ngày, Ngoại trú, Khác) trong các ca lịch trình của tháng
   const bedTypeStats = useMemo(() => {
     const counts: Record<string, number> = {
       'Nội trú': 0,
@@ -390,12 +390,12 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       const procedureDeptId = proc?.deptId || a.deptId;
       
       if (currentDept.type === DepartmentType.CLINICAL) {
-        // Khoa lâm sàng: Chỉ xem báo cáo các thủ thuật thực hiện trên bệnh nhân của khoa mình
-        // Có thể là thủ thuật của chính khoa mình hoặc của khoa chuyên khoa được gửi khám
+        // Khoa lâm sàng: Chỉ xem báo cáo các lịch trình thực hiện trên bệnh nhân của khoa mình
+        // Có thể là lịch trình của chính khoa mình hoặc của khoa chuyên khoa được gửi khám
         return patient?.admittedByDeptId === currentDept.id && procedureDeptId === filterDeptId;
       } else {
         // Khoa chuyên khoa (SUPPORT)
-        // Luôn chỉ xem báo cáo các thủ thuật thuộc về chuyên khoa mình
+        // Luôn chỉ xem báo cáo các lịch trình thuộc về chuyên khoa mình
         if (filterDeptId === currentDept.id) {
           // Xem toàn bộ báo cáo của chuyên khoa mình (tất cả các khoa lâm sàng gửi đến)
           return procedureDeptId === currentDept.id;
@@ -451,7 +451,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     });
   }, [staff, filterDeptId, currentDept, activeDate, attendanceRecords]);
 
-  // 1. Thống kê số lượng thủ thuật
+  // 1. Thống kê số lượng lịch trình
   const procedureStats = useMemo(() => {
     const stats: Record<string, number> = {};
     filteredAppointments.forEach(appt => {
@@ -463,7 +463,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
         const proc = procedures.find(p => p.id === procedureId);
         return {
           procedureId,
-          name: proc?.name || 'Thủ thuật đã xóa',
+          name: proc?.name || 'Lịch trình đã xóa',
           count
         };
       })
@@ -533,7 +533,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
         const proc = procedures.find(p => p.id === procedureId);
         return {
           procedureId,
-          name: proc?.name || 'Thủ thuật đã xóa',
+          name: proc?.name || 'Lịch trình đã xóa',
           count
         };
       }).sort((a, b) => b.count - a.count);
@@ -582,7 +582,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     return list;
   }, [tcFromDate, tcToDate]);
 
-  // Lịch hẹn thuộc khoảng ngày chấm công thủ thuật
+  // Lịch hẹn thuộc khoảng ngày chấm công lịch trình
   const timecardAppointments = useMemo(() => {
     if (!tcFromDate || !tcToDate) return [];
     return appointments.filter(a => {
@@ -604,7 +604,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     });
   }, [appointments, tcFromDate, tcToDate, currentDept, filterDeptId, patients, procedures]);
 
-  // Ma trận chấm công thủ thuật theo từng bệnh nhân
+  // Ma trận chấm công lịch trình theo từng bệnh nhân
   const timecardMatrix = useMemo(() => {
     const patientMap = new Map<string, {
       patient: Patient;
@@ -629,7 +629,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       }
 
       const proc = procedures.find(pr => pr.id === a.procedureId);
-      const procName = proc ? proc.name : 'Thủ thuật khác';
+      const procName = proc ? proc.name : 'Lịch trình khác';
       const procId = proc ? proc.id : a.procedureId;
 
       if (!patientMap.has(p.id)) {
@@ -679,10 +679,10 @@ export const DailyReport: React.FC<DailyReportProps> = ({
     return result;
   }, [timecardAppointments, patients, procedures, tcSearchTerm]);
 
-  // Xuất CSV Bảng chấm công thủ thuật
+  // Xuất CSV Bảng chấm công lịch trình
   const handleExportTimecardCSV = () => {
     if (timecardMatrix.length === 0 || dateList.length === 0) {
-      alert("Không có dữ liệu chấm công thủ thuật để xuất CSV.");
+      alert("Không có dữ liệu chấm công lịch trình để xuất CSV.");
       return;
     }
 
@@ -691,7 +691,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       { label: 'Mã BN', key: 'patientCode' },
       { label: 'Phòng', key: 'roomNumber' },
       { label: 'Giường', key: 'bedNumber' },
-      { label: 'Tên thủ thuật', key: 'procedureName' },
+      { label: 'Tên lịch trình', key: 'procedureName' },
       ...dateList.map(d => {
         const [y, m, day] = d.split('-');
         return { label: `${parseInt(day, 10)}/${parseInt(m, 10)}`, key: `d_${d}` };
@@ -707,7 +707,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
           patientCode: pItem.patient.code,
           roomNumber: pItem.patient.roomNumber || '',
           bedNumber: pItem.patient.bedNumber || '',
-          procedureName: 'Chưa có thủ thuật',
+          procedureName: 'Chưa có lịch trình',
           total: 0
         };
         dateList.forEach(d => {
@@ -732,11 +732,11 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       }
     });
 
-    const filename = `Bang_Cham_Cong_Thu_Thuat_${tcFromDate}_den_${tcToDate}.csv`;
+    const filename = `Bang_Cham_Cong_Lich_Trinh_${tcFromDate}_den_${tcToDate}.csv`;
     downloadCSV(csvRows, filename, headers);
   };
 
-  // In / Xuất PDF Bảng chấm công thủ thuật
+  // In / Xuất PDF Bảng chấm công lịch trình
   const handlePrintTimecard = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -756,7 +756,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       matrixRowsHTML = `
         <tr>
           <td colSpan="${dateList.length + 3}" style="text-align: center; padding: 25px; font-style: italic; color: #666;">
-            Không có dữ liệu thủ thuật trong khoảng thời gian từ ${formatDateVi(tcFromDate)} đến ${formatDateVi(tcToDate)}
+            Không có dữ liệu lịch trình trong khoảng thời gian từ ${formatDateVi(tcFromDate)} đến ${formatDateVi(tcToDate)}
           </td>
         </tr>
       `;
@@ -769,7 +769,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                 ${pItem.patient.name}<br/>
                 <small style="font-weight: normal; color: #555;">Mã: ${pItem.patient.code} | G: ${pItem.patient.bedNumber || '-'}</small>
               </td>
-              <td style="color: #888; font-style: italic;">Chưa thực hiện thủ thuật nào</td>
+              <td style="color: #888; font-style: italic;">Chưa thực hiện lịch trình nào</td>
               ${dateList.map(() => `<td class="text-center"></td>`).join('')}
               <td class="text-center">0</td>
             </tr>
@@ -803,7 +803,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
       <html lang="vi">
       <head>
         <meta charset="UTF-8">
-        <title>Bảng chấm công thủ thuật - ${currentDept.name}</title>
+        <title>Bảng chấm công lịch trình - ${currentDept.name}</title>
         <style>
           @page {
             size: A4 landscape;
@@ -890,14 +890,14 @@ export const DailyReport: React.FC<DailyReportProps> = ({
           </tr>
         </table>
 
-        <div class="title">BẢNG CHẤM CÔNG THỦ THUẬT BỆNH NHÂN</div>
+        <div class="title">BẢNG CHẤM CÔNG LỊCH TRÌNH BỆNH NHÂN</div>
         <div class="subtitle">(Từ ngày ${formatDateVi(tcFromDate)} đến ngày ${formatDateVi(tcToDate)})</div>
 
         <table class="data-table">
           <thead>
             <tr>
               <th style="width: 160px;">Họ và tên bệnh nhân</th>
-              <th style="width: 150px;">Tên thủ thuật</th>
+              <th style="width: 150px;">Tên lịch trình</th>
               ${dateList.map(d => {
                 const [y, m, day] = d.split('-');
                 return `<th class="text-center">${parseInt(day, 10)}/${parseInt(m, 10)}</th>`;
@@ -1026,7 +1026,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
               <Zap size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Thủ thuật trong ngày</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Lịch trình trong ngày</span>
               <span className="text-xl font-black text-slate-800 block">
                 {filteredAppointments.length} <span className="text-xs font-semibold text-slate-400">ca</span>
               </span>
@@ -1038,7 +1038,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
               <User size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">BN nhận thủ thuật</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">BN nhận lịch trình</span>
               <span className="text-xl font-black text-slate-800 block">
                 {new Set(filteredAppointments.map(a => a.patientId)).size} <span className="text-xs font-semibold text-slate-400">người</span>
               </span>
@@ -1135,11 +1135,11 @@ export const DailyReport: React.FC<DailyReportProps> = ({
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Biểu đồ tổng quan thủ thuật */}
+        {/* Biểu đồ tổng quan lịch trình */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
             <Zap className="text-amber-500" size={20} />
-            Thống kê thủ thuật thực hiện
+            Thống kê lịch trình thực hiện
           </h3>
           <p className="text-xs text-slate-500 mb-4 -mt-4">
             {currentDept.type === DepartmentType.CLINICAL ? 'Khoa thực hiện: ' : 'Khoa chỉ định: '}
@@ -1182,12 +1182,12 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-400">Không có dữ liệu thủ thuật</div>
+              <div className="flex items-center justify-center h-full text-slate-400">Không có dữ liệu lịch trình</div>
             )}
           </div>
         </div>
 
-        {/* Chi tiết thủ thuật của nhân sự được chọn */}
+        {/* Chi tiết lịch trình của nhân sự được chọn */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
             <User className="text-indigo-500" size={20} />
@@ -1196,8 +1196,8 @@ export const DailyReport: React.FC<DailyReportProps> = ({
           <p className="text-xs text-slate-500 mb-4 -mt-4">
             {selectedStaffData 
               ? (currentDept.type === DepartmentType.CLINICAL
-                  ? `Các thủ thuật thực hiện tại ${allDepts.find(d => d.id === filterDeptId)?.name}`
-                  : `Các thủ thuật thực hiện cho bệnh nhân khoa ${filterDeptId === currentDept.id ? 'tất cả' : allDepts.find(d => d.id === filterDeptId)?.name}`)
+                  ? `Các lịch trình thực hiện tại ${allDepts.find(d => d.id === filterDeptId)?.name}`
+                  : `Các lịch trình thực hiện cho bệnh nhân khoa ${filterDeptId === currentDept.id ? 'tất cả' : allDepts.find(d => d.id === filterDeptId)?.name}`)
               : 'Nhấn vào hàng nhân sự trong bảng bên dưới'}
           </p>
           <div className="flex-1 min-h-[300px]">
@@ -1230,7 +1230,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-slate-400">Nhân sự này chưa thực hiện thủ thuật nào</div>
+                <div className="flex items-center justify-center h-full text-slate-400">Nhân sự này chưa thực hiện lịch trình nào</div>
               )
             ) : (
               <div className="flex items-center justify-center h-full text-slate-400">
@@ -1254,7 +1254,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
               Báo cáo Chi tiết theo Tháng của Khoa
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Thống kê tổng hợp số lượng thủ thuật, số bệnh nhân và cơ cấu giường bệnh trong tháng {selectedMonth}/{selectedYear}
+              Thống kê tổng hợp số lượng lịch trình, số bệnh nhân và cơ cấu giường bệnh trong tháng {selectedMonth}/{selectedYear}
             </p>
           </div>
 
@@ -1295,7 +1295,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
               <Activity size={20} />
             </div>
             <div>
-              <span className="text-[11px] font-bold text-slate-500 block uppercase tracking-wider">Tổng số thủ thuật</span>
+              <span className="text-[11px] font-bold text-slate-500 block uppercase tracking-wider">Tổng số lịch trình</span>
               <span className="text-2xl font-black text-slate-800">{totalMonthlyProcedures}</span>
               <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">lượt thực hiện</span>
             </div>
@@ -1308,7 +1308,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
             <div>
               <span className="text-[11px] font-bold text-slate-500 block uppercase tracking-wider">Tổng số bệnh nhân</span>
               <span className="text-2xl font-black text-slate-800">{totalMonthlyPatients}</span>
-              <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">nhận thủ thuật</span>
+              <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">nhận lịch trình</span>
             </div>
           </div>
 
@@ -1350,11 +1350,11 @@ export const DailyReport: React.FC<DailyReportProps> = ({
 
         {/* Section biểu đồ chi tiết của tháng */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Biểu đồ đường (LineChart) thể hiện số lượng thủ thuật và số lượng bệnh nhân theo ngày */}
+          {/* Biểu đồ đường (LineChart) thể hiện số lượng lịch trình và số lượng bệnh nhân theo ngày */}
           <div className="xl:col-span-2 border border-slate-100 p-4 rounded-xl flex flex-col">
             <h4 className="text-xs font-black uppercase text-slate-600 tracking-wider mb-4 flex items-center gap-2">
               <TrendingUp size={16} className="text-blue-500" />
-              Diễn biến số lượt thủ thuật & bệnh nhân theo các ngày trong tháng
+              Diễn biến số lượt lịch trình & bệnh nhân theo các ngày trong tháng
             </h4>
             <div className="h-[320px] w-full flex-1">
               {totalMonthlyProcedures > 0 ? (
@@ -1414,14 +1414,14 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                         style={{ fill: '#475569', fontSize: '10px', fontWeight: '900' }} 
                       />
                     </Bar>
-                    {/* Đường biểu diễn số thủ thuật */}
+                    {/* Đường biểu diễn số lịch trình */}
                     <Line 
                       type="monotone" 
-                      dataKey="Thủ thuật" 
+                      dataKey="Lịch trình" 
                       stroke="#2563eb" 
                       strokeWidth={3} 
                       activeDot={{ r: 6 }} 
-                      name="Số thủ thuật"
+                      name="Số lịch trình"
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -1439,7 +1439,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
             <div>
               <h4 className="text-xs font-black uppercase text-slate-600 tracking-wider mb-4 flex items-center gap-2">
                 <Bed size={16} className="text-emerald-500" />
-                Cơ cấu thủ thuật theo loại giường bệnh (%)
+                Cơ cấu lịch trình theo loại giường bệnh (%)
               </h4>
               <div className="h-[200px] w-full flex items-center justify-center relative">
                 {bedTypeStats.length > 0 ? (
@@ -1493,7 +1493,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                 );
               })}
               {bedTypeStats.length === 0 && (
-                <div className="text-xs text-center text-slate-400">Không có lượt thủ thuật nào trong tháng này để phân tích loại giường</div>
+                <div className="text-xs text-center text-slate-400">Không có lượt lịch trình nào trong tháng này để phân tích loại giường</div>
               )}
             </div>
           </div>
@@ -1630,7 +1630,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
               Báo cáo khối lượng công việc theo Bác sĩ Điều trị
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Tổng hợp sản lượng bệnh nhân và số chỉ định thủ thuật tương ứng thuộc sự kiểm soát của từng Bác sĩ Điều trị trong tháng.
+              Tổng hợp sản lượng bệnh nhân và số chỉ định lịch trình tương ứng thuộc sự kiểm soát của từng Bác sĩ Điều trị trong tháng.
             </p>
           </div>
         </div>
@@ -1640,7 +1640,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
           <div className="xl:col-span-2 border border-slate-100 p-4 rounded-xl flex flex-col">
             <h4 className="text-xs font-black uppercase text-slate-600 tracking-wider mb-4 flex items-center gap-2">
               <TrendingUp size={16} className="text-indigo-500" />
-              Biểu đồ trực quan so sánh sản lượng & thủ thuật
+              Biểu đồ trực quan so sánh sản lượng & lịch trình
             </h4>
             <div className="h-[320px] w-full flex-1">
               {doctorStats.length > 0 ? (
@@ -1670,7 +1670,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                       wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }}
                     />
                     <Bar dataKey="patientCount" name="Số bệnh nhân" fill="#06b6d4" radius={[0, 4, 4, 0]} barSize={10} />
-                    <Bar dataKey="procedureCount" name="Số thủ thuật" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={10} />
+                    <Bar dataKey="procedureCount" name="Số lịch trình" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={10} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -1690,8 +1690,8 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                   <tr className="border-b border-slate-100 text-slate-400 select-none">
                     <th className="text-[10px] font-black uppercase tracking-wider pb-3 ps-3">Tên Bác sĩ</th>
                     <th className="text-[10px] font-black uppercase tracking-wider pb-3 text-center">Số bệnh nhân</th>
-                    <th className="text-[10px] font-black uppercase tracking-wider pb-3 text-center">Số thủ thuật</th>
-                    <th className="text-[10px] font-black uppercase tracking-wider pb-3 text-center pe-3">Tỷ lệ thủ thuật / BN</th>
+                    <th className="text-[10px] font-black uppercase tracking-wider pb-3 text-center">Số lịch trình</th>
+                    <th className="text-[10px] font-black uppercase tracking-wider pb-3 text-center pe-3">Tỷ lệ lịch trình / BN</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -1734,16 +1734,16 @@ export const DailyReport: React.FC<DailyReportProps> = ({
             </div>
           </div>
         </div>
-      {/* BẢNG CHẤM CÔNG THỦ THUẬT BỆNH NHÂN (MATRIX TIMECARD REPORT) */}
+      {/* BẢNG CHẤM CÔNG LỊCH TRÌNH BỆNH NHÂN (MATRIX TIMECARD REPORT) */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col mt-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 border-b border-slate-100 pb-5">
           <div>
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 font-sans">
               <FileSpreadsheet className="text-emerald-600" size={22} />
-              Bảng Chấm Công Thủ Thuật Bệnh Nhân
+              Bảng Chấm Công Lịch Trình Bệnh Nhân
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Theo dõi ma trận chấm công chi tiết các thủ thuật thực hiện theo từng ngày cho bệnh nhân (Đánh dấu 'x' ngày có thực hiện).
+              Theo dõi ma trận chấm công chi tiết các lịch trình thực hiện theo từng ngày cho bệnh nhân (Đánh dấu 'x' ngày có thực hiện).
             </p>
           </div>
 
@@ -1838,7 +1838,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
             <thead>
               <tr className="bg-slate-100 text-slate-700 text-xs font-black uppercase tracking-wider border-b border-slate-200">
                 <th className="p-3 border-r border-slate-200 min-w-[180px] text-slate-800">Họ tên bệnh nhân</th>
-                <th className="p-3 border-r border-slate-200 min-w-[170px] text-slate-800">Tên thủ thuật</th>
+                <th className="p-3 border-r border-slate-200 min-w-[170px] text-slate-800">Tên lịch trình</th>
                 {dateList.map(d => {
                   const [y, m, day] = d.split('-');
                   return (
@@ -1863,7 +1863,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                         </div>
                       </td>
                       <td className="p-3 border-r border-slate-200 text-xs italic text-slate-400">
-                        Chưa có thủ thuật
+                        Chưa có lịch trình
                       </td>
                       {dateList.map(d => (
                         <td key={d} className="p-2 border-r border-slate-200 text-center text-slate-300 font-light text-xs">-</td>
@@ -1922,7 +1922,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                     className="p-12 text-center text-xs text-slate-400 font-bold bg-slate-50/30"
                   >
                     <FileSpreadsheet size={32} className="mx-auto mb-2 text-slate-300 animate-pulse" />
-                    Không tìm thấy dữ liệu thủ thuật phù hợp trong khoảng thời gian {tcFromDate} - {tcToDate}.
+                    Không tìm thấy dữ liệu lịch trình phù hợp trong khoảng thời gian {tcFromDate} - {tcToDate}.
                   </td>
                 </tr>
               )}
@@ -1944,14 +1944,14 @@ export const DailyReport: React.FC<DailyReportProps> = ({
               Bảng Phân Bổ Thời Gian & Timeline Bận/Rảnh Nhân Sự
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Chi tiết các khoảng thời gian bận (thực hiện thủ thuật) và rảnh của từng nhân sự (Nhấn vào hàng nhân sự để xem biểu đồ chi tiết phía trên)
+              Chi tiết các khoảng thời gian bận (thực hiện lịch trình) và rảnh của từng nhân sự (Nhấn vào hàng nhân sự để xem biểu đồ chi tiết phía trên)
             </p>
           </div>
           
           <div className="flex items-center gap-4 text-xs font-semibold bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg shrink-0 self-start sm:self-auto">
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded bg-[#f1b44c] inline-block"></span>
-              <span className="text-slate-600">Bận (Làm thủ thuật)</span>
+              <span className="text-slate-600">Bận (Làm lịch trình)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded bg-[#34c38f] inline-block"></span>

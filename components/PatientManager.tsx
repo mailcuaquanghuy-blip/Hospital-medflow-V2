@@ -141,13 +141,13 @@ export const PatientManager: React.FC<PatientManagerProps> = ({
             
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
                <Button className="w-full mb-4" onClick={() => onBookAppointment(selectedPatientId)}>
-                  <Plus size={16} /> Thêm thủ thuật mới
+                  <Plus size={16} /> Thêm lịch trình mới
                </Button>
 
                {getPatientAppointments(selectedPatientId).length === 0 ? (
                    <div className="text-center text-slate-400 py-10">
                        <FileText size={40} className="mx-auto mb-2 opacity-20" />
-                       <p className="text-sm">Chưa có lịch thủ thuật nào</p>
+                       <p className="text-sm">Chưa có lịch trình nào</p>
                    </div>
                ) : (
                    getPatientAppointments(selectedPatientId).map(appt => {

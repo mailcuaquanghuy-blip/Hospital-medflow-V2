@@ -179,7 +179,7 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
             fromDate: 'Không áp dụng',
             toDate: 'Không áp dụng',
             createdBy: json.createdBy || 'Hệ thống',
-            note: 'File sao lưu riêng danh mục thủ thuật',
+            note: 'File sao lưu riêng danh mục lịch trình',
             data: {
               procedures: json.data,
               staff: [],
@@ -232,7 +232,7 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
     
     let confirmMsg = '';
     if (isCrossDept) {
-      confirmMsg = `XÁC NHẬN KHÔI PHỤC LIÊN KHOA:\n\nFile sao lưu này có nguồn gốc từ khoa "${sourceDeptName}".\nBạn đang khôi phục dữ liệu đã chọn vào khoa "${currentDept.name}".\n\nHệ thống sẽ tự động gán toàn bộ danh mục thủ thuật/dữ liệu đã chọn sang khoa "${currentDept.name}".\n\nBạn có muốn tiếp tục?`;
+      confirmMsg = `XÁC NHẬN KHÔI PHỤC LIÊN KHOA:\n\nFile sao lưu này có nguồn gốc từ khoa "${sourceDeptName}".\nBạn đang khôi phục dữ liệu đã chọn vào khoa "${currentDept.name}".\n\nHệ thống sẽ tự động gán toàn bộ danh mục lịch trình/dữ liệu đã chọn sang khoa "${currentDept.name}".\n\nBạn có muốn tiếp tục?`;
     } else {
       const { deptName, fromDate, toDate } = uploadedFileContent;
       confirmMsg = `CẢNH BÁO: Dữ liệu đã chọn của khoa ${deptName || currentDept.name} sẽ được cập nhật/thay thế bằng dữ liệu từ file sao lưu.\n\nBạn có chắc chắn muốn tiếp tục?`;
@@ -401,8 +401,8 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
                       className="w-4.5 h-4.5 text-sky-500 border-slate-300 rounded focus:ring-sky-400 cursor-pointer"
                     />
                     <div className="text-left">
-                      <p className="text-xs font-bold text-slate-800">Danh mục thủ thuật</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{deptProcedures.length} thủ thuật</p>
+                      <p className="text-xs font-bold text-slate-800">Danh mục lịch trình</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{deptProcedures.length} lịch trình</p>
                     </div>
                   </label>
 
@@ -503,7 +503,7 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
                     <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-sky-900 font-bold">
                       <Info size={16} className="text-sky-600 shrink-0 mt-0.5" />
                       <span>
-                        File này có nguồn gốc từ khoa <strong>"{uploadedFileContent.deptName || uploadedFileContent.deptId}"</strong>. Khi khôi phục, danh mục thủ thuật/nhân sự sẽ được chuyển đổi tự động sang khoa <strong>"{currentDept.name}"</strong>.
+                        File này có nguồn gốc từ khoa <strong>"{uploadedFileContent.deptName || uploadedFileContent.deptId}"</strong>. Khi khôi phục, danh mục lịch trình/nhân sự sẽ được chuyển đổi tự động sang khoa <strong>"{currentDept.name}"</strong>.
                       </span>
                     </div>
                   )}
@@ -536,8 +536,8 @@ export const DepartmentBackupModal: React.FC<DepartmentBackupModalProps> = ({
                             className="w-4.5 h-4.5 text-emerald-600 border-emerald-300 rounded focus:ring-emerald-400 cursor-pointer"
                           />
                           <div className="text-left">
-                            <p className="text-xs font-bold text-slate-800">Danh mục thủ thuật</p>
-                            <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{uploadedFileContent.data.procedures.length} thủ thuật</p>
+                            <p className="text-xs font-bold text-slate-800">Danh mục lịch trình</p>
+                            <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{uploadedFileContent.data.procedures.length} lịch trình</p>
                           </div>
                         </label>
                       )}

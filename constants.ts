@@ -52,7 +52,7 @@ export const MOCK_PROCEDURES: Procedure[] = [
   { id: 'pr5', name: 'Xét nghiệm máu', category: 'Lâm sàng', durationMinutes: 15, mainBusyStart: 0, mainBusyEnd: 15, deptId: 'dept_xetnghiem' },
   { id: 'pr6', name: 'Sắc thuốc', category: 'Lâm sàng', durationMinutes: 120, mainBusyStart: 0, mainBusyEnd: 0, isIndependent: true, deptId: 'dept_duoc' },
   
-  // Các thủ thuật của Khoa Lão (dept_lao)
+  // Các lịch trình của Khoa Lão (dept_lao)
   { id: 'pr_lao_diencham', name: 'Điện châm', category: 'Lâm sàng', durationMinutes: 30, mainBusyStart: 0, mainBusyEnd: 6, asst1BusyStart: 0, asst1BusyEnd: 5, asst2BusyStart: 25, asst2BusyEnd: 27, requireMachine: true, availableMachines: ['DC-L01', 'DC-L02', 'DC-L03', 'DC-L04', 'DC-L05'], deptId: 'dept_lao' },
   { id: 'pr_lao_thuycham', name: 'Thủy châm', category: 'Lâm sàng', durationMinutes: 15, mainBusyStart: 5, mainBusyEnd: 11, asst1BusyStart: 0, asst1BusyEnd: 5, deptId: 'dept_lao' },
   { id: 'pr_lao_cuu', name: 'Cứu ngải', category: 'Lâm sàng', durationMinutes: 20, mainBusyStart: 0, mainBusyEnd: 5, deptId: 'dept_lao' },

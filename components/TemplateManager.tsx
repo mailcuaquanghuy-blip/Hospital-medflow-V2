@@ -76,7 +76,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             groupName: t.group || 'Khác',
             templateName: t.name,
             dept: currentDept.name,
-            procedure: 'Chưa thiết lập thủ thuật',
+            procedure: 'Chưa thiết lập lịch trình',
             duration: '-',
             staff: '-',
             assistant1: '',
@@ -104,7 +104,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
               groupName: t.group || 'Khác',
               templateName: t.name,
               dept: currentDept.name,
-              procedure: procInfo?.name || 'Thủ thuật đã xóa',
+              procedure: procInfo?.name || 'Lịch trình đã xóa',
               duration: durationStr,
               staff: staffInfo?.name || '',
               assistant1: asst1Info?.name || '',
@@ -121,7 +121,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
         { label: 'Nhóm Mẫu', key: 'groupName' },
         { label: 'Tên Mẫu', key: 'templateName' },
         { label: 'Khoa thực hiện', key: 'dept' },
-        { label: 'Thủ thuật', key: 'procedure' },
+        { label: 'Lịch trình', key: 'procedure' },
         { label: 'Thời lượng', key: 'duration' },
         { label: 'Nhân viên', key: 'staff' },
         { label: 'Phụ 1', key: 'assistant1' },
@@ -174,7 +174,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                 <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155;">${t.group || 'Khác'}</td>
                 <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a;">${t.name}</td>
                 <td style="padding: 6px 8px; border: 1px solid #cbd5e1;">${currentDept.name}</td>
-                <td style="padding: 6px 8px; border: 1px solid #cbd5e1; color: #94a3b8; font-style: italic;" colspan="7">Chưa thiết lập thủ thuật</td>
+                <td style="padding: 6px 8px; border: 1px solid #cbd5e1; color: #94a3b8; font-style: italic;" colspan="7">Chưa thiết lập lịch trình</td>
               </tr>
             `;
           } else {
@@ -198,7 +198,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                   <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #334155;">${t.group || 'Khác'}</td>
                   <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a;">${t.name}</td>
                   <td style="padding: 6px 8px; border: 1px solid #cbd5e1;">${currentDept.name}</td>
-                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 600; color: #1e293b;">${procInfo?.name || 'Thủ thuật đã xóa'}</td>
+                  <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 600; color: #1e293b;">${procInfo?.name || 'Lịch trình đã xóa'}</td>
                   <td style="padding: 6px 8px; border: 1px solid #cbd5e1; text-align: center;">${durationStr}</td>
                   <td style="padding: 6px 8px; border: 1px solid #cbd5e1; font-weight: 500;">${staffInfo?.name || ''}</td>
                   <td style="padding: 6px 8px; border: 1px solid #cbd5e1; color: #475569;">${asst1Info?.name || ''}</td>
@@ -215,7 +215,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
       const printWindowHTML = `
         <html>
           <head>
-            <title>In danh sách mẫu thủ thuật</title>
+            <title>In danh sách mẫu lịch trình</title>
             <style>
               @page {
                 size: A4 landscape;
@@ -256,7 +256,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 10px;">
               <div>
                 <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase; color: #1e293b; margin: 0;">
-                  DANH SÁCH MẪU CHỈ ĐỊNH THỦ THUẬT
+                  DANH SÁCH MẪU CHỈ ĐỊNH LỊCH TRÌNH
                 </h1>
                 <p style="font-size: 12px; font-weight: bold; color: #475569; margin: 4px 0 0 0;">
                   KHOA: ${currentDept.name.toUpperCase()}
@@ -275,7 +275,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                   <th style="width: 12%;">Nhóm Mẫu</th>
                   <th style="width: 15%;">Tên Mẫu</th>
                   <th style="width: 9%;">Khoa thực hiện</th>
-                  <th style="width: 15%;">Thủ thuật</th>
+                  <th style="width: 15%;">Lịch trình</th>
                   <th style="width: 6%; text-align: center;">Thời lượng</th>
                   <th style="width: 12%;">Nhân viên</th>
                   <th style="width: 9%;">Phụ 1</th>
@@ -379,7 +379,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
           return;
         }
 
-        const confirmMsg = `Bạn có chắc chắn muốn khôi phục ${json.templates.length} mẫu thủ thuật từ file sao lưu của khoa "${json.deptName || json.deptId}" vào khoa hiện tại "${currentDept.name}" không?\n\n(Lưu ý: Các mẫu trùng ID sẽ được cập nhật/ghi đè)`;
+        const confirmMsg = `Bạn có chắc chắn muốn khôi phục ${json.templates.length} mẫu lịch trình từ file sao lưu của khoa "${json.deptName || json.deptId}" vào khoa hiện tại "${currentDept.name}" không?\n\n(Lưu ý: Các mẫu trùng ID sẽ được cập nhật/ghi đè)`;
         if (window.confirm(confirmMsg)) {
           let count = 0;
           for (const t of json.templates) {
@@ -390,7 +390,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             onSaveTemplate(restoredTemplate, true);
             count++;
           }
-          alert(`Khôi phục thành công ${count} mẫu thủ thuật cho khoa ${currentDept.name}!`);
+          alert(`Khôi phục thành công ${count} mẫu lịch trình cho khoa ${currentDept.name}!`);
         }
       } catch (err) {
         console.error(err);
@@ -1067,7 +1067,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                                   <span className={`font-semibold text-sm ${selectedTemplateId === t.id ? 'text-emerald-700' : 'text-slate-800'}`}>
                                     {t.name}
                                   </span>
-                                  <span className="text-[10px] text-slate-400">{(t.procedures || []).length} thủ thuật</span>
+                                  <span className="text-[10px] text-slate-400">{(t.procedures || []).length} lịch trình</span>
                                 </div>
                                 <div className="absolute right-2 top-3 opacity-0 group-hover/cell:opacity-100 transition-opacity flex gap-1">
                                   <button onClick={(e) => { e.stopPropagation(); onDeleteTemplate(t.id); if (selectedTemplateId === t.id) setEditingTemplate(null); }} className="p-1.5 hover:bg-rose-100 text-rose-400 hover:text-rose-600 rounded-md shadow-sm bg-white border border-slate-200"><Trash2 size={12} /></button>
@@ -1130,7 +1130,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
         {editingTemplate ? (
           <>
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="font-bold text-slate-700">Chi tiết mẫu thủ thuật</h3>
+              <h3 className="font-bold text-slate-700">Chi tiết mẫu lịch trình</h3>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => setEditingTemplate(null)}>Hủy</Button>
                 <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white">
@@ -1174,7 +1174,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-bold text-slate-700">Danh sách thủ thuật</label>
+                  <label className="block text-sm font-bold text-slate-700">Danh sách lịch trình</label>
                   <Button size="sm" onClick={addProcedure} className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none">
                     <Plus size={14} className="mr-1" /> Thêm dòng
                   </Button>
@@ -1190,7 +1190,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                           <div className="flex flex-col gap-1.5 flex-1 pl-1">
                             <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                              {procInfo?.name || 'Thủ thuật trống'}
+                              {procInfo?.name || 'Lịch trình trống'}
                               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{tProc.startTime} - {tProc.endTime}</span>
                             </span>
                             <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
@@ -1208,7 +1208,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                               setEditingTemplate({...editingTemplate, procedures: newProcs});
                             }}
                             className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                            title="Xóa thủ thuật"
+                            title="Xóa lịch trình"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1219,8 +1219,8 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                 ) : (
                   <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 flex flex-col items-center justify-center gap-2">
                      <FolderOpen size={30} className="text-slate-300" />
-                     <p className="text-slate-500 font-medium">Chưa có thủ thuật nào trong mẫu.</p>
-                     <Button size="sm" onClick={addProcedure} variant="secondary" className="mt-2 text-xs">Thêm thủ thuật</Button>
+                     <p className="text-slate-500 font-medium">Chưa có lịch trình nào trong mẫu.</p>
+                     <Button size="sm" onClick={addProcedure} variant="secondary" className="mt-2 text-xs">Thêm lịch trình</Button>
                   </div>
                 )}
               </div>
@@ -1233,7 +1233,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             </div>
             <p className="font-black text-xl text-slate-400 tracking-tight uppercase">Chọn mẫu để chỉnh sửa</p>
             <p className="text-sm mt-3 text-slate-400 font-medium max-w-sm">
-              Bạn có thể tạo các mẫu thủ thuật dùng chung cho nhiều bệnh nhân và quản lý chúng theo nhóm nội trú, ngoại trú, v.v.
+              Bạn có thể tạo các mẫu lịch trình dùng chung cho nhiều bệnh nhân và quản lý chúng theo nhóm nội trú, ngoại trú, v.v.
             </p>
           </div>
         )}
@@ -1257,7 +1257,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #334155', paddingBottom: '12px' }}>
             <div>
               <h1 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', color: '#1e293b' }}>
-                DANH SÁCH MẪU CHỈ ĐỊNH THỦ THUẬT
+                DANH SÁCH MẪU CHỈ ĐỊNH LỊCH TRÌNH
               </h1>
               <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginTop: '4px' }}>
                 KHOA: {currentDept.name.toUpperCase()}
@@ -1273,8 +1273,8 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             <thead>
               <tr style={{ borderBottom: '2px solid #cbd5e1', textAlign: 'left', backgroundColor: '#f1f5f9' }}>
                 <th style={{ padding: '10px', border: '1px solid #cbd5e1', width: '25%' }}>Nhóm Mẫu</th>
-                <th style={{ padding: '10px', border: '1px solid #cbd5e1', width: '35%' }}>Tên Mẫu Thủ Thuật</th>
-                <th style={{ padding: '10px', border: '1px solid #cbd5e1', width: '40%' }}>Các Bước Thủ Thuật Chi Tiết</th>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', width: '35%' }}>Tên Mẫu Lịch Trình</th>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', width: '40%' }}>Các Bước Lịch Trình Chi Tiết</th>
               </tr>
             </thead>
             <tbody>
@@ -1302,7 +1302,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                             const staffInfo = staff.find(s => s.id === tp.staffId);
                             return (
                               <li key={idx} style={{ marginBottom: '4px' }}>
-                                <strong>{procInfo?.name || 'Thủ thuật trống'}</strong> ({tp.startTime} - {tp.endTime}) 
+                                <strong>{procInfo?.name || 'Lịch trình trống'}</strong> ({tp.startTime} - {tp.endTime}) 
                                 {staffInfo ? ` - Thực hiện: ${staffInfo.name}` : ''}
                                 {tp.notes ? ` (Ghi chú: ${tp.notes})` : ''}
                               </li>
@@ -1310,7 +1310,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                           })}
                         </ol>
                         {(t.procedures || []).length === 0 && (
-                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Chưa thiết lập thủ thuật</span>
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Chưa thiết lập lịch trình</span>
                         )}
                       </td>
                     </tr>
