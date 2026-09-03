@@ -2438,7 +2438,7 @@ const App: React.FC = () => {
             <div className="px-6 py-3.5 bg-slate-50/50 border-t border-b border-slate-200/60 flex gap-3 overflow-x-auto scrollbar-none items-center">
                {[
                    { id: 'PATIENT_RECORDS', label: 'Hồ sơ Bệnh nhân', icon: <FileText size={16} /> },
-                   { id: 'SCHEDULING', label: 'Chỉ định thủ thuật', icon: <CalendarPlus size={16} /> },
+                   { id: 'SCHEDULING', label: 'Sắp xếp lịch trình', icon: <CalendarPlus size={16} /> },
                    { id: 'GENERAL_TIMELINE', label: 'Timeline Khoa', icon: <Table2 size={16} /> },
                    { id: 'DAILY_REPORT', label: 'Báo cáo thống kê', icon: <PieChart size={16} /> },
                ].map((tab) => {

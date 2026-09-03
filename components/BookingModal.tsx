@@ -1680,28 +1680,57 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 );
                               })
                             ) : (
-                              availableTimeBlocks.slice(0, 8).map((block, idx) => (
-                                <button 
-                                  key={idx} 
-                                  type="button" 
-                                  onClick={() => {
-                                    const end = addMinutesToTime(block.start, currentProc?.durationMinutes || 30);
-                                    // Find a machine that is free in this specific block
-                                    const res = checkConflict(block.start, end, formData.date!, formData.staffId!, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, formData.assistant2Id, { ...formData, assignedMachineId: undefined });
-                                    
-                                    setFormData(prev => ({ 
-                                      ...prev, 
-                                      startTime: block.start, 
-                                      endTime: end,
-                                      assignedMachineId: res.assignedMachineId || prev.assignedMachineId 
-                                    }));
-                                    setHasManuallySelectedTime(true);
-                                  }} 
-                                  className="px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all shadow-sm active:scale-95"
-                                >
-                                  {block.start}
-                                </button>
-                              ))
+                              availableTimeBlocks.slice(0, 8).map((block, idx) => {
+                                let currentDuration = currentProc?.durationMinutes || 25;
+                                if (formData.selectedDurationOptionId && currentProc?.durationOptions) {
+                                  const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
+                                  if (opt) currentDuration = opt.durationMinutes;
+                                }
+                                const end = addMinutesToTime(block.start, currentDuration);
+                                const isSelected = formData.startTime === block.start;
+
+                                return (
+                                  <button 
+                                    key={idx} 
+                                    type="button" 
+                                    onClick={() => {
+                                      // Find a machine that is free in this specific block
+                                      const res = checkConflict(
+                                        block.start, 
+                                        end, 
+                                        formData.date!, 
+                                        formData.staffId!, 
+                                        formData.patientId, 
+                                        appointments, 
+                                        staff, 
+                                        procedures, 
+                                        attendanceRecords, 
+                                        patients, 
+                                        formData.procedureId, 
+                                        formData.id, 
+                                        formData.assistant1Id, 
+                                        formData.assistant2Id, 
+                                        { ...formData, startTime: block.start, endTime: end, assignedMachineId: undefined }
+                                      );
+                                      
+                                      setFormData(prev => ({ 
+                                        ...prev, 
+                                        startTime: block.start, 
+                                        endTime: end, 
+                                        assignedMachineId: res.assignedMachineId || prev.assignedMachineId 
+                                      }));
+                                      setHasManuallySelectedTime(true);
+                                    }} 
+                                    className={`px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 ${
+                                      isSelected 
+                                        ? 'bg-primary border-primary text-white ring-2 ring-primary/20' 
+                                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600'
+                                    }`}
+                                  >
+                                    {block.start}
+                                  </button>
+                                );
+                              })
                             )}
                           </motion.div>
                         ) : (

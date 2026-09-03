@@ -245,8 +245,10 @@ export const checkConflict = (
     conflictDetails.push({ message: `Thực hiện lịch trình ngoài giờ hành chính (7:30-11:30 hoặc 13:30-17:30).`, level: 2 });
   }
 
-  if (!staffId) {
-    conflictDetails.push({ message: `Chưa chọn người thực hiện.`, level: 1 });
+  if (!staffId || staffId === 'temp') {
+    if (!staffId) {
+      conflictDetails.push({ message: `Chưa chọn người thực hiện.`, level: 1 });
+    }
   } else if (staff && procedureId && !staff.mainCapabilityIds?.includes(procedureId)) {
     conflictDetails.push({ message: `${getRoleLabel(staff.role)} ${staff.name} không có chuyên môn thực hiện chính lịch trình này.`, level: 1 });
   }
@@ -283,10 +285,10 @@ export const checkConflict = (
       conflictDetails.push({ message: `Người phụ 1 và Người phụ 2 không được là cùng một người đối với phương án thời lượng này.`, level: 1 });
     }
 
-    if (staffId && assistant1Id && staffId === assistant1Id) {
+    if (staffId && staffId !== 'temp' && assistant1Id && staffId === assistant1Id) {
       conflictDetails.push({ message: `Người thực hiện chính và Người phụ 1 không được là cùng một người.`, level: 1 });
     }
-    if (staffId && assistant2Id && staffId === assistant2Id) {
+    if (staffId && staffId !== 'temp' && assistant2Id && staffId === assistant2Id) {
       conflictDetails.push({ message: `Người thực hiện chính và Người phụ 2 không được là cùng một người.`, level: 1 });
     }
   }
@@ -561,21 +563,24 @@ export const checkConflict = (
 
       if (isMain) {
         const s = apptData?.mainBusyStart ?? option?.mainBusyStart ?? proc.mainBusyStart ?? 0;
-        const e = Math.min(apptData?.mainBusyEnd ?? option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? 0, duration);
+        const rawE = apptData?.mainBusyEnd ?? option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? 0;
+        const e = Math.max(s, rawE);
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
       }
       if (isAsst1) {
         const s = apptData?.asst1BusyStart ?? option?.asst1BusyStart ?? proc.asst1BusyStart ?? 0;
-        const e = Math.min(apptData?.asst1BusyEnd ?? option?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.busyMinutes ?? proc.durationMinutes ?? 0, duration);
+        const rawE = apptData?.asst1BusyEnd ?? option?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.busyMinutes ?? proc.durationMinutes ?? 0;
+        const e = Math.max(s, rawE);
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
       }
       if (isAsst2) {
         const s = apptData?.asst2BusyStart ?? option?.asst2BusyStart ?? proc.asst2BusyStart ?? 0;
-        const e = Math.min(apptData?.asst2BusyEnd ?? option?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0, duration);
+        const rawE = apptData?.asst2BusyEnd ?? option?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0;
+        const e = Math.max(s, rawE);
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
@@ -586,19 +591,26 @@ export const checkConflict = (
 
     const checkedStaffIdsInAppt = new Set<string>();
 
-    const effectiveAsst2Id = assistant2Id || (newApptData?.allowSameAssistant && assistant1Id ? assistant1Id : undefined);
+    const effectiveStaffId = (staffId && staffId !== 'temp') ? staffId : (newApptData?.staffId && newApptData.staffId !== 'temp' ? newApptData.staffId : '');
+    const effectiveAsst1Id = assistant1Id !== undefined ? (assistant1Id || undefined) : (newApptData?.assistant1Id || undefined);
+    const allowSame = newApptData?.allowSameAssistant !== undefined 
+      ? newApptData.allowSameAssistant 
+      : (currentProc?.durationOptions?.find(o => o.id === newApptData?.selectedDurationOptionId)?.allowSameAssistant ?? currentProc?.allowSameAssistant ?? false);
+    const effectiveAsst2Id = assistant2Id !== undefined 
+      ? (assistant2Id || undefined) 
+      : (allowSame && effectiveAsst1Id ? effectiveAsst1Id : (newApptData?.assistant2Id || undefined));
 
     const checkPersonConflictWithOtherAppt = (personId: string, label: string) => {
-      if (!personId || checkedStaffIdsInAppt.has(personId)) return;
+      if (!personId || personId === 'temp' || checkedStaffIdsInAppt.has(personId)) return;
       checkedStaffIdsInAppt.add(personId);
 
       const currentApptData: Partial<Appointment> = {
+        ...newApptData,
         startTime: newStart,
         endTime: newEnd,
-        staffId: staffId,
-        assistant1Id: assistant1Id,
+        staffId: effectiveStaffId,
+        assistant1Id: effectiveAsst1Id,
         assistant2Id: effectiveAsst2Id,
-        ...newApptData
       };
 
       const currentIntervals = getStaffBusyIntervalsInAppointment(currentProc, personId, startMin, currentApptData);
@@ -622,11 +634,13 @@ export const checkConflict = (
       }
     };
 
-    checkPersonConflictWithOtherAppt(staffId, 'Nhân sự chính');
-    if (assistant1Id && effectiveAsst2Id && assistant1Id === effectiveAsst2Id) {
-      checkPersonConflictWithOtherAppt(assistant1Id, 'Người phụ (Phụ 1 & 2)');
+    if (effectiveStaffId && effectiveStaffId !== 'temp') {
+      checkPersonConflictWithOtherAppt(effectiveStaffId, 'Nhân sự chính');
+    }
+    if (effectiveAsst1Id && effectiveAsst2Id && effectiveAsst1Id === effectiveAsst2Id) {
+      checkPersonConflictWithOtherAppt(effectiveAsst1Id, 'Người phụ (Phụ 1 & 2)');
     } else {
-      if (assistant1Id) checkPersonConflictWithOtherAppt(assistant1Id, 'Người phụ 1');
+      if (effectiveAsst1Id) checkPersonConflictWithOtherAppt(effectiveAsst1Id, 'Người phụ 1');
       if (effectiveAsst2Id) checkPersonConflictWithOtherAppt(effectiveAsst2Id, 'Người phụ 2');
     }
   }
@@ -706,14 +720,17 @@ export const findAvailableSlot = (
     // Determine duration based on newApptData or fall back to procedure default
     let duration = procedure.durationMinutes;
     if (newApptData) {
-      if (newApptData.startTime && newApptData.endTime) {
-        duration = timeStringToMinutes(newApptData.endTime) - timeStringToMinutes(newApptData.startTime);
-      } else if (newApptData.selectedDurationOptionId && newApptData.selectedDurationOptionId !== 'default') {
+      if (newApptData.selectedDurationOptionId && newApptData.selectedDurationOptionId !== 'default') {
         const opt = procedure.durationOptions?.find(o => o.id === newApptData.selectedDurationOptionId);
         if (opt) {
           duration = opt.durationMinutes;
         }
+      } else if (newApptData.startTime && newApptData.endTime) {
+        duration = timeStringToMinutes(newApptData.endTime) - timeStringToMinutes(newApptData.startTime);
       }
+    }
+    if (duration <= 0) {
+      duration = procedure.durationMinutes || 25;
     }
 
     // Chỉ xếp vào giờ hành chính
@@ -724,7 +741,30 @@ export const findAvailableSlot = (
       while (currentMin + duration <= shiftEndLimit) {
           const start = minutesToTimeString(currentMin);
           const end = minutesToTimeString(currentMin + duration);
-          const res = checkConflict(start, end, date, staffId, patientId, appointments, staffList, procedures, attendanceRecords, patients, procedure.id, excludeAppointmentId, assistant1Id, assistant2Id, newApptData);
+          const res = checkConflict(
+              start, 
+              end, 
+              date, 
+              staffId, 
+              patientId, 
+              appointments, 
+              staffList, 
+              procedures, 
+              attendanceRecords, 
+              patients, 
+              procedure.id, 
+              excludeAppointmentId, 
+              assistant1Id, 
+              assistant2Id, 
+              {
+                  ...newApptData,
+                  startTime: start,
+                  endTime: end,
+                  staffId,
+                  assistant1Id: assistant1Id ?? undefined,
+                  assistant2Id: assistant2Id ?? undefined
+              }
+          );
           if (!res.hasConflict) return { startTime: start, endTime: end };
           
           if (!firstConflictReason && res.conflictDetails.length > 0) {
@@ -759,14 +799,17 @@ export const getAvailableTimeBlocks = (
     // Determine duration based on newApptData or fall back to procedure default
     let duration = procedure.durationMinutes;
     if (newApptData) {
-      if (newApptData.startTime && newApptData.endTime) {
-        duration = timeStringToMinutes(newApptData.endTime) - timeStringToMinutes(newApptData.startTime);
-      } else if (newApptData.selectedDurationOptionId && newApptData.selectedDurationOptionId !== 'default') {
+      if (newApptData.selectedDurationOptionId && newApptData.selectedDurationOptionId !== 'default') {
         const opt = procedure.durationOptions?.find(o => o.id === newApptData.selectedDurationOptionId);
         if (opt) {
           duration = opt.durationMinutes;
         }
+      } else if (newApptData.startTime && newApptData.endTime) {
+        duration = timeStringToMinutes(newApptData.endTime) - timeStringToMinutes(newApptData.startTime);
       }
+    }
+    if (duration <= 0) {
+      duration = procedure.durationMinutes || 25;
     }
 
     for (const shift of OFFICE_SHIFTS) {
@@ -779,7 +822,30 @@ export const getAvailableTimeBlocks = (
         while (currentMin + duration <= endLimit) {
             const start = minutesToTimeString(currentMin);
             const end = minutesToTimeString(currentMin + duration);
-            const res = checkConflict(start, end, date, staffId, patientId, appointments, staffList, procedures, attendanceRecords, patients, procedure.id, excludeAppointmentId, assistant1Id, assistant2Id, newApptData);
+            const res = checkConflict(
+                start, 
+                end, 
+                date, 
+                staffId, 
+                patientId, 
+                appointments, 
+                staffList, 
+                procedures, 
+                attendanceRecords, 
+                patients, 
+                procedure.id, 
+                excludeAppointmentId, 
+                assistant1Id, 
+                assistant2Id, 
+                {
+                    ...newApptData,
+                    startTime: start,
+                    endTime: end,
+                    staffId,
+                    assistant1Id: assistant1Id ?? undefined,
+                    assistant2Id: assistant2Id ?? undefined
+                }
+            );
             
             if (!res.hasConflict) {
                 if (!currentBlockStart) {

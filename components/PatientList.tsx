@@ -397,82 +397,195 @@ export const PatientList: React.FC<PatientListProps> = ({
 
   const isSupportDept = currentDept.type === DepartmentType.SUPPORT;
 
-  const filteredPatients = patients.filter(p => {
-    // Bệnh nhân chưa vào viện vào thời điểm activeDate
-    const admissionDateStr = getLocalDateString(p.admissionDate);
-    if (activeDate < admissionDateStr) return false;
+  const counts = useMemo(() => {
+    let all = 0;
+    let treating = 0;
+    let discharged = 0;
 
-    const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.code || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'ALL' || p.status === filterStatus;
-    const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
+    patients.forEach(p => {
+      const admissionDateStr = getLocalDateString(p.admissionDate);
+      if (activeDate < admissionDateStr) return;
 
-    let isVisible = false;
-    if (currentDept.type === DepartmentType.CLINICAL) {
-        isVisible = p.admittedByDeptId === currentDept.id;
-    } else {
+      const isDischarged = p.status === 'DISCHARGED';
+      const dischargeDateStr = getLocalDateString(p.dischargeDate);
+
+      // Loại bỏ hoàn toàn nếu đã ra viện trước activeDate
+      if (isDischarged && dischargeDateStr && dischargeDateStr < activeDate) {
+        return;
+      }
+
+      const isDischargedOnActiveDate = isDischarged && dischargeDateStr === activeDate;
+      const isTreatingOnActiveDate = !isDischarged || (dischargeDateStr && dischargeDateStr > activeDate);
+
+      if (currentDept.type === DepartmentType.CLINICAL) {
+        if (p.admittedByDeptId !== currentDept.id) return;
+        all++;
+        if (isTreatingOnActiveDate) treating++;
+        if (isDischargedOnActiveDate) discharged++;
+      } else {
         if (p.admittedByDeptId === currentDept.id) {
-            isVisible = true;
+          all++;
+          if (isTreatingOnActiveDate) treating++;
+          if (isDischargedOnActiveDate) discharged++;
         } else {
-            isVisible = p.referrals?.some(r => {
-                const s = (r.specialty || '').toLowerCase().trim();
-                const dId = currentDept.id.toLowerCase().trim();
-                const dName = currentDept.name.toLowerCase().trim();
-                
-                // Unify matching logic
-                const isMatch = s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
-                               (s.includes('phcn') && dId.includes('phcn')) ||
-                               (s.includes('cdha') && dId.includes('cdha')) ||
-                               (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
-                               (s.includes('duoc') && dId.includes('duoc')) ||
-                               (dId === 'dept_phcn' && s === 'dept_phcn') ||
-                               (dId === 'dept_cdha' && s === 'dept_cdha') ||
-                               (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
-                               
-                if (!isMatch) return false;
-                const refDate = r.referralDate || getLocalDateString(p.admissionDate);
-                // patients referred on the same day OR in the past should be visible
-                if (activeDate < refDate) return false;
-                if (r.status === 'FINISHED' && r.finishedDate && activeDate > r.finishedDate) return false;
-                return true;
-            }) ?? false;
+          const matchedReferral = p.referrals?.find(r => {
+            const s = (r.specialty || '').toLowerCase().trim();
+            const dId = currentDept.id.toLowerCase().trim();
+            const dName = currentDept.name.toLowerCase().trim();
+            const isMatch = s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
+                           (s.includes('phcn') && dId.includes('phcn')) ||
+                           (s.includes('cdha') && dId.includes('cdha')) ||
+                           (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
+                           (s.includes('duoc') && dId.includes('duoc')) ||
+                           (dId === 'dept_phcn' && s === 'dept_phcn') ||
+                           (dId === 'dept_cdha' && s === 'dept_cdha') ||
+                           (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
+            if (!isMatch) return false;
+            const refDate = r.referralDate || getLocalDateString(p.admissionDate);
+            if (activeDate < refDate) return false;
+            const isFin = r.status === 'FINISHED';
+            const finDate = r.finishedDate || '';
+            if (isFin && finDate && finDate < activeDate) return false;
+            return true;
+          });
+
+          if (matchedReferral) {
+            all++;
+            const isFin = matchedReferral.status === 'FINISHED';
+            const finDate = matchedReferral.finishedDate || '';
+            if (isFin && finDate === activeDate) {
+              discharged++;
+            } else if (!isFin || (finDate && finDate > activeDate)) {
+              treating++;
+            }
+          }
         }
-    }
+      }
+    });
 
-    const matchesDeptFilter = referringDeptFilter === 'ALL' || p.admittedByDeptId === referringDeptFilter;
+    return { all, treating, discharged };
+  }, [patients, activeDate, currentDept]);
 
-    return matchesSearch && matchesStatus && isVisible && matchesDeptFilter && matchesBedType;
-  }).sort((a, b) => {
-    const getFirstName = (fullName: string) => {
-      const parts = fullName.trim().split(/\s+/);
-      return parts[parts.length - 1] || '';
-    };
+  const filteredPatients = useMemo(() => {
+    return patients.filter(p => {
+      // 1. Bệnh nhân chưa vào viện vào thời điểm activeDate
+      const admissionDateStr = getLocalDateString(p.admissionDate);
+      if (activeDate < admissionDateStr) return false;
 
-    for (const config of sortConfigs) {
-      let cmp = 0;
-      if (config.field === 'NAME') {
-        const firstNameA = getFirstName(a.name);
-        const firstNameB = getFirstName(b.name);
-        cmp = firstNameA.localeCompare(firstNameB, 'vi');
-        if (cmp === 0) {
-          cmp = a.name.localeCompare(b.name, 'vi');
+      // 2. Logic lọc theo trạng thái điều trị gắn chặt với activeDate (giống tab Sắp xếp lịch trình)
+      const isDischarged = p.status === 'DISCHARGED';
+      const dischargeDateStr = getLocalDateString(p.dischargeDate);
+
+      // Loại bỏ hoàn toàn bệnh nhân đã ra viện từ trước ngày làm việc (activeDate)
+      if (isDischarged && dischargeDateStr && dischargeDateStr < activeDate) {
+        return false;
+      }
+
+      if (filterStatus === 'DISCHARGED') {
+        // Tab "Ra viện": Chỉ giữ BN ra viện trong ngày hiện tại (activeDate)
+        if (!isDischarged) return false;
+        if (dischargeDateStr && dischargeDateStr !== activeDate) return false;
+      } else if (filterStatus === 'TREATING') {
+        // Tab "Đang điều trị": Loại bỏ nếu đã ra viện hôm nay hoặc quá khứ
+        if (isDischarged && (!dischargeDateStr || dischargeDateStr <= activeDate)) return false;
+      }
+
+      let isVisible = false;
+      if (currentDept.type === DepartmentType.CLINICAL) {
+        isVisible = p.admittedByDeptId === currentDept.id;
+      } else {
+        if (p.admittedByDeptId === currentDept.id) {
+          isVisible = true;
+        } else {
+          isVisible = p.referrals?.some(r => {
+            const s = (r.specialty || '').toLowerCase().trim();
+            const dId = currentDept.id.toLowerCase().trim();
+            const dName = currentDept.name.toLowerCase().trim();
+            
+            // Unify matching logic
+            const isMatch = s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
+                           (s.includes('phcn') && dId.includes('phcn')) ||
+                           (s.includes('cdha') && dId.includes('cdha')) ||
+                           (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
+                           (s.includes('duoc') && dId.includes('duoc')) ||
+                           (dId === 'dept_phcn' && s === 'dept_phcn') ||
+                           (dId === 'dept_cdha' && s === 'dept_cdha') ||
+                           (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
+                           
+            if (!isMatch) return false;
+            const refDate = r.referralDate || getLocalDateString(p.admissionDate);
+            // patients referred on the same day OR in the past should be visible
+            if (activeDate < refDate) return false;
+
+            // Logic lọc theo trạng thái kết thúc tại chuyên khoa (Tab Đang điều trị / Ra viện)
+            const isFinished = r.status === 'FINISHED';
+            const finishedDateStr = r.finishedDate || '';
+
+            // Loại bỏ hoàn toàn nếu đã hoàn thành chỉ định chuyên khoa từ các ngày trước
+            if (isFinished && finishedDateStr && finishedDateStr < activeDate) {
+              return false;
+            }
+
+            if (filterStatus === 'DISCHARGED') {
+              // Tab "Ra viện": Chỉ giữ BN hoàn thành trong ngày làm việc hiện tại
+              if (!isFinished) return false;
+              if (finishedDateStr && finishedDateStr !== activeDate) return false;
+            } else if (filterStatus === 'TREATING') {
+              // Tab "Đang điều trị": Loại bỏ nếu đã hoàn thành hôm nay hoặc quá khứ
+              if (isFinished && (!finishedDateStr || finishedDateStr <= activeDate)) return false;
+            }
+
+            return true;
+          }) ?? false;
         }
-      } else if (config.field === 'ROOM') {
-        const roomA = a.roomNumber || '';
-        const roomB = b.roomNumber || '';
-        cmp = roomA.localeCompare(roomB, undefined, { numeric: true, sensitivity: 'base' });
-      } else if (config.field === 'BED') {
-        const bedA = a.bedNumber || '';
-        const bedB = b.bedNumber || '';
-        cmp = bedA.localeCompare(bedB, undefined, { numeric: true, sensitivity: 'base' });
-      } else if (config.field === 'ADMISSION') {
-        cmp = new Date(a.admissionDate).getTime() - new Date(b.admissionDate).getTime();
       }
-      if (cmp !== 0) {
-        return config.direction === 'ASC' ? cmp : -cmp;
+
+      if (!isVisible) return false;
+
+      const term = searchTerm.trim().toLowerCase();
+      const matchesSearch = !term || (p.name || '').toLowerCase().includes(term) || (p.code || '').toLowerCase().includes(term);
+      if (!matchesSearch) return false;
+
+      const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
+      if (!matchesBedType) return false;
+
+      const matchesDeptFilter = referringDeptFilter === 'ALL' || p.admittedByDeptId === referringDeptFilter;
+      if (!matchesDeptFilter) return false;
+
+      return true;
+    }).sort((a, b) => {
+      const getFirstName = (fullName: string) => {
+        const parts = fullName.trim().split(/\s+/);
+        return parts[parts.length - 1] || '';
+      };
+
+      for (const config of sortConfigs) {
+        let cmp = 0;
+        if (config.field === 'NAME') {
+          const firstNameA = getFirstName(a.name);
+          const firstNameB = getFirstName(b.name);
+          cmp = firstNameA.localeCompare(firstNameB, 'vi');
+          if (cmp === 0) {
+            cmp = a.name.localeCompare(b.name, 'vi');
+          }
+        } else if (config.field === 'ROOM') {
+          const roomA = a.roomNumber || '';
+          const roomB = b.roomNumber || '';
+          cmp = roomA.localeCompare(roomB, undefined, { numeric: true, sensitivity: 'base' });
+        } else if (config.field === 'BED') {
+          const bedA = a.bedNumber || '';
+          const bedB = b.bedNumber || '';
+          cmp = bedA.localeCompare(bedB, undefined, { numeric: true, sensitivity: 'base' });
+        } else if (config.field === 'ADMISSION') {
+          cmp = new Date(a.admissionDate).getTime() - new Date(b.admissionDate).getTime();
+        }
+        if (cmp !== 0) {
+          return config.direction === 'ASC' ? cmp : -cmp;
+        }
       }
-    }
-    return 0;
-  });
+      return 0;
+    });
+  }, [patients, activeDate, filterStatus, searchTerm, bedTypeFilter, referringDeptFilter, currentDept, sortConfigs]);
 
   const handleConfirmDischarge = async () => {
     if (dischargingPatient) {
@@ -716,10 +829,28 @@ export const PatientList: React.FC<PatientListProps> = ({
     <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-4 bg-slate-50/50">
         <div className="flex items-center gap-4">
-           <div className="flex bg-slate-200 rounded-lg p-1 shrink-0">
-              <button onClick={() => setFilterStatus('ALL')} className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all uppercase tracking-wider ${filterStatus === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Tất cả</button>
-               <button onClick={() => setFilterStatus('TREATING')} className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all uppercase tracking-wider ${filterStatus === 'TREATING' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Đang điều trị</button>
-              <button onClick={() => setFilterStatus('DISCHARGED')} className={`px-3 py-1.5 rounded-md text-[10px] font-black transition-all uppercase tracking-wider ${filterStatus === 'DISCHARGED' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Ra viện</button>
+           <div className="flex bg-slate-200 rounded-xl p-1 shrink-0">
+              <button 
+                onClick={() => setFilterStatus('ALL')} 
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Tất cả bệnh nhân hiện diện trong ngày làm việc"
+              >
+                Tất cả <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-extrabold ${filterStatus === 'ALL' ? 'bg-primary/10 text-primary' : 'bg-slate-300 text-slate-600'}`}>{counts.all}</span>
+              </button>
+              <button 
+                onClick={() => setFilterStatus('TREATING')} 
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'TREATING' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Bệnh nhân đang điều trị trong ngày làm việc"
+              >
+                Đang điều trị <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-extrabold ${filterStatus === 'TREATING' ? 'bg-primary/10 text-primary' : 'bg-slate-300 text-slate-600'}`}>{counts.treating}</span>
+              </button>
+              <button 
+                onClick={() => setFilterStatus('DISCHARGED')} 
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'DISCHARGED' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Bệnh nhân ra viện trong ngày làm việc"
+              >
+                Ra viện <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-extrabold ${filterStatus === 'DISCHARGED' ? 'bg-rose-100 text-rose-700' : 'bg-slate-300 text-slate-600'}`}>{counts.discharged}</span>
+              </button>
            </div>
            
            {isSupportDept && (
