@@ -138,6 +138,17 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const [isQuickScheduleModalOpen, setIsQuickScheduleModalOpen] = useState(false);
   
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isSavingVersion, setIsSavingVersion] = useState(false);
+
+  const handleSaveSnapshot = async () => {
+    if (!currentDept || !onSaveScheduleSnapshot) return;
+    setIsSavingVersion(true);
+    try {
+      await onSaveScheduleSnapshot(currentDept.id, currentDate);
+    } finally {
+      setIsSavingVersion(false);
+    }
+  };
 
   const deviations = useMemo(() => {
     const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === currentDate);
@@ -2541,16 +2552,37 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                Chốt phiên bản tại "Timeline Khoa" để làm sạch nhật ký
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between flex-wrap gap-3">
+              <div className="text-xs font-bold uppercase tracking-wide">
+                {deviations.length > 0 ? (
+                  <span className="text-amber-600 font-bold">
+                    Có {deviations.length} thủ thuật biến động so với bản chốt
+                  </span>
+                ) : (
+                  <span className="text-slate-400">
+                    Lịch trình khớp hoàn toàn với phiên bản chốt
+                  </span>
+                )}
               </div>
-              <button
-                onClick={() => setIsHistoryModalOpen(false)}
-                className="px-6 py-2.5 bg-slate-800 text-white hover:bg-slate-900 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
-              >
-                Đóng nhật ký
-              </button>
+              <div className="flex items-center gap-3">
+                {currentDept && onSaveScheduleSnapshot && (
+                  <button
+                    onClick={handleSaveSnapshot}
+                    disabled={isSavingVersion}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-sky-200 disabled:opacity-50"
+                    title="Lưu lại phiên bản chốt hiện tại và làm sạch nhật ký biến động"
+                  >
+                    <Check size={15} />
+                    <span>{isSavingVersion ? "Đang lưu..." : "Lưu phiên bản"}</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsHistoryModalOpen(false)}
+                  className="px-6 py-2.5 bg-slate-800 text-white hover:bg-slate-900 active:scale-95 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  Đóng nhật ký
+                </button>
+              </div>
             </div>
           </div>
         </div>
