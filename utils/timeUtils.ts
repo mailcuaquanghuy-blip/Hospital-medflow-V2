@@ -581,14 +581,14 @@ export const checkConflict = (
       }
       if (isAsst1) {
         const s = apptData?.asst1BusyStart ?? option?.asst1BusyStart ?? proc.asst1BusyStart ?? 0;
-        const e = apptData?.asst1BusyEnd ?? option?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? 0;
+        const e = apptData?.asst1BusyEnd ?? option?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration;
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
       }
       if (isAsst2) {
         const s = apptData?.asst2BusyStart ?? option?.asst2BusyStart ?? proc.asst2BusyStart ?? 0;
-        const e = apptData?.asst2BusyEnd ?? option?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? 0;
+        const e = apptData?.asst2BusyEnd ?? option?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration;
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
@@ -627,8 +627,11 @@ export const checkConflict = (
       if (currentIntervals.length > 0 && apptIntervals.length > 0) {
         for (const cInt of currentIntervals) {
           for (const aInt of apptIntervals) {
-            // Strict interval overlap check (<), so touching at boundary (e.g. 08:00 end / 08:00 start) is NOT an overlap.
-            const isOverlap = Math.max(cInt.start, aInt.start) < Math.min(cInt.end, aInt.end);
+            // From 2026-09-05 onwards, consecutive procedures for the same staff must not touch exact boundaries (e.g. if 7h30-7h36, next can only start at 7h37).
+            const isFromSept5 = newDate >= '2026-09-05';
+            const isOverlap = isFromSept5
+              ? Math.max(cInt.start, aInt.start) <= Math.min(cInt.end, aInt.end)
+              : Math.max(cInt.start, aInt.start) < Math.min(cInt.end, aInt.end);
             if (isOverlap) {
               const otherPatient = getPatientFromCache(patients, appt.patientId);
               conflictDetails.push({ 

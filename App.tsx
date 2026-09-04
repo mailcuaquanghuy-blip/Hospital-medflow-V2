@@ -4,7 +4,7 @@ import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, 
 import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN, MOCK_TEMPLATES } from './constants';
 
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
-import { setSessionBaseline } from './utils/scheduleHistoryUtils';
+import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments } from './utils/scheduleHistoryUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
 import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, resetSupabaseDatabase } from './utils/supabaseService';
 import { supabase } from './supabaseClient';
@@ -1016,6 +1016,7 @@ const App: React.FC = () => {
       });
       
       setSessionBaseline(deptId, dateStr, deptAppts);
+      clearDeletedSessionAppointments(deptId, dateStr);
       alert('Đã lưu phiên bản chốt thành công! Tất cả nhật ký chỉnh sửa của phiên đã được làm sạch.');
     } catch (err) {
       console.error('Error saving schedule snapshot:', err);
@@ -1038,6 +1039,7 @@ const App: React.FC = () => {
       } else if (type === 'DELETED' && originalAppt) {
         setAppointments(prev => [...prev.filter(a => a.id !== apptId), originalAppt]);
         await setDoc(doc(db, 'appointments', apptId), originalAppt);
+        removeDeletedSessionAppointment(originalAppt.deptId, originalAppt.date, apptId);
       }
       alert('Đã hoàn tác thao tác chỉnh sửa thành công!');
     } catch (err) {
@@ -1126,6 +1128,9 @@ const App: React.FC = () => {
       alert("Bạn không có quyền xóa lịch trình của khoa khác.");
       return;
     }
+
+    // Save to deleted session storage so deletion can be undone in ScheduleHistoryModal
+    saveDeletedSessionAppointment(appt);
 
     // Optimistic local state update for instant zero-delay deletion UI response
     setAppointments(prev => prev.filter(a => a.id !== apptId));

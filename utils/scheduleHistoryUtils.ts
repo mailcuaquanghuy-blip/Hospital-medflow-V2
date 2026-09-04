@@ -77,12 +77,63 @@ export const setSessionBaseline = (deptId: string, date: string, appts: Appointm
   }
 };
 
+export const getDeletedSessionAppointments = (deptId: string, date: string): Appointment[] => {
+  if (typeof window === 'undefined') return [];
+  const sessionKey = `medflow_deleted_${deptId}_${date}`;
+  try {
+    const saved = sessionStorage.getItem(sessionKey);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.warn('Error reading deleted session appointments:', e);
+  }
+  return [];
+};
+
+export const saveDeletedSessionAppointment = (appt: Appointment) => {
+  if (typeof window === 'undefined' || !appt?.deptId || !appt?.date) return;
+  const sessionKey = `medflow_deleted_${appt.deptId}_${appt.date}`;
+  try {
+    const existing = getDeletedSessionAppointments(appt.deptId, appt.date);
+    const updated = [...existing.filter(a => a.id !== appt.id), appt];
+    sessionStorage.setItem(sessionKey, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Error saving deleted session appointment:', e);
+  }
+};
+
+export const removeDeletedSessionAppointment = (deptId: string, date: string, apptId: string) => {
+  if (typeof window === 'undefined') return;
+  const sessionKey = `medflow_deleted_${deptId}_${date}`;
+  try {
+    const existing = getDeletedSessionAppointments(deptId, date);
+    const updated = existing.filter(a => a.id !== apptId);
+    sessionStorage.setItem(sessionKey, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Error removing deleted session appointment:', e);
+  }
+};
+
+export const clearDeletedSessionAppointments = (deptId: string, date: string) => {
+  if (typeof window === 'undefined') return;
+  const sessionKey = `medflow_deleted_${deptId}_${date}`;
+  try {
+    sessionStorage.removeItem(sessionKey);
+  } catch (e) {
+    console.warn('Error clearing deleted session appointments:', e);
+  }
+};
+
 export const calculateDeviations = (
   currentDeptAppts: Appointment[],
   baselineAppts: Appointment[],
   patients: Patient[],
   procedures: Procedure[],
-  staff: Staff[]
+  staff: Staff[],
+  deptId?: string,
+  date?: string
 ): DeviationItem[] => {
   const baselineMap = new Map<string, Appointment>();
   baselineAppts.forEach(a => baselineMap.set(a.id, a));
@@ -158,7 +209,7 @@ export const calculateDeviations = (
     }
   });
 
-  // 2. Kiểm tra các lịch trình đã bị xóa
+  // 2. Kiểm tra các lịch trình đã bị xóa từ mốc chốt baseline
   baselineAppts.forEach(baseline => {
     if (!currentMap.has(baseline.id)) {
       const patient = patients.find(p => p.id === baseline.patientId);
@@ -177,6 +228,31 @@ export const calculateDeviations = (
       });
     }
   });
+
+  // 3. Kiểm tra các lịch trình xóa thêm trong phiên
+  const targetDeptId = deptId || currentDeptAppts[0]?.deptId || baselineAppts[0]?.deptId;
+  const targetDate = date || currentDeptAppts[0]?.date || baselineAppts[0]?.date;
+  if (targetDeptId && targetDate) {
+    const deletedSession = getDeletedSessionAppointments(targetDeptId, targetDate);
+    deletedSession.forEach(delAppt => {
+      if (!currentMap.has(delAppt.id) && !list.some(item => item.id === delAppt.id)) {
+        const patient = patients.find(p => p.id === delAppt.patientId);
+        const patientName = patient?.name || 'Bệnh nhân không rõ';
+        const proc = procedures.find(p => p.id === delAppt.procedureId);
+        const procedureName = proc?.name || 'Lịch trình không rõ';
+
+        list.push({
+          id: delAppt.id,
+          patientId: delAppt.patientId,
+          patientName,
+          procedureName,
+          type: 'DELETED',
+          changeDetails: `Đã xóa lịch trình (${delAppt.startTime} - BS: ${staff.find(s => s.id === delAppt.staffId)?.name || 'Không rõ'})`,
+          originalAppt: delAppt
+        });
+      }
+    });
+  }
 
   return list;
 };

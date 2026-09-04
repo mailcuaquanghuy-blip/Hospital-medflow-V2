@@ -310,7 +310,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   const deviations: DeviationItem[] = useMemo(() => {
     if (!currentDept) return [];
     const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
-    return calculateDeviations(deptAppts, baselineInfo.baselineAppts, patients, procedures, staff);
+    return calculateDeviations(deptAppts, baselineInfo.baselineAppts, patients, procedures, staff, currentDept.id, date);
   }, [appointments, baselineInfo, currentDept, date, patients, procedures, staff]);
 
   useEffect(() => {

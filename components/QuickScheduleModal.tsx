@@ -278,8 +278,8 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       : (procedure.allowSameAssistant || false);
 
     // Slide search from userStartMin to userEndMin - durationMins
-    // Optimization: step by 5 minutes for extreme scheduling speed and clean visual slots
-    for (let currentMin = userStartMin; currentMin + durationMins <= userEndMin; currentMin += 5) {
+    // Step by 1 minute for exact scheduling precision
+    for (let currentMin = userStartMin; currentMin + durationMins <= userEndMin; currentMin += 1) {
       const startStr = minutesToTimeString(currentMin);
       const endStr = minutesToTimeString(currentMin + durationMins);
 
@@ -437,9 +437,14 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       const isDc = task.procedure.id === 'pr_diencham' || task.procedure.name.toLowerCase().includes('điện châm') || task.procedure.name.toLowerCase().includes('dien cham');
       const isTc = task.procedure.id === 'pr_thuycham' || task.procedure.name.toLowerCase().includes('thủy châm') || task.procedure.name.toLowerCase().includes('thuy cham');
 
+      const isFromSept5 = currentDate >= '2026-09-05';
       let stagger = 5; // Default 5 mins stagger
-      if (isDc) stagger = 6;
-      else if (isTc) stagger = 6;
+      if (isDc) stagger = isFromSept5 ? 7 : 6;
+      else if (isTc) stagger = isFromSept5 ? 6 : 5;
+      else {
+        const procBusy = (task.procedure.mainBusyEnd ?? task.procedure.busyMinutes ?? 5) - (task.procedure.mainBusyStart ?? 0);
+        stagger = isFromSept5 ? Math.max(procBusy + 1, 6) : Math.max(procBusy, 5);
+      }
 
       const config = getPatientTimeConfig(task.patient.id);
       const activeWindows: { startMin: number; endMin: number }[] = [];
