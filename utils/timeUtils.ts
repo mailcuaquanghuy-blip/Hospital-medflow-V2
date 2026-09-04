@@ -51,6 +51,41 @@ export const formatDate = (dateStr: string): string => {
   return `${day}/${month}/${year}`;
 };
 
+export const getLocalDateString = (isoStr: string | null | undefined): string => {
+  if (!isoStr) return '';
+  const trimmed = isoStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return trimmed.split('T')[0] || trimmed.split(' ')[0] || '';
+};
+
+export const getLocalTimeMinutes = (isoStr: string | null | undefined): number | null => {
+  if (!isoStr) return null;
+  const trimmed = isoStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    return d.getHours() * 60 + d.getMinutes();
+  }
+  const timePart = trimmed.includes('T') ? trimmed.split('T')[1] : (trimmed.includes(' ') ? trimmed.split(' ')[1] : '');
+  if (timePart) {
+    const cleanTime = timePart.split('.')[0].replace('Z', '');
+    const parts = cleanTime.split(':');
+    if (parts.length >= 2) {
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+    }
+  }
+  return null;
+};
+
 const getProcFromCache = (arr: Procedure[], id: string | undefined): Procedure | undefined => {
   if (!id || !arr) return undefined;
   return arr.find(p => p.id === id);
@@ -157,23 +192,35 @@ export const checkConflict = (
     }
   }
 
-  // Bed conflict check
+  // Bed conflict check / Admission & Discharge checks
   if (patientId && patients.length > 0) {
     const currentPatient = getPatientFromCache(patients, patientId);
     if (currentPatient) {
-      // Check admission date (date string comparison YYYY-MM-DD)
+      // Check admission date & time
       if (currentPatient.admissionDate) {
-        const admissionDateStr = currentPatient.admissionDate.split('T')[0];
+        const admissionDateStr = getLocalDateString(currentPatient.admissionDate);
         if (newDate < admissionDateStr) {
           conflictDetails.push({ message: `Bệnh nhân chưa vào viện vào ngày này (Vào viện: ${formatDate(admissionDateStr)}).`, level: 1 });
+        } else if (newDate === admissionDateStr) {
+          const admissionMin = getLocalTimeMinutes(currentPatient.admissionDate);
+          if (admissionMin !== null && startMin < admissionMin) {
+            const timeStr = minutesToTimeString(admissionMin);
+            conflictDetails.push({ message: `Lịch trình thực hiện lúc ${newStart} trước giờ bệnh nhân vào viện (${timeStr} ngày ${formatDate(admissionDateStr)}).`, level: 1 });
+          }
         }
       }
 
-      // Check discharge date (date string comparison YYYY-MM-DD)
+      // Check discharge date & time
       if (currentPatient.dischargeDate) {
-        const dischargeDateStr = currentPatient.dischargeDate.split('T')[0];
+        const dischargeDateStr = getLocalDateString(currentPatient.dischargeDate);
         if (newDate > dischargeDateStr) {
           conflictDetails.push({ message: `Bệnh nhân đã ra viện vào ngày này (Ra viện: ${formatDate(dischargeDateStr)}).`, level: 1 });
+        } else if (newDate === dischargeDateStr) {
+          const dischargeMin = getLocalTimeMinutes(currentPatient.dischargeDate);
+          if (dischargeMin !== null && endMin > dischargeMin) {
+            const timeStr = minutesToTimeString(dischargeMin);
+            conflictDetails.push({ message: `Lịch trình thực hiện đến ${newEnd} sau giờ bệnh nhân ra viện (${timeStr} ngày ${formatDate(dischargeDateStr)}).`, level: 1 });
+          }
         }
       }
     }
