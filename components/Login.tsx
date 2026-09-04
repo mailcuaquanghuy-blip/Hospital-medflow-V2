@@ -2,11 +2,8 @@
 import React, { useState } from 'react';
 import { UserAccount } from '../types';
 import { DEFAULT_ADMIN } from '../constants';
-import { Lock, User, AlertCircle, Loader2, ShieldCheck, KeyRound, Database } from 'lucide-react';
-import { db, auth } from '../firebase';
-import { signInAnonymously } from 'firebase/auth';
-import { collection, getDocs } from 'firebase/firestore';
-import { isSupabaseConfigured, fetchSupabaseTable } from '../utils/supabaseService';
+import { Lock, User, AlertCircle, Loader2, Database } from 'lucide-react';
+import { fetchSupabaseTable } from '../utils/supabaseService';
 
 interface LoginProps {
   onLogin: (user: UserAccount) => void;
@@ -19,25 +16,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleQuickAdminLogin = async () => {
-    setUsername(DEFAULT_ADMIN.username);
-    setPassword(DEFAULT_ADMIN.password);
-    setError('');
-    setLoading(true);
-
-    try {
-      if (!isSupabaseConfigured() && !auth.currentUser && db) {
-        await signInAnonymously(auth);
-      }
-      onLogin(DEFAULT_ADMIN);
-    } catch (err: any) {
-      console.warn('Anonymous auth warning during quick login:', err);
-      onLogin(DEFAULT_ADMIN);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -48,25 +26,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
 
     try {
       let dbUsers: UserAccount[] = [];
-      if (isSupabaseConfigured()) {
-        try {
-          const supUsers = await fetchSupabaseTable<UserAccount>('users');
-          if (supUsers) {
-            dbUsers = supUsers;
-          }
-        } catch (err) {
-          console.warn('Supabase users fetch error:', err);
+      try {
+        const supUsers = await fetchSupabaseTable<UserAccount>('users');
+        if (supUsers) {
+          dbUsers = supUsers;
         }
-      } else if (db) {
-        try {
-          if (!auth.currentUser) {
-            await signInAnonymously(auth);
-          }
-          const snap = await getDocs(collection(db, 'users'));
-          dbUsers = snap.docs.map(doc => doc.data() as UserAccount);
-        } catch (dbErr) {
-          console.warn('Direct user query fallback:', dbErr);
-        }
+      } catch (err) {
+        console.warn('Supabase users fetch error:', err);
       }
 
       // Combine default admin, prop users, and db users
@@ -80,16 +46,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
       );
 
       if (matchedUser) {
-        try {
-          if (!isSupabaseConfigured() && !auth.currentUser && db) {
-            await signInAnonymously(auth);
-          }
-          onLogin(matchedUser);
-        } catch (authErr: any) {
-          console.error('Firebase Auth Error:', authErr);
-          // Fallback login if account credentials matched
-          onLogin(matchedUser);
-        }
+        onLogin(matchedUser);
       } else {
         setError('Tên đăng nhập hoặc mật khẩu không đúng!');
         setLoading(false);

@@ -29,20 +29,20 @@ import { DateTimePicker } from './components/DateTimePicker';
 import { DateInput } from './components/DateInput';
 import { Home, Building2, Table2, FileText, CalendarPlus, AlertCircle, LogOut, ShieldCheck, User, UserCog, X, Briefcase, Check, Save, PieChart, Database, Clock } from 'lucide-react';
 
-// Firebase imports
-import { db, auth } from './firebase';
-import { signInAnonymously } from 'firebase/auth';
+// Database operations via Supabase
 import { 
   collection, 
-  onSnapshot, 
   doc, 
   query,
   where,
   getDocs,
   getDoc,
-  getDocFromServer
-} from "firebase/firestore";
-import { setDoc, updateDoc, deleteDoc, writeBatch } from './utils/dbService';
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  writeBatch 
+} from './utils/dbService';
+const db: any = null;
 
 
 export type MainTab = 'PATIENT_RECORDS' | 'SCHEDULING' | 'GENERAL_TIMELINE' | 'DAILY_REPORT' | 'DEPT_MANAGER' | 'ACCOUNT_MANAGER' | 'ACCOUNT_BACKUP';
@@ -281,122 +281,10 @@ const App: React.FC = () => {
     }
   }, [isQuotaExceeded, users.length, staff.length, procedures.length, patients.length, templates.length]);
 
-  const isFirebaseReady = !!db;
-
+  // Auth readiness
   useEffect(() => {
-    const initAuth = async () => {
-      if (isSupabaseConfigured()) {
-        setIsAuthReady(true);
-        return;
-      }
-      try {
-        if (!auth.currentUser) {
-          await signInAnonymously(auth);
-          console.log("Authenticated anonymously for Firestore access.");
-        }
-        setIsAuthReady(true);
-      } catch (error: any) {
-        console.error("Anonymous authentication failed:", error);
-        if (error.code === 'auth/admin-restricted-operation') {
-          console.error("VUI LÒNG BẬT 'ANONYMOUS SIGN-IN' TRONG FIREBASE CONSOLE.");
-        }
-        // KHÔNG đặt isAuthReady = true nếu lỗi nghiêm trọng để tránh lỗi Permission Denied liên tục
-        // Chỉ cho phép chạy nếu đã có user (dù là cũ)
-        if (auth.currentUser) {
-          setIsAuthReady(true);
-        }
-      }
-    };
-    initAuth();
+    setIsAuthReady(true);
   }, []);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    // Chỉ chạy seedData và listeners nếu Firebase đã sẵn sàng VÀ đã xác thực thành công
-    if (!db || !isFirebaseReady || !isAuthReady || !auth.currentUser) return;
-    
-    const testConnection = async () => {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-        console.log("Firestore connection test successful.");
-      } catch (error: any) {
-        handleFirestoreError(error, OperationType.GET, "test/connection");
-      }
-    };
-    testConnection();
-
-    const seedData = async () => {
-      try {
-        // Check if procedures collection has been seeded
-        const configDoc = await getDoc(doc(db, "system_config", "procedures_seeded"));
-        const pQ = query(collection(db, "procedures"));
-        const pSnapshot = await getDocs(pQ);
-        
-        if (!configDoc.exists() && pSnapshot.empty) {
-          console.log("Seeding initial procedures to Firestore...");
-          const promises = MOCK_PROCEDURES.map(p => setDoc(doc(db, "procedures", p.id), p));
-          await Promise.all(promises);
-          await setDoc(doc(db, "system_config", "procedures_seeded"), { seeded: true, at: new Date().toISOString() });
-        }
-
-        // Check if users collection is empty or missing default admin
-        const uQ = query(collection(db, "users"));
-        const uSnapshot = await getDocs(uQ);
-        const existingUsers = uSnapshot.docs.map(d => d.data() as UserAccount);
-        
-        if (!existingUsers.find(u => u.id === DEFAULT_ADMIN.id)) {
-          console.log("Seeding default admin to Firestore...");
-          await setDoc(doc(db, "users", DEFAULT_ADMIN.id), DEFAULT_ADMIN);
-          existingUsers.push(DEFAULT_ADMIN);
-        } else {
-          // Optional: Update admin if credentials changed in constants
-          const adminDoc = existingUsers.find(u => u.id === DEFAULT_ADMIN.id);
-          if (adminDoc && (adminDoc.username !== DEFAULT_ADMIN.username || adminDoc.password !== DEFAULT_ADMIN.password)) {
-            console.log("Updating default admin credentials in Firestore...");
-            await setDoc(doc(db, "users", DEFAULT_ADMIN.id), DEFAULT_ADMIN, { merge: true });
-          }
-        }
-
-        // Auto-patch existing users to include dept_duoc if missing (run on startup once)
-        const userPatchPromises = existingUsers.map(async (u) => {
-          const hasViewable = u.viewableDeptIds?.includes('dept_duoc');
-          const hasEditable = u.editableDeptIds?.includes('dept_duoc');
-          if (!hasViewable || !hasEditable) {
-            const updatedUser = {
-              ...u,
-              viewableDeptIds: hasViewable ? u.viewableDeptIds : [...(u.viewableDeptIds || []), 'dept_duoc'],
-              editableDeptIds: hasEditable ? u.editableDeptIds : [...(u.editableDeptIds || []), 'dept_duoc']
-            };
-            try {
-              await setDoc(doc(db, "users", u.id), updatedUser);
-              console.log(`Successfully patched dept_duoc for user ${u.username || u.id}`);
-            } catch (err) {
-              console.error(`Failed to patch dept_duoc for user ${u.id}:`, err);
-            }
-          }
-        });
-        await Promise.all(userPatchPromises);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'seed-data');
-      }
-    };
-
-    const seedTemplates = async () => {
-      try {
-        const q = query(collection(db, "templates"));
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
-          console.log("Seeding mock templates to Firestore...");
-          const promises = MOCK_TEMPLATES.map(t => setDoc(doc(db, "templates", t.id), t));
-          await Promise.all(promises);
-        }
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'templates');
-      }
-    };
-
-    seedData().then(() => seedTemplates()).catch(console.error);
-  }, [isFirebaseReady, isAuthReady]);
 
   // Load users from Supabase on startup and perform basic Supabase seeding if empty
   useEffect(() => {
@@ -559,149 +447,6 @@ const App: React.FC = () => {
       };
     }
   }, [currentUser]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !isAuthReady || !auth.currentUser) return;
-    const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({ ...doc.data() } as UserAccount));
-      setUsers(usersData);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "users");
-    });
-    return () => unsub();
-  }, [isFirebaseReady, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady) return;
-    const unsub = onSnapshot(collection(db, "patients"), (snapshot) => {
-      const patientsData = snapshot.docs.map(doc => ({ ...doc.data() } as Patient));
-      setPatients(patientsData);
-      setLoadedCollections(prev => ({ ...prev, patients: true }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "patients");
-      setLoadedCollections(prev => ({ ...prev, patients: true }));
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady) return;
-    const unsub = onSnapshot(collection(db, "appointments"), (snapshot) => {
-      const apptsData = snapshot.docs.map(doc => ({ ...doc.data() } as Appointment));
-      setAppointments(apptsData);
-      setLoadedCollections(prev => ({ ...prev, appointments: true }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "appointments");
-      setLoadedCollections(prev => ({ ...prev, appointments: true }));
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady) return;
-    const unsub = onSnapshot(collection(db, "templates"), (snapshot) => {
-      const templatesData = snapshot.docs.map(doc => {
-        const data = doc.data() as AppointmentTemplate;
-        return {
-          ...data,
-          procedures: data.procedures || []
-        };
-      });
-      setTemplates(templatesData);
-      setLoadedCollections(prev => ({ ...prev, templates: true }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "templates");
-      setLoadedCollections(prev => ({ ...prev, templates: true }));
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady) return;
-    const unsub = onSnapshot(collection(db, "attendance"), (snapshot) => {
-      const attData = snapshot.docs.map(doc => ({ ...doc.data() } as AttendanceRecord));
-      setAttendanceRecords(attData);
-      setLoadedCollections(prev => ({ ...prev, attendance: true }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "attendance");
-      setLoadedCollections(prev => ({ ...prev, attendance: true }));
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady) return;
-    const unsub = onSnapshot(collection(db, "staff"), (snapshot) => {
-      const staffData = snapshot.docs.map(doc => ({ ...doc.data() } as Staff));
-      setStaff(staffData);
-      setLoadedCollections(prev => ({ ...prev, staff: true }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "staff");
-      setLoadedCollections(prev => ({ ...prev, staff: true }));
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady) return;
-    const unsub = onSnapshot(collection(db, "machineShifts"), (snapshot) => {
-      const shiftsData = snapshot.docs.map(doc => ({ ...doc.data() } as MachineShift));
-      setMachineShifts(shiftsData);
-      setLoadedCollections(prev => ({ ...prev, machineShifts: true }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "machineShifts");
-      setLoadedCollections(prev => ({ ...prev, machineShifts: true }));
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady) return;
-    const unsub = onSnapshot(collection(db, "procedures"), (snapshot) => {
-      const procData = snapshot.docs.map(doc => ({ ...doc.data() } as Procedure));
-      setProcedures(procData);
-      setLoadedCollections(prev => ({ ...prev, procedures: true }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "procedures");
-      setLoadedCollections(prev => ({ ...prev, procedures: true }));
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady || currentUser.role !== UserRole.ADMIN) return;
-    const unsub = onSnapshot(collection(db, "backups"), (snapshot) => {
-      const backupData = snapshot.docs.map(doc => ({ ...doc.data() } as Backup));
-      setBackups(backupData);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "backups");
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
-  useEffect(() => {
-    if (isSupabaseConfigured()) return;
-    if (!db || !currentUser || !isAuthReady) return;
-    const unsub = onSnapshot(collection(db, "scheduleSnapshots"), (snapshot) => {
-      const snapshotData = snapshot.docs.map(doc => ({ ...doc.data() } as ScheduleSnapshot));
-      setScheduleSnapshots(snapshotData);
-      setLoadedCollections(prev => ({ ...prev, scheduleSnapshots: true }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "scheduleSnapshots");
-      setLoadedCollections(prev => ({ ...prev, scheduleSnapshots: true }));
-    });
-    return () => unsub();
-  }, [isFirebaseReady, currentUser, isAuthReady]);
-
 
   const handleLogin = (user: UserAccount) => {
     setShowLoginLoading(true);
@@ -2193,18 +1938,6 @@ const App: React.FC = () => {
         : [...current, procId];
     setEditingStaff({ ...editingStaff, assistantCapabilityIds: updated });
   };
-
-  if (!isFirebaseReady) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white text-center">
-        <div className="max-w-md space-y-6">
-          <AlertCircle size={64} className="text-rose-500 mx-auto" />
-          <h1 className="text-3xl font-black uppercase tracking-tight">Cấu hình chưa hoàn tất</h1>
-          <p className="text-slate-400 font-medium">Cần API Key Firestore để ứng dụng hoạt động.</p>
-        </div>
-      </div>
-    );
-  }
 
   const handleNavigateToTimeline = (procedureId?: string, staffId?: string) => {
     setTimelineFilters({

@@ -12,8 +12,18 @@ export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | nu
     while (true) {
       const res = await supabase.from(tableName).select('*').range(from, from + step - 1);
       if (res.error) {
-        console.warn(`Supabase fetch error for table ${tableName}:`, res.error.message);
-        break;
+        // If table not found in schema cache, try reading from localStorage fallback
+        if (typeof window !== 'undefined') {
+          const localData = localStorage.getItem(`medflow_local_${tableName}`);
+          if (localData) {
+            try {
+              return JSON.parse(localData) as T[];
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+        return [];
       }
       if (!res.data || res.data.length === 0) break;
       all = all.concat(res.data);
@@ -21,7 +31,17 @@ export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | nu
       from += step;
     }
 
-    if (all.length === 0) return [];
+    if (all.length === 0) {
+      if (typeof window !== 'undefined') {
+        const localData = localStorage.getItem(`medflow_local_${tableName}`);
+        if (localData) {
+          try {
+            return JSON.parse(localData) as T[];
+          } catch (e) {}
+        }
+      }
+      return [];
+    }
 
     return all.map(row => {
       if (row.data && typeof row.data === 'object') {
@@ -30,22 +50,39 @@ export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | nu
       return row;
     }) as T[];
   } catch (err) {
-    console.warn(`Supabase fetch error for ${tableName}:`, err);
-    return null;
+    if (typeof window !== 'undefined') {
+      const localData = localStorage.getItem(`medflow_local_${tableName}`);
+      if (localData) {
+        try {
+          return JSON.parse(localData) as T[];
+        } catch (e) {}
+      }
+    }
+    return [];
   }
 }
 
 export async function saveSupabaseItem(tableName: string, id: string, itemData: any): Promise<boolean> {
   try {
+    // Save to local storage as continuous fallback
+    if (typeof window !== 'undefined') {
+      try {
+        const localKey = `medflow_local_${tableName}`;
+        const existing = localStorage.getItem(localKey);
+        let list: any[] = existing ? JSON.parse(existing) : [];
+        list = list.filter(item => item.id !== id);
+        list.push({ ...itemData, id });
+        localStorage.setItem(localKey, JSON.stringify(list));
+      } catch (e) {}
+    }
+
     // We only use the standard format since all our tables are structured with a JSONB 'data' column
     const { error } = await supabase.from(tableName).upsert({ id, data: itemData });
     if (error) {
-      console.warn(`Supabase upsert note on ${tableName}/${id}: ${error.message}`);
       return false;
     }
     return true;
   } catch (err: any) {
-    console.warn(`Supabase save catch note on ${tableName}/${id}: ${err?.message || err}`);
     return false;
   }
 }

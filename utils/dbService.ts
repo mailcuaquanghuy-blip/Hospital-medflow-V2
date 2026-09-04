@@ -1,5 +1,101 @@
-import { isSupabaseConfigured, saveSupabaseItem, saveSupabaseBatch, deleteSupabaseItem, deleteSupabaseBatch } from './supabaseService';
+import { isSupabaseConfigured, saveSupabaseItem, saveSupabaseBatch, deleteSupabaseItem, deleteSupabaseBatch, fetchSupabaseTable } from './supabaseService';
 import { supabase } from '../supabaseClient';
+
+export const db: any = null;
+
+export interface DocRef {
+  id: string;
+  parent: { id: string };
+  path: string;
+  collectionName: string;
+}
+
+export const collection = (firstArg: any, secondArg?: string) => {
+  const collName = typeof secondArg === 'string' 
+    ? secondArg 
+    : (typeof firstArg === 'string' ? firstArg : (firstArg?.id || firstArg?.collectionName || ''));
+  return { id: collName, path: collName, collectionName: collName };
+};
+
+export const doc = (firstArg: any, secondArg?: string, thirdArg?: string): DocRef => {
+  let collectionName = '';
+  let docId = '';
+  if (thirdArg) {
+    collectionName = secondArg || '';
+    docId = thirdArg;
+  } else if (secondArg) {
+    if (typeof firstArg === 'string') {
+      collectionName = firstArg;
+    } else if (firstArg && typeof firstArg === 'object') {
+      collectionName = firstArg.id || firstArg.path || firstArg.collectionName || '';
+    }
+    docId = secondArg;
+  } else if (typeof firstArg === 'string') {
+    const parts = firstArg.split('/');
+    collectionName = parts[0] || '';
+    docId = parts[1] || '';
+  }
+  return {
+    id: docId,
+    parent: { id: collectionName },
+    path: `${collectionName}/${docId}`,
+    collectionName
+  };
+};
+
+export const query = (collRef: any, ..._queryConstraints: any[]) => {
+  return collRef;
+};
+
+export const where = (field: string, op: string, value: any) => {
+  return { field, op, value };
+};
+
+export const getDoc = async (docRef: any) => {
+  const { tableName, docId } = getRefDetails(docRef);
+  try {
+    const { data: row } = await supabase.from(tableName).select('data').eq('id', docId).maybeSingle();
+    const exists = !!row;
+    const data = row?.data && typeof row.data === 'object' ? { ...row.data, id: docId } : row?.data;
+    return {
+      exists: () => exists,
+      data: () => data,
+      id: docId
+    };
+  } catch (err) {
+    return {
+      exists: () => false,
+      data: () => null,
+      id: docId
+    };
+  }
+};
+
+export const getDocs = async (collRef: any) => {
+  const collName = collRef?.id || collRef?.collectionName || (typeof collRef === 'string' ? collRef : '');
+  let tableName = collName;
+  if (collName === 'machineShifts') tableName = 'machine_shifts';
+  if (collName === 'scheduleSnapshots') tableName = 'schedule_snapshots';
+  
+  try {
+    const items = await fetchSupabaseTable<any>(tableName);
+    const docs = (items || []).map(item => ({
+      id: item.id,
+      data: () => item
+    }));
+    return {
+      docs,
+      empty: docs.length === 0,
+      size: docs.length
+    };
+  } catch (err) {
+    return {
+      docs: [],
+      empty: true,
+      size: 0
+    };
+  }
+};
 
 // BroadcastChannel for cross-tab real-time synchronization
 const dbBroadcastChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window 

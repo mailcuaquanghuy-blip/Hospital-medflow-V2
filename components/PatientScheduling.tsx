@@ -14,9 +14,7 @@ import { DateInput } from './DateInput';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
 import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { DEPARTMENTS, OFFICE_SHIFTS } from '../constants';
-import { db } from '../firebase';
-import { doc, collection } from 'firebase/firestore';
-import { setDoc, deleteDoc } from '../utils/dbService';
+import { db, doc, collection, setDoc, deleteDoc } from '../utils/dbService';
 
 
 const getLocalDateString = (isoStr: string | null | undefined): string => {

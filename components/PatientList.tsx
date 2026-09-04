@@ -9,9 +9,7 @@ import { calculateAge, getAbbreviation, timeStringToMinutes, generatePatientCode
 import { DEPARTMENTS } from '../constants';
 import { Appointment, Procedure, Staff } from '../types';
 import { downloadCSV, parseCSV } from '../utils/csvUtils';
-import { db } from '../firebase';
-import { collection, doc } from 'firebase/firestore';
-import { setDoc } from '../utils/dbService';
+import { db, doc, setDoc } from '../utils/dbService';
 
 
 const getLocalDateString = (isoStr: string | null | undefined): string => {
