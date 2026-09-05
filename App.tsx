@@ -856,33 +856,14 @@ const App: React.FC = () => {
   };
 
   const handleDeleteAppointment = async (apptId: string, skipVerify = false) => {
-    if (!db || !canEditCurrentDept) return;
-    
     const appt = appointments.find(a => a.id === apptId);
     if (!appt) return;
-
-    // Ngăn chặn chỉnh sửa lùi lịch cũ của các ngày đã chốt lịch tự động
-    const today = getTodayDateString();
-    if (appt.date && appt.date < today && currentUser?.role !== UserRole.ADMIN) {
-      alert("Lịch trình ngày cũ đã tự động chốt vào cuối ngày. Không thể xóa.");
-      return;
-    }
 
     // Check if patient is discharged
     const patient = patients.find(p => p.id === appt.patientId);
     if (!skipVerify && patient?.status === PatientStatus.DISCHARGED) {
       setPendingAction({ type: 'DELETE_APPT', data: apptId });
       setIsVerificationModalOpen(true);
-      return;
-    }
-
-    if (patient?.status !== PatientStatus.DISCHARGED && !confirm('Bạn có chắc chắn muốn xóa chỉ định này?')) {
-        return;
-    }
-
-    // Mỗi khoa chỉ được sửa đổi lịch trình của riêng mình
-    if (currentUser?.role !== UserRole.ADMIN && appt.deptId !== currentDept?.id) {
-      alert("Bạn không có quyền xóa lịch trình của khoa khác.");
       return;
     }
 
@@ -893,10 +874,15 @@ const App: React.FC = () => {
     setAppointments(prev => prev.filter(a => a.id !== apptId));
 
     try {
-        await deleteDoc(doc(db, "appointments", apptId));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `appointments/${apptId}`);
+      if (isSupabaseConfigured()) {
+        await deleteSupabaseItem('appointments', apptId);
       }
+      if (db) {
+        await deleteDoc(doc(db, "appointments", apptId));
+      }
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+    }
   };
 
   const handleCopyToDateRange = async (patientId: string, sourceDate: string, startDate: string, endDate: string, selectedApptIds?: string[]) => {
@@ -2039,10 +2025,10 @@ const App: React.FC = () => {
   }
 
   const handleUpdateProcedures = async (updatedProcs: Procedure[]) => {
-    if (!db || !currentDept) return;
-    
     // 1. Optimistic update: instantly update local React state so UI changes are immediate (0ms latency)!
     setProcedures(updatedProcs);
+
+    if (!currentDept) return;
 
     try {
       // 2. Identify deleted procedures (only within current department)
@@ -2054,26 +2040,32 @@ const App: React.FC = () => {
       const changedOrNewProcs = updatedProcs.filter(p => {
         const existing = procedures.find(oldP => oldP.id === p.id);
         if (!existing) return true; // Added
-        // Check if actually modified by comparing JSON representation
         return JSON.stringify(existing) !== JSON.stringify(p);
       });
 
-      const promises: Promise<void>[] = [];
-
-      // 4. Batch delete operations in parallel
-      for (const id of idsToDelete) {
-        promises.push(deleteDoc(doc(db, "procedures", id)));
+      // Supabase sync
+      if (isSupabaseConfigured()) {
+        for (const id of idsToDelete) {
+          await deleteSupabaseItem('procedures', id);
+        }
+        for (const p of changedOrNewProcs) {
+          await saveSupabaseItem('procedures', p.id, p);
+        }
       }
 
-      // 5. Batch insert/update operations in parallel
-      for (const p of changedOrNewProcs) {
-        const procData: any = JSON.parse(JSON.stringify(p));
-        promises.push(setDoc(doc(db, "procedures", p.id), procData));
-      }
-
-      if (promises.length > 0) {
-        console.log(`[handleUpdateProcedures] Executing ${promises.length} DB operations in parallel...`);
-        await Promise.all(promises);
+      // Firestore sync
+      if (db) {
+        const promises: Promise<void>[] = [];
+        for (const id of idsToDelete) {
+          promises.push(deleteDoc(doc(db, "procedures", id)));
+        }
+        for (const p of changedOrNewProcs) {
+          const procData: any = JSON.parse(JSON.stringify(p));
+          promises.push(setDoc(doc(db, "procedures", p.id), procData));
+        }
+        if (promises.length > 0) {
+          await Promise.all(promises);
+        }
       }
     } catch (error) {
       console.error("Error updating procedures:", error);
