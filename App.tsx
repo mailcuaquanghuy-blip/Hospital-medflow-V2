@@ -912,27 +912,9 @@ const App: React.FC = () => {
       return;
     }
 
-    // Kiểm tra bệnh nhân đã ra viện từ hôm trước của ngày đích chưa
-    const patientObj = patients.find(p => p.id === patientId);
-    if (patientObj && patientObj.status === PatientStatus.DISCHARGED) {
-      const dischargeDateStr = patientObj.dischargeDate ? patientObj.dischargeDate.split('T')[0] : '';
-      const invalidDates = dateRange.filter(targetDate => {
-        if (targetDate === sourceDate) return false;
-        return !patientObj.dischargeDate || targetDate > dischargeDateStr;
-      });
-
-      if (invalidDates.length > 0) {
-        alert(`Không thể sao chép lịch trình sang ngày mới nếu bệnh nhân đã ra viện từ hôm trước.\nBệnh nhân ${patientObj.name} đã ra viện ngày ${patientObj.dischargeDate ? new Date(patientObj.dischargeDate).toLocaleDateString('vi-VN') : 'chưa xác định'}.\n\nCác ngày sau không thể sao chép do sau ngày ra viện:\n${invalidDates.map(d => new Date(d).toLocaleDateString('vi-VN')).join(', ')}`);
-        return;
-      }
-    }
-
-    // Check for duplicate procedures on target dates within the current department
-    const duplicateWarnings: string[] = [];
+    // Tự động xóa các lịch trình trùng của bệnh nhân này ở ngày đích nếu có
     const toDeleteApptIds: string[] = [];
-
-    dateRange.forEach(targetDate => {
-      if (targetDate === sourceDate) return;
+    actualTargetDates.forEach(targetDate => {
       const targetDateAppts = appointments.filter(a => 
         a.patientId === patientId && 
         a.date === targetDate && 
@@ -941,40 +923,23 @@ const App: React.FC = () => {
       
       sourceAppts.forEach(source => {
         const dupes = targetDateAppts.filter(a => a.procedureId === source.procedureId);
-        if (dupes.length > 0) {
-          const procName = procedures.find(p => p.id === source.procedureId)?.name || 'Lịch trình';
-          const [y, m, d] = targetDate.split('-');
-          duplicateWarnings.push(`Ngày ${d}/${m}/${y}: Đã có "${procName}"`);
-          dupes.forEach(dp => {
-            if (!toDeleteApptIds.includes(dp.id)) toDeleteApptIds.push(dp.id);
-          });
-        }
+        dupes.forEach(dp => {
+          if (!toDeleteApptIds.includes(dp.id)) toDeleteApptIds.push(dp.id);
+        });
       });
     });
 
-    if (duplicateWarnings.length > 0) {
-      const confirmOverwrite = window.confirm(
-        `CẢNH BÁO TRÙNG LẶP LỊCH TRÌNH:\nMột số lịch trình đã tồn tại ở các ngày đích trong khoa:\n` +
-        duplicateWarnings.slice(0, 8).join('\n') +
-        (duplicateWarnings.length > 8 ? `\n... và ${duplicateWarnings.length - 8} trùng lặp khác.` : '') +
-        `\n\nBạn có muốn XÓA CÁC LỊCH TRÌNH CŨ BỊ TRÙNG ở ngày đích để GHI ĐÈ bằng các lịch trình mới không?\n` +
-        `- Bấm [OK]: Xóa lịch trình trùng ở ngày đích và ghi đè lịch trình mới.\n` +
-        `- Bấm [Cancel]: Hủy thao tác sao chép.`
-      );
-
-      if (!confirmOverwrite) return;
-
-      // User confirmed overwrite: delete old duplicate appointments from Firestore
-      if (toDeleteApptIds.length > 0) {
+    if (toDeleteApptIds.length > 0) {
+      try {
         await Promise.all(toDeleteApptIds.map(id => deleteDoc(doc(db, "appointments", id))));
+      } catch (e) {
+        console.error("Lỗi khi xóa lịch trình trùng:", e);
       }
     }
 
-    // Kiểm tra ca máy cho các lịch trình chạy theo ca máy
-    const missingShifts: { date: string, procedureName: string, sourceShift: MachineShift }[] = [];
-    
-    dateRange.forEach(targetDate => {
-      if (targetDate === sourceDate) return;
+    // Kiểm tra và tự động tạo ca máy còn thiếu trên các ngày đích
+    const shiftsToCreate: MachineShift[] = [];
+    actualTargetDates.forEach(targetDate => {
       sourceAppts.forEach(source => {
         if (source.machineShiftId) {
           const sourceShift = machineShifts.find(s => s.id === source.machineShiftId);
@@ -986,95 +951,35 @@ const App: React.FC = () => {
               s.startTime === sourceShift.startTime && 
               s.endTime === sourceShift.endTime
             );
-            if (!targetShift) {
-              const proc = procedures.find(p => p.id === source.procedureId);
-              if (!missingShifts.some(m => m.date === targetDate && m.sourceShift.id === sourceShift.id)) {
-                missingShifts.push({ date: targetDate, procedureName: proc?.name || 'Lịch trình', sourceShift });
-              }
+            if (!targetShift && !shiftsToCreate.some(s => s.date === targetDate && s.machineId === sourceShift.machineId && s.startTime === sourceShift.startTime)) {
+              shiftsToCreate.push({
+                ...sourceShift,
+                id: `shift_${Math.random().toString(36).substr(2, 9)}`,
+                date: targetDate
+              });
             }
           }
         }
       });
     });
 
-    let autoCreateShifts = true; // Luôn tự động tạo ca máy khi sao chép lịch trình
-    const shiftsToCreate: MachineShift[] = [];
-    const shiftWarnings: string[] = [];
-
-    if (missingShifts.length > 0) {
-      missingShifts.forEach(m => {
-        const targetDate = m.date;
-        const sourceShift = m.sourceShift;
-        
-        // Check if staff is off
-        const checkStaff = (sId: string | null | undefined, roleName: string) => {
-          if (!sId) return null;
-          const att = attendanceRecords.find(a => a.staffId === sId && a.date === targetDate);
-          if (att && att.status !== 'PRESENT') {
-            const isMorning = sourceShift.startTime <= '11:30';
-            if (att.status === 'OFF_FULL' || 
-               (att.status === 'OFF_MORNING' && isMorning) || 
-               (att.status === 'OFF_AFTERNOON' && !isMorning)) {
-              const staffName = staff.find(s => s.id === sId)?.name || 'Nhân sự';
-              return `Ngày ${targetDate}: ${roleName} (${staffName}) đang nghỉ.`;
-            }
-          }
-          return null;
-        };
-
-        const staffWarns = [
-          checkStaff(sourceShift.staffId, 'Người thực hiện chính'),
-          checkStaff(sourceShift.assistant1Id, 'Người phụ 1'),
-          checkStaff(sourceShift.assistant2Id, 'Người phụ 2')
-        ].filter(Boolean);
-
-        if (staffWarns.length > 0) {
-          shiftWarnings.push(...staffWarns as string[]);
-        }
-
-        // Check machine overlap
-        const existingShiftsOnDate = machineShifts.filter(s => s.date === targetDate && s.machineId === sourceShift.machineId);
-        const hasOverlap = existingShiftsOnDate.some(s => {
-          return (sourceShift.startTime < s.endTime && sourceShift.endTime > s.startTime);
-        });
-
-        if (hasOverlap) {
-          shiftWarnings.push(`Ngày ${targetDate}: Máy ${sourceShift.machineId} bị trùng lặp thời gian (${sourceShift.startTime} - ${sourceShift.endTime}). Ca máy này sẽ không được tạo.`);
-        } else {
-          shiftsToCreate.push({
-            ...sourceShift,
-            id: `shift_${Math.random().toString(36).substr(2, 9)}`,
-            date: targetDate
-          });
-        }
-      });
-
-      if (shiftWarnings.length > 0) {
-        const confirmMsg = `CẢNH BÁO KHI TẠO CA MÁY MỚI:\n` + 
-          shiftWarnings.slice(0, 10).map(w => `- ${w}`).join('\n') + 
-          (shiftWarnings.length > 10 ? `\n... và ${shiftWarnings.length - 10} cảnh báo khác.` : '') + 
-          `\n\nBạn có muốn tiếp tục sao chép?`;
-        
-        if (!window.confirm(confirmMsg)) return;
+    if (shiftsToCreate.length > 0) {
+      try {
+        const shiftPromises = shiftsToCreate.map(shift => setDoc(doc(db, "machineShifts", shift.id), shift));
+        await Promise.all(shiftPromises);
+        machineShifts.push(...shiftsToCreate);
+        setMachineShifts(prev => [...prev, ...shiftsToCreate]);
+      } catch (e) {
+        console.error("Lỗi khi tự động tạo ca máy:", e);
       }
     }
 
     const newAppts: Appointment[] = [];
-    // State including newly created ones and excluding deleted ones
     let currentApptsState = appointments.filter(a => !toDeleteApptIds.includes(a.id));
 
-    // Create missing shifts if user confirmed
-    if (autoCreateShifts && shiftsToCreate.length > 0) {
-      const shiftPromises = shiftsToCreate.map(shift => setDoc(doc(db, "machineShifts", shift.id), shift));
-      await Promise.all(shiftPromises);
-      shiftsToCreate.forEach(shift => machineShifts.push(shift)); // Temporarily add to local state for linking
-      setMachineShifts(prev => [...prev, ...shiftsToCreate]);
-    }
-
-    dateRange.forEach(targetDate => {
-      if (targetDate === sourceDate) return;
+    actualTargetDates.forEach(targetDate => {
       sourceAppts.forEach(source => {
-        let targetMachineShiftId = null;
+        let targetMachineShiftId = source.machineShiftId || null;
         if (source.machineShiftId) {
           const sourceShift = machineShifts.find(s => s.id === source.machineShiftId);
           if (sourceShift) {
@@ -1085,16 +990,30 @@ const App: React.FC = () => {
               s.startTime === sourceShift.startTime && 
               s.endTime === sourceShift.endTime
             );
-            if (!targetShift) {
-              if (!autoCreateShifts) return; // Bỏ qua lịch trình này ở ngày này nếu không tạo ca máy
-            } else {
+            if (targetShift) {
               targetMachineShiftId = targetShift.id;
             }
           }
         }
 
-        // Giữ nguyên người thực hiện nhưng kiểm tra xung đột tại ngày mới
-        const conflictRes = checkConflict(source.startTime, source.endTime, targetDate, source.staffId, patientId, currentApptsState, staff, procedures, attendanceRecords, patients, source.procedureId, undefined, source.assistant1Id, source.assistant2Id, source);
+        // Vẫn thực hiện kiểm tra xung đột để đánh dấu status/details nếu có lỗi, nhưng LUÔN LUÔN tạo bản sao lịch trình
+        const conflictRes = checkConflict(
+          source.startTime, 
+          source.endTime, 
+          targetDate, 
+          source.staffId, 
+          patientId, 
+          currentApptsState, 
+          staff, 
+          procedures, 
+          attendanceRecords, 
+          patients, 
+          source.procedureId, 
+          undefined, 
+          source.assistant1Id, 
+          source.assistant2Id, 
+          source
+        );
 
         const copy: Appointment = {
           ...source,
@@ -1112,7 +1031,7 @@ const App: React.FC = () => {
     });
 
     if (newAppts.length > 0) {
-      // Optimistically update local state in React so the UI updates immediately!
+      // Cập nhật ngay lập tức giao diện local
       setAppointments(prev => {
         const filtered = prev.filter(a => !toDeleteApptIds.includes(a.id));
         return [...filtered, ...newAppts];
@@ -1122,8 +1041,7 @@ const App: React.FC = () => {
         const apptPromises = newAppts.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
         await Promise.all(apptPromises);
         
-        let msg = `Đã sao chép thành công ${newAppts.length} lượt lịch trình.`;
-        alert(msg);
+        alert(`Đã sao chép thành công ${newAppts.length} lượt lịch trình.`);
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, "appointments");
       }
