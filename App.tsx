@@ -1599,33 +1599,58 @@ const App: React.FC = () => {
   };
 
   const handleSaveStaff = async () => {
-    if (!editingStaff || !editingStaff.name || !db) return;
+    if (!editingStaff || !editingStaff.name) return;
     
+    const mainIds = editingStaff.mainCapabilityIds || [];
+    const asstIds = editingStaff.assistantCapabilityIds || [];
+    const combinedCapabilityIds = Array.from(new Set([...mainIds, ...asstIds]));
+
     const newStaff: Staff = {
         id: editingStaff.id || `s_${Math.random().toString(36).substr(2,9)}`,
         name: editingStaff.name,
         role: editingStaff.role || 'Doctor',
         deptId: editingStaff.deptId || currentDept?.id || '',
-        capabilityIds: editingStaff.capabilityIds || [],
-        mainCapabilityIds: editingStaff.mainCapabilityIds || [],
-        assistantCapabilityIds: editingStaff.assistantCapabilityIds || []
+        capabilityIds: combinedCapabilityIds,
+        mainCapabilityIds: mainIds,
+        assistantCapabilityIds: asstIds
     };
-    
+
+    // Optimistically update React state immediately
+    setStaff(prev => {
+      const exists = prev.some(s => s.id === newStaff.id);
+      if (exists) {
+        return prev.map(s => s.id === newStaff.id ? newStaff : s);
+      }
+      return [...prev, newStaff];
+    });
+
+    setIsStaffModalOpen(false);
+    setEditingStaff(null);
+
     try {
-      await setDoc(doc(db, "staff", newStaff.id), newStaff);
-      setIsStaffModalOpen(false);
-      setEditingStaff(null);
+      if (isSupabaseConfigured()) {
+        await saveSupabaseItem('staff', newStaff.id, newStaff);
+      }
+      if (db) {
+        await setDoc(doc(db, "staff", newStaff.id), newStaff);
+      }
     } catch (error) {
       console.error("Error saving staff:", error);
     }
   };
 
   const handleDeleteStaff = async (staffId: string) => {
-    if (!db) return;
     if (!window.confirm('Bạn có chắc chắn muốn xóa nhân sự này?')) return;
     
+    setStaff(prev => prev.filter(s => s.id !== staffId));
+
     try {
-      await deleteDoc(doc(db, "staff", staffId));
+      if (isSupabaseConfigured()) {
+        await deleteSupabaseItem('staff', staffId);
+      }
+      if (db) {
+        await deleteDoc(doc(db, "staff", staffId));
+      }
     } catch (error) {
       console.error("Error deleting staff:", error);
     }
