@@ -1126,15 +1126,9 @@ export const PatientList: React.FC<PatientListProps> = ({
                                   let indicator = "bg-slate-400";
 
                                   if (appt) {
-                                    if (appt.status === 'COMPLETED') {
-                                      badgeClass = "bg-emerald-50 text-emerald-750 border-emerald-200";
-                                      statusText = `Đã thực hiện (${appt.endTime})`;
-                                      indicator = "bg-emerald-500";
-                                    } else {
-                                      badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
-                                      statusText = `Đã xếp lịch (${appt.startTime})`;
-                                      indicator = "bg-amber-500";
-                                    }
+                                    badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
+                                    statusText = `Đã xếp lịch (${appt.startTime})`;
+                                    indicator = "bg-amber-500";
                                   }
 
                                   return (

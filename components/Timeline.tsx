@@ -792,15 +792,14 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   const getStatusColor = (status: AppointmentStatus, isOutside: boolean, isIndependent: boolean = false, isCurrentDept: boolean = true) => {
     if (!isCurrentDept) return 'bg-slate-50 border-slate-200 text-slate-400 opacity-40 grayscale-[0.5]';
-    if (status === AppointmentStatus.COMPLETED) return `bg-emerald-100 border-emerald-300 text-emerald-800 ${isIndependent ? 'opacity-60' : ''}`;
-    if (status === AppointmentStatus.IN_PROGRESS) return `bg-sky-100 border-sky-300 text-sky-800 ${isIndependent ? 'opacity-60' : ''}`;
+    
     if (status === AppointmentStatus.CONFLICT || isOutside) return `bg-rose-500 border-rose-700 text-white animate-blink shadow-[0_0_15px_rgba(244,63,94,0.5)] ${isIndependent ? 'opacity-70' : ''}`;
     return `bg-white border-blue-500 text-slate-700 shadow-sm shadow-blue-100 ${isIndependent ? 'opacity-60' : ''}`;
   };
 
   const getBarColor = (procedureId: string, status: string, isOutside: boolean, isIndependent: boolean = false, isCurrentDept: boolean = true) => {
       if (!isCurrentDept) return 'bg-slate-50 border-slate-200 text-slate-400 opacity-40 grayscale-[0.5]';
-      if (status === 'COMPLETED') return `bg-emerald-50 border-emerald-400 text-emerald-900 ${isIndependent ? 'opacity-60' : ''}`;
+      
       if (status === 'CONFLICT' || isOutside) return `bg-rose-500 border-rose-700 text-white animate-blink shadow-[0_0_20px_rgba(244,63,94,0.6)] ${isIndependent ? 'opacity-70' : ''}`;
       
       const procColor = getProcedureColor(procedureId);

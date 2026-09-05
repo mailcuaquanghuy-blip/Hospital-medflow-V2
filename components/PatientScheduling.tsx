@@ -1157,7 +1157,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const getBarColor = (index: number, status: string, hasWarning: boolean, hasConflict: boolean, isIndependent: boolean = false, isCurrentDept: boolean = true) => {
       if (!isCurrentDept) return 'bg-slate-50 border-slate-250 text-slate-400 opacity-40 grayscale-[0.5]';
       const opacity = isIndependent ? 'opacity-60' : '';
-      if (status === 'COMPLETED') return `bg-emerald-500 border-emerald-600 text-white font-extrabold shadow-sm shadow-emerald-100/50 ${opacity}`;
       if (hasConflict) return `bg-rose-500 border-rose-600 text-white animate-blink shadow-[0_0_15px_rgba(244,63,94,0.55)] font-extrabold ${isIndependent ? 'opacity-70' : ''}`;
       if (hasWarning) return `bg-amber-500 border-amber-600 text-white shadow-[0_0_15px_rgba(245,158,11,0.55)] font-extrabold ${opacity}`;
       const colors = [
@@ -1748,7 +1747,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                                       <span className="font-extrabold text-base truncate uppercase tracking-tight">{proc?.name || 'Lịch trình đã xóa'}</span>
                                                    </div>
                                                    <div className="flex items-center gap-1 shrink-0">
-                                                      {appt.status === 'COMPLETED' && <CheckCircle2 size={15} className="shrink-0 text-white" />}
                                                       {!isReferralFinished && canEdit && (
                                                          <button
                                                             id={`delete-btn-${appt.id}`}

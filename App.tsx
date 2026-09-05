@@ -628,7 +628,7 @@ const App: React.FC = () => {
       date: data.date!,
       startTime: data.startTime!,
       endTime: data.endTime!,
-      status: conflictRes.hasConflict ? AppointmentStatus.CONFLICT : (data.status || AppointmentStatus.PENDING),
+      status: conflictRes.hasConflict ? AppointmentStatus.CONFLICT : AppointmentStatus.PENDING,
       assignedMachineId: data.assignedMachineId || conflictRes.assignedMachineId || null,
       machineShiftId: data.machineShiftId || null,
       conflictDetails: conflictRes.conflictDetails
@@ -816,7 +816,7 @@ const App: React.FC = () => {
     
     const finalAppt: any = { 
       ...updatedAppt, 
-      status: res.hasConflict ? AppointmentStatus.CONFLICT : (updatedAppt.status || AppointmentStatus.PENDING),
+      status: res.hasConflict ? AppointmentStatus.CONFLICT : AppointmentStatus.PENDING,
       assignedMachineId: updatedAppt.assignedMachineId || res.assignedMachineId || null,
       conflictDetails: res.conflictDetails
     };
