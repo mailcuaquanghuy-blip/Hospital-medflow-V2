@@ -29,7 +29,7 @@ export const CopyRangeModal: React.FC<CopyRangeModalProps> = ({
   sourceDate,
   title = "Sao chép lịch trình",
   subtitle = "Giai đoạn điều trị mới",
-  infoText = "Hệ thống chỉ sao chép từ Ngày nghỉ sang Ngày nghỉ, Ngày thường sang Ngày thường. Các ngày khác loại trong khoảng chọn sẽ tự động bị loại bỏ.",
+  infoText = "Hệ thống sao chép đơn thuần danh sách lịch trình đã chọn sang các ngày trong khoảng thời gian được chọn.",
   patientName,
   procedureCount,
   itemLabel = "Bệnh nhân",

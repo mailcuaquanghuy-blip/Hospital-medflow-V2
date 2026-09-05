@@ -78,7 +78,7 @@ export const BatchLoadModal: React.FC<BatchLoadModalProps> = ({
             <div className="flex items-start gap-2 p-3 bg-indigo-50 border border-indigo-100 rounded-2xl mt-2">
               <AlertCircle size={16} className="text-indigo-500 shrink-0 mt-0.5" />
               <p className="text-[10px] text-indigo-700 font-bold leading-relaxed">
-                Lưu ý: Chỉ có thể sao chép giữa các ngày cùng loại (Ngày thường ➔ Ngày thường, Ngày nghỉ ➔ Ngày nghỉ).
+                Hệ thống sao chép đơn thuần toàn bộ lịch trình từ ngày nguồn sang ngày hiện tại.
               </p>
             </div>
           </div>

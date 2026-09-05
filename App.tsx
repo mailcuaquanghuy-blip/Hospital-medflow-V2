@@ -906,38 +906,9 @@ const App: React.FC = () => {
       currDate.setDate(currDate.getDate() + 1);
     }
 
-    // Lọc dateRange: Ngày nghỉ sang Ngày nghỉ, Ngày thường sang Ngày thường
-    const checkIsHoliday = (dateStr: string) => {
-      if (!targetDeptId) return false;
-      return attendanceRecords.some(r => 
-        (r.staffId === `holiday_dept_${targetDeptId}` || r.staffId === `holiday_${targetDeptId}`) && 
-        r.date === dateStr && 
-        r.status === AttendanceStatus.OFF_FULL
-      );
-    };
-
-    const isSourceHoliday = checkIsHoliday(sourceDate);
-
-    // Tự động loại bỏ các ngày khác loại khỏi dateRange
-    const mismatchedDates: string[] = [];
-    dateRange = dateRange.filter(targetDate => {
-      const isTargetHoliday = checkIsHoliday(targetDate);
-      if (isSourceHoliday !== isTargetHoliday) {
-        mismatchedDates.push(targetDate);
-        return false;
-      }
-      return true;
-    });
-
     const actualTargetDates = dateRange.filter(d => d !== sourceDate);
     if (actualTargetDates.length === 0) {
-      if (mismatchedDates.length > 0) {
-        const sourceTypeStr = isSourceHoliday ? 'NGÀY NGHĨ' : 'NGÀY THƯỜNG';
-        const targetTypeStr = isSourceHoliday ? 'ngày thường' : 'ngày nghỉ toàn khoa';
-        alert(`Không thể sao chép!\nNgày nguồn (${sourceDate}) là ${sourceTypeStr}.\nHệ thống chỉ cho phép sao chép lịch trình giữa các ngày cùng loại.\nTất cả các ngày từ ${startDate} đến ${endDate} đều là ${targetTypeStr} nên đã bị tự động loại bỏ.`);
-      } else {
-        alert("Không có ngày nào khả dụng để sao chép.");
-      }
+      alert("Vui lòng chọn khoảng ngày đích khác với ngày nguồn.");
       return;
     }
 
@@ -1173,25 +1144,6 @@ const App: React.FC = () => {
     console.log("Starting batch load with options:", options);
 
     try {
-      // Kiểm tra loại ngày: Ngày nghỉ sang Ngày nghỉ, Ngày thường sang Ngày thường
-      const isSourceHoliday = attendanceRecords.some(r => 
-        (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) && 
-        r.date === options.sourceDate && 
-        r.status === AttendanceStatus.OFF_FULL
-      );
-      const isActiveHoliday = attendanceRecords.some(r => 
-        (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) && 
-        r.date === activeDate && 
-        r.status === AttendanceStatus.OFF_FULL
-      );
-
-      if (isSourceHoliday !== isActiveHoliday) {
-        const sourceTypeStr = isSourceHoliday ? 'NGÀY NGHĨ' : 'NGÀY THƯỜNG';
-        const activeTypeStr = isActiveHoliday ? 'NGÀY NGHĨ' : 'NGÀY THƯỜNG';
-        alert(`Không thể sao chép!\nNgày nguồn (${options.sourceDate}) là ${sourceTypeStr}, còn ngày đích (${activeDate}) là ${activeTypeStr}.\nHệ thống chỉ cho phép sao chép dữ liệu giữa các ngày cùng loại (Ngày thường sang Ngày thường, Ngày nghỉ sang Ngày nghỉ).`);
-        return;
-      }
-
       // 1. Sao lưu cho chức năng Hoàn tác
       const currentDeptAppts = appointments.filter(a => a.date === activeDate && a.deptId === currentDept.id);
       setUndoData([...currentDeptAppts]);
