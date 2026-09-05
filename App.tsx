@@ -1068,6 +1068,7 @@ const App: React.FC = () => {
       const shiftPromises = shiftsToCreate.map(shift => setDoc(doc(db, "machineShifts", shift.id), shift));
       await Promise.all(shiftPromises);
       shiftsToCreate.forEach(shift => machineShifts.push(shift)); // Temporarily add to local state for linking
+      setMachineShifts(prev => [...prev, ...shiftsToCreate]);
     }
 
     dateRange.forEach(targetDate => {
@@ -1122,12 +1123,6 @@ const App: React.FC = () => {
         await Promise.all(apptPromises);
         
         let msg = `Đã sao chép thành công ${newAppts.length} lượt lịch trình.`;
-        if (holidayDates.length > 0) {
-          msg += `\nLưu ý: Hệ thống đã tự động bỏ qua các ngày nghỉ toàn khoa: ${holidayDates.map(d => {
-            const [y, m, day] = d.split('-');
-            return `${day}/${m}/${y}`;
-          }).join(', ')}.`;
-        }
         alert(msg);
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, "appointments");
