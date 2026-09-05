@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { Calendar, X, Copy, Info, CheckCircle2 } from 'lucide-react';
 import { DateInput } from './DateInput';
-import { Appointment, Procedure } from '../types';
+import { Appointment, Procedure, AttendanceRecord, AttendanceStatus } from '../types';
 
 interface CopyRangeModalProps {
   isOpen: boolean;
@@ -18,6 +18,8 @@ interface CopyRangeModalProps {
   itemLabel?: string;
   appointmentsToCopy?: Appointment[];
   procedures?: Procedure[];
+  attendanceRecords?: AttendanceRecord[];
+  deptId?: string;
 }
 
 export const CopyRangeModal: React.FC<CopyRangeModalProps> = ({
@@ -27,13 +29,20 @@ export const CopyRangeModal: React.FC<CopyRangeModalProps> = ({
   sourceDate,
   title = "Sao chép lịch trình",
   subtitle = "Giai đoạn điều trị mới",
-  infoText = "Hệ thống sẽ tự động quét nhân sự thay thế nếu nhân sự cũ nghỉ trong các ngày được chọn. Khung giờ và máy thực hiện sẽ được ưu tiên giữ nguyên.",
+  infoText = "Hệ thống chỉ sao chép từ Ngày nghỉ sang Ngày nghỉ, Ngày thường sang Ngày thường. Các ngày khác loại trong khoảng chọn sẽ tự động bị loại bỏ.",
   patientName,
   procedureCount,
   itemLabel = "Bệnh nhân",
   appointmentsToCopy = [],
-  procedures = []
+  procedures = [],
+  attendanceRecords = [],
+  deptId
 }) => {
+  const isSourceHoliday = deptId ? attendanceRecords.some(r => 
+    (r.staffId === `holiday_dept_${deptId}` || r.staffId === `holiday_${deptId}`) && 
+    r.date === sourceDate && 
+    r.status === AttendanceStatus.OFF_FULL
+  ) : false;
   const getNextDayStr = (dateStr: string) => {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
@@ -107,7 +116,14 @@ export const CopyRangeModal: React.FC<CopyRangeModalProps> = ({
         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto flex-1">
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
             {patientName && <p className="text-xs text-slate-500 font-bold">{itemLabel}: <span className="text-slate-800">{patientName}</span></p>}
-            <p className="text-xs text-slate-500 font-bold">Nguồn: <span className="text-indigo-600">Ngày {new Date(sourceDate).toLocaleDateString('vi-VN')}</span> {procedureCount !== undefined && `(${procedureCount} mục)`}</p>
+            <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+              <span>Nguồn: <span className="text-indigo-600">Ngày {new Date(sourceDate).toLocaleDateString('vi-VN')}</span> {procedureCount !== undefined && `(${procedureCount} mục)`}</span>
+              <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                isSourceHoliday ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+              }`}>
+                {isSourceHoliday ? 'Ngày nghỉ' : 'Ngày thường'}
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -75,6 +75,12 @@ export const BatchLoadModal: React.FC<BatchLoadModalProps> = ({
                 className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
               />
             </div>
+            <div className="flex items-start gap-2 p-3 bg-indigo-50 border border-indigo-100 rounded-2xl mt-2">
+              <AlertCircle size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+              <p className="text-[10px] text-indigo-700 font-bold leading-relaxed">
+                Lưu ý: Chỉ có thể sao chép giữa các ngày cùng loại (Ngày thường ➔ Ngày thường, Ngày nghỉ ➔ Ngày nghỉ).
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3">

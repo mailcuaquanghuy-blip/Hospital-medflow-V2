@@ -1877,6 +1877,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
               procedureCount={patientAppointments.length}
               appointmentsToCopy={patientAppointments}
               procedures={procedures}
+              attendanceRecords={attendanceRecords}
+              deptId={currentDept.id}
             />
 
 
