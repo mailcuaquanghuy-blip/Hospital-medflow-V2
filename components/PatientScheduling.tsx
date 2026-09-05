@@ -1095,7 +1095,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleDragStart = (e: React.MouseEvent, appt: Appointment) => {
-      if (appt.status === 'COMPLETED') return; 
       const isAuthorizedToEdit = appt.deptId === currentDept.id || currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(appt.deptId));
       if (!isAuthorizedToEdit) return;
       e.preventDefault(); e.stopPropagation();

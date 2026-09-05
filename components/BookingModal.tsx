@@ -1863,6 +1863,35 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </div>
                   )}
 
+                  {/* Trạng thái thực hiện */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Trạng thái thực hiện</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, status: AppointmentStatus.PENDING }))}
+                        className={`py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${
+                          formData.status !== AppointmentStatus.COMPLETED
+                            ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Clock size={14} /> Chờ / Đã xếp lịch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, status: AppointmentStatus.COMPLETED }))}
+                        className={`py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${
+                          formData.status === AppointmentStatus.COMPLETED
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <CheckCircle2 size={14} /> Đã hoàn thành
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Giờ bắt đầu</label>
