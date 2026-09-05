@@ -1,7 +1,7 @@
 import { isSupabaseConfigured, saveSupabaseItem, saveSupabaseBatch, deleteSupabaseItem, deleteSupabaseBatch, fetchSupabaseTable } from './supabaseService';
 import { supabase } from '../supabaseClient';
 
-export const db: any = null;
+export const db: any = { name: 'medflow_db', initialized: true };
 
 export interface DocRef {
   id: string;

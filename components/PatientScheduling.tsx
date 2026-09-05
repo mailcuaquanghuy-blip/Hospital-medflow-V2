@@ -174,6 +174,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const [newGroupName, setNewGroupName] = useState('');
   
   const [isLoadTemplateModalOpen, setIsLoadTemplateModalOpen] = useState(false);
+  const [targetPatientIdForApply, setTargetPatientIdForApply] = useState<string>('');
   const [templateSearchQuery, setTemplateSearchQuery] = useState('');
   const [isTemplateSortDesc, setIsTemplateSortDesc] = useState(false);
   const [collapsedTemplateGroups, setCollapsedTemplateGroups] = useState<Record<string, boolean>>({});
@@ -181,6 +182,14 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const [editingTemplate, setEditingTemplate] = useState<AppointmentTemplate | null>(null);
   const [includeStaffInTemplate, setIncludeStaffInTemplate] = useState(true);
   const [loadMode, setLoadMode] = useState<'REPLACE' | 'APPEND'>('APPEND');
+
+  useEffect(() => {
+    if (isLoadTemplateModalOpen) {
+      if (selectedPatientId) {
+        setTargetPatientIdForApply(selectedPatientId);
+      }
+    }
+  }, [isLoadTemplateModalOpen, selectedPatientId]);
 
   const hasMachineProcedures = useMemo(() => {
     return procedures.some(p => p.deptId === currentDept.id && p.requireMachine && (p.machineCapacity || 1) > 1 && p.availableMachines && p.availableMachines.length > 0);
@@ -816,7 +825,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                           e.stopPropagation();
                           const up = usedPatients.find(u => u.id === selectedPatientId);
                           if (up) handleSyncFromTemplate(template.id, up.appts);
-                          else handleApplyTemplate();
+                          else handleApplyTemplate(template.id);
                         }}
                         className="flex-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
                       >
@@ -878,28 +887,47 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     }
   };
 
-  const handleApplyTemplate = async () => {
-    if (!selectedPatientId || !editingTemplate || !db) return;
+  const handleApplyTemplate = async (templateIdOverride?: string) => {
+    const activePatientId = selectedPatientId;
+    if (!activePatientId) {
+      alert("Vui lòng chọn một bệnh nhân ở danh sách bên trái trước khi áp dụng mẫu!");
+      return;
+    }
+    const targetTplId = templateIdOverride || selectedTemplateId;
+    const targetTpl = (editingTemplate && (!targetTplId || editingTemplate.id === targetTplId))
+      ? editingTemplate
+      : (targetTplId ? templates.find(t => t.id === targetTplId) : null) || editingTemplate;
+    if (!targetTpl) {
+      alert("Vui lòng chọn một mẫu lịch trình để áp dụng!");
+      return;
+    }
+
+    if ((targetTpl.procedures || []).length === 0) {
+      alert("Mẫu lịch trình này chưa có thủ thuật nào!");
+      return;
+    }
 
     if (onVerifyAction) {
-      onVerifyAction(selectedPatientId, executeApplyTemplate);
+      onVerifyAction(activePatientId, () => executeApplyTemplateForPatient(activePatientId, targetTpl));
     } else {
-      executeApplyTemplate();
+      executeApplyTemplateForPatient(activePatientId, targetTpl);
     }
   };
 
-  const executeApplyTemplate = async () => {
+  const executeApplyTemplateForPatient = async (targetPatientId: string, templateObj: AppointmentTemplate) => {
+    if (!targetPatientId || !templateObj) return;
+
     try {
       // Delete existing appointments for this patient on this date in this dept
       const existingAppts = appointments.filter(
-        a => a.patientId === selectedPatientId && a.date === currentDate && a.deptId === currentDept.id
+        a => a.patientId === targetPatientId && a.date === currentDate && a.deptId === currentDept.id
       );
       if (existingAppts.length > 0) {
         await Promise.all(existingAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id))));
       }
 
       const createdAppts: Appointment[] = [];
-      const createPromises = (editingTemplate?.procedures || []).map(async (tProc) => {
+      const createPromises = (templateObj.procedures || []).map(async (tProc) => {
         let staffId: string | null = null;
         let assistant1Id: string | null = null;
         let assistant2Id: string | null = null;
@@ -910,7 +938,13 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           assistant2Id = tProc.assistant2Id || null;
         }
 
-        const proc = procedures.find(p => p.id === tProc.procedureId);
+        const proc = procedures.find(p => p.id === tProc.procedureId) || 
+          procedures.find(p => p.deptId === currentDept.id && (
+            (tProc.procedureId.includes('diencham') && p.name.toLowerCase().includes('điện châm')) ||
+            (tProc.procedureId.includes('thuycham') && p.name.toLowerCase().includes('thủy châm'))
+          ));
+        const effectiveProcId = proc ? proc.id : tProc.procedureId;
+
         let machineId = tProc.assignedMachineId || null;
         if (!machineId && proc?.requireMachine && proc.availableMachines && proc.availableMachines.length > 0) {
           machineId = proc.availableMachines[0];
@@ -919,9 +953,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         const apptId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newAppt: Appointment = {
           id: apptId,
-          patientId: selectedPatientId,
-          templateId: editingTemplate?.id || null,
-          procedureId: tProc.procedureId,
+          patientId: targetPatientId,
+          templateId: templateObj.id || null,
+          procedureId: effectiveProcId,
           staffId: staffId || '',
           assistant1Id: assistant1Id || null,
           assistant2Id: assistant2Id || null,
@@ -952,12 +986,16 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         const filtered = prev.filter(a => !existingIds.has(a.id));
         return [...filtered, ...createdAppts];
       });
+
+      setSelectedPatientId(targetPatientId);
       
       setIsLoadTemplateModalOpen(false);
       setSelectedTemplateId(null);
       setEditingTemplate(null);
       onRecheckConflicts?.();
-      alert('Đã áp dụng mẫu lịch trình thành công!');
+
+      const pat = patients.find(p => p.id === targetPatientId);
+      alert(`Đã áp dụng mẫu "${templateObj.name}" cho bệnh nhân ${pat?.name || ''} thành công!`);
     } catch (error) {
       console.error("Error applying template:", error);
       alert("Lỗi khi áp dụng mẫu lịch trình.");
@@ -2157,7 +2195,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                  onClick={() => {
                                    const patAppts = appointments.filter(a => a.patientId === selectedPatientId && a.date === currentDate && a.deptId === currentDept.id);
                                    if (patAppts.length > 0) handleSyncFromTemplate(selectedTemplateId, patAppts);
-                                   else handleApplyTemplate();
+                                   else handleApplyTemplate(selectedTemplateId);
                                  }}
                                  className="px-2 py-1 hover:bg-blue-50 text-blue-600 rounded flex items-center gap-1.5 transition-colors"
                                  title="Cập nhật BN hiện tại từ mẫu này"
@@ -2391,7 +2429,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                           </div>
                         )}
                       </div>
-                      <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+                      <div className="p-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
                         {editingTemplate && JSON.stringify(editingTemplate) !== JSON.stringify(templates.find(t => t.id === selectedTemplateId)) && (
                           <Button variant="secondary" onClick={handleSaveEditedTemplate} className="bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 mr-auto">
                             <Save size={18} /> Lưu thay đổi
@@ -2399,9 +2437,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                         )}
                         <Button variant="secondary" onClick={() => setIsLoadTemplateModalOpen(false)}>Đóng</Button>
                         <Button 
-                          onClick={handleApplyTemplate} 
+                          onClick={() => handleApplyTemplate()} 
                           disabled={!selectedTemplateId || !editingTemplate || (editingTemplate.procedures || []).length === 0} 
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
                         >
                           <CheckCircle2 size={18} /> Áp dụng mẫu
                         </Button>

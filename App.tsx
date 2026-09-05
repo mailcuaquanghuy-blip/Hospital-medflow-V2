@@ -31,6 +31,7 @@ import { Home, Building2, Table2, FileText, CalendarPlus, AlertCircle, LogOut, S
 
 // Database operations via Supabase
 import { 
+  db,
   collection, 
   doc, 
   query,
@@ -42,7 +43,6 @@ import {
   deleteDoc, 
   writeBatch 
 } from './utils/dbService';
-const db: any = null;
 
 
 export type MainTab = 'PATIENT_RECORDS' | 'SCHEDULING' | 'GENERAL_TIMELINE' | 'DAILY_REPORT' | 'DEPT_MANAGER' | 'ACCOUNT_MANAGER' | 'ACCOUNT_BACKUP';
