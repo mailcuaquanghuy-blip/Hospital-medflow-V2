@@ -59,7 +59,15 @@ export const PatientModal: React.FC<PatientModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.dob) return;
+    if (!formData.name || !formData.name.trim()) {
+      alert("Vui lòng nhập họ và tên bệnh nhân!");
+      return;
+    }
+
+    let dob = formData.dob;
+    if (!dob) {
+      dob = "1974-01-01";
+    }
 
     if (formData.bedNumber && formData.status === PatientStatus.TREATING) {
         const duplicate = patients.find(p => 
@@ -80,21 +88,21 @@ export const PatientModal: React.FC<PatientModalProps> = ({
     const admissionDateIso = new Date(formData.admissionDate || new Date()).toISOString();
     const dischargeDateIso = formData.status === PatientStatus.TREATING ? null : (formData.dischargeDate ? new Date(formData.dischargeDate).toISOString() : null);
     
-    // Mã bệnh nhân vẫn sinh ra để lưu trữ hệ thống, nhưng không hiển thị nặng nề
+    // Mã bệnh nhân vẫn sinh ra để lưu trữ hệ thống
     const code = formData.code || generatePatientCode(formData.name, admissionDateIso, currentDept.id);
 
     const newPatient: Patient = {
       id: patientId,
-      name: formData.name,
-      dob: formData.dob!,
-      gender: formData.gender as 'Nam' | 'Nữ',
+      name: formData.name.trim(),
+      dob: dob,
+      gender: (formData.gender as 'Nam' | 'Nữ') || 'Nam',
       code: code,
       bedNumber: formData.bedNumber || '',
       roomNumber: formData.roomNumber || '',
       admissionDate: admissionDateIso,
       dischargeDate: dischargeDateIso,
       bedType: (formData.bedType as BedType) || 'Nội trú',
-      status: formData.status as PatientStatus || PatientStatus.TREATING,
+      status: (formData.status as PatientStatus) || PatientStatus.TREATING,
       admittedByDeptId: formData.admittedByDeptId || currentDept.id,
       referrals: formData.referrals || [],
       insuranceLevel: formData.insuranceLevel || '100%',

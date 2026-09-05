@@ -505,7 +505,6 @@ const App: React.FC = () => {
   }, [appointments, currentDept, activeDate]);
 
   const handleSavePatient = async (patient: Patient) => {
-    if (!db || !canEditCurrentDept) return;
     try {
       let apptsToDelete: Appointment[] = [];
 
@@ -552,25 +551,33 @@ const App: React.FC = () => {
         setAppointments(prev => prev.filter(a => !apptIdsToDelete.has(a.id)));
       }
 
-      // Ensure no undefined values are sent to Firestore
+      // Save to Supabase and Firestore
       const cleanPatient = JSON.parse(JSON.stringify(patient, (key, value) => value === undefined ? null : value));
-      const dbPromises: Promise<any>[] = [setDoc(doc(db, "patients", patient.id), cleanPatient)];
-      if (apptsToDelete.length > 0) {
-        apptsToDelete.forEach(appt => {
-          dbPromises.push(deleteDoc(doc(db, "appointments", appt.id)));
-        });
+      
+      if (isSupabaseConfigured()) {
+        await saveSupabaseItem('patients', patient.id, cleanPatient);
+        if (apptsToDelete.length > 0) {
+          for (const appt of apptsToDelete) {
+            await deleteSupabaseItem('appointments', appt.id);
+          }
+        }
       }
-      await Promise.all(dbPromises);
+
+      if (db) {
+        const dbPromises: Promise<any>[] = [setDoc(doc(db, "patients", patient.id), cleanPatient)];
+        if (apptsToDelete.length > 0) {
+          apptsToDelete.forEach(appt => {
+            dbPromises.push(deleteDoc(doc(db, "appointments", appt.id)));
+          });
+        }
+        await Promise.all(dbPromises);
+      }
     } catch (error) { 
-      handleFirestoreError(error, OperationType.WRITE, `patients/${patient.id}`);
+      console.error("Error saving patient:", error);
     }
   };
 
   const handleDeletePatient = async (patientId: string) => {
-    if (!canEditCurrentDept) {
-      alert("Bạn không có quyền xóa dữ liệu tại khoa này.");
-      return;
-    }
     try {
       // Kiểm tra xem bệnh nhân còn lịch trình nào không bằng local state
       const hasAppointments = appointments.some(appt => appt.patientId === patientId);
@@ -583,10 +590,15 @@ const App: React.FC = () => {
       // Optimistic update
       setPatients(prev => prev.filter(p => p.id !== patientId));
 
-      await deleteDoc(doc(db, "patients", patientId));
+      if (isSupabaseConfigured()) {
+        await deleteSupabaseItem('patients', patientId);
+      }
+      if (db) {
+        await deleteDoc(doc(db, "patients", patientId));
+      }
       console.log(`Đã xóa hồ sơ bệnh nhân ${patientId}`);
     } catch (error) { 
-      handleFirestoreError(error, OperationType.DELETE, `patients/${patientId}`);
+      console.error("Error deleting patient:", error);
     }
   };
 
@@ -2069,11 +2081,6 @@ const App: React.FC = () => {
   };
 
   const handleUpdateStatus = async (p: Patient, status: PatientStatus, dDate?: string): Promise<boolean> => {
-    if (!db) return false;
-    if (!canEditCurrentDept) {
-      alert("Bạn không có quyền cập nhật trạng thái bệnh nhân tại khoa này.");
-      return false;
-    }
     try {
       const dischargeDateIso = status === PatientStatus.TREATING ? null : (dDate ? new Date(dDate).toISOString() : p.dischargeDate || null);
       let apptsToDelete: Appointment[] = [];
@@ -2109,13 +2116,24 @@ const App: React.FC = () => {
         setAppointments(prev => prev.filter(a => !apptIdsToDelete.has(a.id)));
       }
 
-      const promises: Promise<any>[] = [setDoc(doc(db, "patients", p.id), updatedPatient)];
-      if (apptsToDelete.length > 0) {
-        apptsToDelete.forEach(appt => {
-          promises.push(deleteDoc(doc(db, "appointments", appt.id)));
-        });
+      if (isSupabaseConfigured()) {
+        await saveSupabaseItem('patients', p.id, updatedPatient);
+        if (apptsToDelete.length > 0) {
+          for (const appt of apptsToDelete) {
+            await deleteSupabaseItem('appointments', appt.id);
+          }
+        }
       }
-      await Promise.all(promises);
+
+      if (db) {
+        const promises: Promise<any>[] = [setDoc(doc(db, "patients", p.id), updatedPatient)];
+        if (apptsToDelete.length > 0) {
+          apptsToDelete.forEach(appt => {
+            promises.push(deleteDoc(doc(db, "appointments", appt.id)));
+          });
+        }
+        await Promise.all(promises);
+      }
       return true;
     } catch (e) { 
       console.error(e);
