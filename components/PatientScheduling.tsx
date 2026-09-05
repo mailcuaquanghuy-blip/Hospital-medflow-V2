@@ -1302,81 +1302,85 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 gap-4">
-      <div className="flex items-center gap-2.5 shrink-0">
-        <button 
-          onClick={() => setActiveTab('SCHEDULING')} 
-          className={`px-6 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 ${activeTab === 'SCHEDULING' ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20 cursor-default' : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-slate-200/80 shadow-sm'}`}
-        >
-          Chỉ định & Lịch trình
-        </button>
-        <button 
-          onClick={() => setActiveTab('TEMPLATES')} 
-          className={`px-6 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 ${activeTab === 'TEMPLATES' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 cursor-default' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80 shadow-sm'}`}
-        >
-          Quản lý mẫu
-        </button>
-
-        {activeTab === 'SCHEDULING' && (
+      <div className="flex items-center justify-between gap-2.5 shrink-0 w-full flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button 
-            onClick={() => setIsQuickScheduleModalOpen(true)} 
-            className="flex items-center gap-2 px-6 py-2.5 bg-violet-50 text-violet-600 hover:bg-violet-100 border border-violet-200 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm"
-            title="Tự động sắp xếp lịch thông minh cho khoa"
+            onClick={() => setActiveTab('SCHEDULING')} 
+            className={`px-6 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 ${activeTab === 'SCHEDULING' ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20 cursor-default' : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-slate-200/80 shadow-sm'}`}
           >
-            <Zap size={14} className="fill-violet-500 text-violet-500" />
-            Sắp xếp lịch nhanh
+            Chỉ định & Lịch trình
           </button>
-        )}
-
-        {onRecheckConflicts && (
           <button 
-            onClick={onRecheckConflicts} 
-            className="flex items-center gap-2 px-6 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm"
-            title="Kiểm tra lại toàn bộ xung đột lịch"
+            onClick={() => setActiveTab('TEMPLATES')} 
+            className={`px-6 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 ${activeTab === 'TEMPLATES' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 cursor-default' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80 shadow-sm'}`}
           >
-            <AlertTriangle size={14} className="text-rose-500" />
-            Kiểm tra lỗi
+            Quản lý mẫu
           </button>
-        )}
 
-        {/* Nút Lọc biến động */}
-        <button 
-          onClick={() => setFilterModifiedOnly(prev => !prev)} 
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm border ${
-            filterModifiedOnly 
-              ? 'bg-amber-600 border-amber-600 text-white shadow-amber-500/20 hover:bg-amber-700' 
-              : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200'
-          }`}
-          title="Chỉ lọc danh sách bệnh nhân có lịch trình biến động trong phiên này"
-        >
-          <Filter size={14} />
-          Lọc biến động {deviations.length > 0 ? `(${deviations.length})` : ''}
-        </button>
-
-        {/* Nút Lịch sử chỉnh sửa */}
-        <button 
-          onClick={() => setIsHistoryModalOpen(true)} 
-          className="flex items-center gap-2 px-6 py-2.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm relative"
-          title="Xem danh sách các lịch trình biến động trong phiên hôm nay"
-        >
-          <History size={14} className="text-amber-600" />
-          Lịch sử chỉnh sửa
-          {deviations.length > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-pulse">
-              {deviations.length}
-            </span>
+          {activeTab === 'SCHEDULING' && (
+            <button 
+              onClick={() => setIsQuickScheduleModalOpen(true)} 
+              className="flex items-center gap-2 px-6 py-2.5 bg-violet-50 text-violet-600 hover:bg-violet-100 border border-violet-200 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm"
+              title="Tự động sắp xếp lịch thông minh cho khoa"
+            >
+              <Zap size={14} className="fill-violet-500 text-violet-500" />
+              Sắp xếp lịch nhanh
+            </button>
           )}
-        </button>
 
-        {hasUndoData && (
+          {hasUndoData && (
+            <button 
+              onClick={onUndoBatchLoad} 
+              className="flex items-center gap-2 px-5 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border-2 border-rose-100 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm animate-in fade-in slide-in-from-right-2"
+              title="Hoàn tác thao tác load hàng loạt vừa xong"
+            >
+              <RotateCcw size={14} />
+              Hoàn tác Load
+            </button>
+          )}
+        </div>
+
+        {/* Nhóm 2 nút liền nhau gộp lại ở góc phải: Biểu tượng Lọc biến động & Lịch sử chỉnh sửa */}
+        <div className="flex items-center ml-auto bg-amber-50/80 border border-amber-200/90 rounded-2xl p-1 shadow-2xs">
+          {/* Nút Biểu tượng Lọc biến động */}
           <button 
-            onClick={onUndoBatchLoad} 
-            className="flex items-center gap-2 px-5 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border-2 border-rose-100 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm animate-in fade-in slide-in-from-right-2"
-            title="Hoàn tác thao tác load hàng loạt vừa xong"
+            type="button"
+            onClick={() => setFilterModifiedOnly(prev => !prev)} 
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 cursor-pointer ${
+              filterModifiedOnly 
+                ? 'bg-amber-600 text-white shadow-xs shadow-amber-600/30' 
+                : 'text-amber-700 hover:bg-amber-100/90 active:scale-95'
+            }`}
+            title={filterModifiedOnly ? "Đang bật: Chỉ lọc bệnh nhân có lịch biến động (Bấm để tắt)" : (deviations.length > 0 ? `Lọc bệnh nhân có lịch biến động (${deviations.length})` : "Lọc bệnh nhân có lịch biến động")}
           >
-            <RotateCcw size={14} />
-            Hoàn tác Load
+            <Filter size={16} className={filterModifiedOnly ? 'text-white' : 'text-amber-700'} />
+            {deviations.length > 0 && (
+              <span className={`absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white shadow-2xs ${
+                filterModifiedOnly ? 'bg-white text-amber-700 font-extrabold' : 'bg-amber-600 text-white'
+              }`}>
+                {deviations.length}
+              </span>
+            )}
           </button>
-        )}
+
+          {/* Vách ngăn giữa 2 nút */}
+          <div className="w-px h-5 bg-amber-200/80 mx-0.5" />
+
+          {/* Nút Biểu tượng Lịch sử chỉnh sửa */}
+          <button 
+            type="button"
+            onClick={() => setIsHistoryModalOpen(true)} 
+            className="relative flex items-center justify-center w-9 h-9 rounded-xl text-amber-700 hover:bg-amber-100/90 transition-all duration-200 active:scale-95 cursor-pointer"
+            title={`Xem nhật ký biến động và hoàn tác chỉnh sửa${deviations.length > 0 ? ` (${deviations.length} biến động)` : ''}`}
+          >
+            <History size={16} className="text-amber-700" />
+            {deviations.length > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-2xs animate-pulse">
+                {deviations.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {activeTab === 'SCHEDULING' && (
@@ -1727,99 +1731,103 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
         {selectedPatient ? (
           <>
-            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 bg-slate-50/30 shrink-0">
-                <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Điều trị ngày:</span>
-                        {onChangeDate ? (
-                          <DateInput 
-                            value={currentDate} 
-                            onChange={onChangeDate} 
-                            showNavigation={true} 
-                            showWeekday={true} 
-                          />
-                        ) : (
-                          <span className="text-xs font-bold text-slate-700">
-                            {new Date(currentDate).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                          </span>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                            {selectedPatient.name}
-                        </h2>
+            <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/40 shrink-0">
+                {/* Thẻ thông tin bệnh nhân */}
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="bg-white border border-slate-200/90 rounded-2xl p-2.5 px-3.5 shadow-2xs flex flex-wrap items-center gap-3">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-xl font-black text-slate-800 tracking-tight">
+                                    {selectedPatient.name}
+                                </h2>
+                                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                    {selectedPatient.gender} • {calculateAge(selectedPatient.dob)} tuổi
+                                </span>
+                            </div>
+                        </div>
+
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200/80 px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm whitespace-nowrap">
-                            <Bed size={13} className="text-sky-500 shrink-0" /> 
-                            Giường: {selectedPatient.bedNumber} - Buồng: {selectedPatient.roomNumber || '?'}
-                          </span>
-                          
-                          {selectedPatient.bedType && (
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-xl uppercase tracking-wider shadow-sm whitespace-nowrap border ${
-                              selectedPatient.bedType === 'Nội trú ban ngày' 
-                                ? 'bg-amber-50 text-amber-800 border-amber-200' 
-                                : selectedPatient.bedType === 'Ngoại trú'
-                                ? 'bg-blue-50 text-blue-800 border-blue-200'
-                                : selectedPatient.bedType === 'Khác'
-                                ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                : 'bg-slate-50 text-slate-700 border-slate-200'
-                            }`}>
-                              {selectedPatient.bedType}
+                            <span className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-2xs whitespace-nowrap">
+                                <Bed size={13} className="text-sky-500 shrink-0" /> 
+                                Giường: {selectedPatient.bedNumber} - Buồng: {selectedPatient.roomNumber || '?'}
                             </span>
-                          )}
+                            
+                            {selectedPatient.bedType && (
+                                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl uppercase tracking-wider shadow-2xs whitespace-nowrap border ${
+                                    selectedPatient.bedType === 'Nội trú ban ngày' 
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200' 
+                                        : selectedPatient.bedType === 'Ngoại trú'
+                                        ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                        : selectedPatient.bedType === 'Khác'
+                                        ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                        : 'bg-slate-50 text-slate-700 border-slate-200'
+                                }`}>
+                                    {selectedPatient.bedType}
+                                </span>
+                            )}
 
-                          {selectedPatient.insuranceLevel && (
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-xl shadow-sm whitespace-nowrap border flex items-center gap-1.5 ${
-                              selectedPatient.insuranceLevel === '0%' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                              selectedPatient.insuranceLevel === '80%' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                              selectedPatient.insuranceLevel === '95%' ? 'bg-lime-50 text-lime-700 border-lime-200' :
-                              'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            }`}>
-                              <Shield size={13} className={
-                                selectedPatient.insuranceLevel === '0%' ? 'text-rose-500' :
-                                selectedPatient.insuranceLevel === '80%' ? 'text-orange-500' :
-                                selectedPatient.insuranceLevel === '95%' ? 'text-lime-500' :
-                                'text-emerald-500'
-                              } />
-                              BHYT: {selectedPatient.insuranceLevel}
-                            </span>
-                          )}
+                            {selectedPatient.insuranceLevel && (
+                                <span className={`text-xs font-bold px-2.5 py-1 rounded-xl shadow-2xs whitespace-nowrap border flex items-center gap-1.5 ${
+                                    selectedPatient.insuranceLevel === '0%' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                    selectedPatient.insuranceLevel === '80%' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                    selectedPatient.insuranceLevel === '95%' ? 'bg-lime-50 text-lime-700 border-lime-200' :
+                                    'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }`}>
+                                    <Shield size={13} className={
+                                        selectedPatient.insuranceLevel === '0%' ? 'text-rose-500' :
+                                        selectedPatient.insuranceLevel === '80%' ? 'text-orange-500' :
+                                        selectedPatient.insuranceLevel === '95%' ? 'text-lime-500' :
+                                        'text-emerald-500'
+                                    } />
+                                    BHYT: {selectedPatient.insuranceLevel}
+                                </span>
+                            )}
 
-                          {isReferralFinished && (
-                            <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-xl border border-emerald-200 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-sm">
-                               <CheckCircle2 size={13} className="shrink-0 text-emerald-500" /> Đã hoàn thành khám chuyên khoa
-                            </span>
-                          )}
+                            {isReferralFinished && (
+                                <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-xl border border-emerald-200 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider whitespace-nowrap shadow-2xs">
+                                    <CheckCircle2 size={13} className="shrink-0 text-emerald-500" /> Đã xong chuyên khoa
+                                </span>
+                            )}
                         </div>
                     </div>
-                    {selectedPatient.note && (
-                      <div className="mt-3 bg-amber-50/60 border border-amber-200/80 rounded-2xl p-3 flex items-start gap-2.5 max-w-3xl shadow-sm">
-                        <Info size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Ghi chú lâm sàng / Chỉ định đặc biệt</span>
-                          <p className="text-xs font-semibold text-slate-700 leading-relaxed">{selectedPatient.note}</p>
-                        </div>
-                      </div>
-                    )}
                 </div>
-                <div className="flex flex-wrap gap-2">
+
+                {/* Ghi chú bệnh nhân ở giữa nếu có */}
+                {selectedPatient.note ? (
+                    <div className="flex-1 min-w-[240px] max-w-md bg-amber-50/90 border border-amber-200/90 rounded-2xl p-2.5 shadow-2xs flex items-start gap-2.5">
+                        <div className="p-1 rounded-lg bg-amber-100/90 text-amber-800 shrink-0 mt-0.5">
+                            <Info size={14} className="text-amber-700" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block mb-0.5">Ghi chú bệnh nhân:</span>
+                            <p className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2" title={selectedPatient.note}>
+                                {selectedPatient.note}
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="hidden xl:block flex-1" />
+                )}
+
+                {/* Nhóm nút thao tác bên phải */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                     {isSupportDept && (
                       <Button onClick={() => onBookAppointment(selectedPatient.id)} disabled={isReferralFinished} className={isReferralFinished ? "" : "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200"}>
                         {isReferralFinished ? <Lock size={18} /> : <Plus size={18} />}
                         {isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}
                       </Button>
                     )}
-                    <Button variant="secondary" onClick={() => setIsCopyModalOpen(true)} className="bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100" disabled={isReferralFinished}>
+                    <Button variant="secondary" onClick={() => setIsCopyModalOpen(true)} className="bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100 shadow-2xs" disabled={isReferralFinished}>
                         <Copy size={18} /> Sao chép lịch trình
                     </Button>
 
                     
-                    <Button variant="secondary" onClick={() => setIsSaveTemplateModalOpen(true)} className="bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100" disabled={isReferralFinished || patientAppointments.length === 0}>
+                    <Button variant="secondary" onClick={() => setIsSaveTemplateModalOpen(true)} className="bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100 shadow-2xs" disabled={isReferralFinished || patientAppointments.length === 0}>
                         <Save size={18} /> Lưu thành mẫu
                     </Button>
 
                     {!isSupportDept && (
-                      <div className="flex">
+                      <div className="flex shadow-2xs rounded-xl overflow-hidden">
                         <Button onClick={() => onBookAppointment(selectedPatient.id)} className="rounded-r-none border-r border-white/20">
                             <Plus size={18} /> Thêm chỉ định
                         </Button>
@@ -1829,7 +1837,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                       </div>
                     )}
 
-                    <div className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200/80 px-2 py-1 rounded-xl border border-slate-200 text-slate-700 h-9 shrink-0 select-none transition-all">
+                    <div className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200/80 px-2 py-1 rounded-xl border border-slate-200 text-slate-700 h-9 shrink-0 select-none transition-all shadow-2xs">
                         <button 
                           onClick={() => setPixelsPerMinute(prev => Math.max(3.0, prev - 0.5))}
                           className="p-1 hover:bg-white rounded-lg transition-colors text-slate-600 cursor-pointer flex items-center justify-center"

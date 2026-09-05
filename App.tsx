@@ -2152,16 +2152,6 @@ const App: React.FC = () => {
                         <Database size={16} className="text-sky-500" />
                         Sao lưu / Khôi phục
                       </button>
-                      <div className="flex items-center gap-1.5 bg-slate-100 rounded-xl p-1 border border-slate-200 shadow-2xs">
-                          <span className="text-[10px] font-black text-slate-500 px-2 uppercase tracking-widest hidden xl:inline">Làm việc ngày:</span>
-                          <DateInput 
-                            value={activeDate} 
-                            onChange={(val) => { if (!isAnyModalOpen) setActiveDate(val); }} 
-                            showNavigation={true}
-                            showWeekday={true}
-                            disabled={isAnyModalOpen}
-                          />
-                      </div>
                     </>
                   )}
                   <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
@@ -2181,7 +2171,8 @@ const App: React.FC = () => {
           </div>
           
           {currentDept && (
-            <div className="px-6 py-3.5 bg-slate-50/50 border-t border-b border-slate-200/60 flex gap-3 overflow-x-auto scrollbar-none items-center">
+            <div className="px-6 py-3 bg-slate-50/50 border-t border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3 overflow-x-auto scrollbar-none">
+              <div className="flex gap-3 items-center shrink-0">
                {[
                    { id: 'PATIENT_RECORDS', label: 'Hồ sơ Bệnh nhân', icon: <FileText size={16} /> },
                    { id: 'SCHEDULING', label: 'Sắp xếp lịch trình', icon: <CalendarPlus size={16} /> },
@@ -2208,6 +2199,20 @@ const App: React.FC = () => {
                      </button>
                    );
                })}
+              </div>
+
+              {/* Khung Làm việc ngày chuyển từ hàng trên xuống góc phải hàng thứ 2 */}
+              <div className="flex items-center gap-2 bg-slate-100/90 rounded-2xl p-1.5 border border-slate-200/90 shadow-2xs shrink-0 ml-auto">
+                  <span className="text-[11px] font-black text-slate-500 px-2.5 uppercase tracking-widest hidden sm:inline">Làm việc ngày:</span>
+                  <DateInput 
+                    value={activeDate} 
+                    onChange={(val) => { if (!isAnyModalOpen) setActiveDate(val); }} 
+                    showNavigation={true}
+                    showWeekday={true}
+                    size="lg"
+                    disabled={isAnyModalOpen}
+                  />
+              </div>
             </div>
           )}
       </header>

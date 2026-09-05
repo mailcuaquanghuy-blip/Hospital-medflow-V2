@@ -3,7 +3,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole, ScheduleSnapshot } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString } from '../utils/timeUtils';
-import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2 } from 'lucide-react';
+import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2 } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
 import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
@@ -1012,129 +1012,124 @@ export const Timeline: React.FC<TimelineProps> = ({
   if (viewMode === 'GENERAL') {
     return (
       <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-5 border-b border-slate-100 bg-slate-50 flex flex-col md:flex-row items-start md:items-center gap-6">
-           <div className="shrink-0 flex items-center justify-between w-full md:w-auto gap-4">
-               <div>
-                   <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Tổng hợp hoạt động</div>
-                   <div className="flex flex-wrap items-center gap-3">
-                     <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-                         Timeline Khoa
-                     </h2>
-                     {onChangeDate && (
-                       <DateInput
-                         value={date}
-                         onChange={onChangeDate}
-                         showNavigation={true}
-                         showWeekday={true}
-                       />
-                     )}
-                   </div>
-               </div>
-               <div className="flex items-center gap-2 md:hidden">
-                 {activeFiltersCount > 0 && (
-                   <button 
-                     onClick={handleClearAllFilters} 
-                     className="px-2.5 py-2 bg-amber-50 border border-amber-300 text-amber-700 rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm active:scale-95"
-                     title="Bỏ tất cả bộ lọc"
-                   >
-                     <FilterX size={16} />
-                     <span>Bỏ lọc ({activeFiltersCount})</span>
-                   </button>
-                 )}
-                 <button onClick={handlePrintTimeline} className="p-3 bg-white border border-slate-200 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
-                   <Printer size={20} />
-                 </button>
-                 <button onClick={handleExportCSVTimeline} className="p-3 bg-white border border-slate-200 rounded-2xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">
-                   <FileText size={20} />
-                 </button>
-               </div>
-           </div>
+        {/* Thanh công cụ gọn gàng phía trên Timeline */}
+        <div className="px-4 py-2 border-b border-slate-200 bg-slate-50/80 flex items-center justify-end gap-2.5 flex-wrap shrink-0">
+          {/* Nút Bỏ lọc tất cả dạng biểu tượng */}
+          {activeFiltersCount > 0 && (
+            <button 
+              type="button"
+              onClick={handleClearAllFilters} 
+              className="relative flex items-center justify-center w-9 h-9 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+              title={`Bỏ tất cả các bộ lọc đang kích hoạt (${activeFiltersCount})`}
+            >
+              <FilterX size={16} className="text-amber-700" />
+              <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 text-[9px] font-black bg-amber-300 text-amber-900 rounded-full flex items-center justify-center border-2 border-white shadow-2xs">
+                {activeFiltersCount}
+              </span>
+            </button>
+          )}
 
-           <div className="flex-1 w-full flex items-center justify-end gap-3 flex-wrap">
-               {activeFiltersCount > 0 && (
-                 <button 
-                   onClick={handleClearAllFilters} 
-                   className="h-[40px] px-3.5 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded-xl flex items-center gap-2 font-bold text-sm shrink-0 transition-all shadow-sm active:scale-95 cursor-pointer"
-                   title="Bỏ tất cả các bộ lọc đang kích hoạt"
-                 >
-                   <FilterX size={16} className="text-amber-600" />
-                   <span>Bỏ lọc tất cả</span>
-                   <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-black bg-amber-200 text-amber-900 rounded-full min-w-[20px]">
-                     {activeFiltersCount}
-                   </span>
-                 </button>
-               )}
+          {/* Nhóm 3 nút gộp thành 1 cụm: Lọc biến động, Lịch sử chỉnh sửa, Lưu phiên bản */}
+          {currentDept && (
+            <div className="flex items-center bg-amber-50/80 border border-amber-200/90 rounded-2xl p-1 shadow-2xs shrink-0">
+              {/* Nút Lọc biến động */}
+              <button 
+                type="button"
+                onClick={() => setFilterModifiedOnly(prev => !prev)} 
+                className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 cursor-pointer ${
+                  filterModifiedOnly 
+                    ? 'bg-amber-600 text-white shadow-xs shadow-amber-600/30' 
+                    : 'text-amber-700 hover:bg-amber-100/90 active:scale-95'
+                }`}
+                title={filterModifiedOnly ? "Đang bật: Chỉ lọc lịch biến động (Bấm để tắt)" : (deviations.length > 0 ? `Lọc lịch biến động (${deviations.length})` : "Lọc lịch biến động")}
+              >
+                <Filter size={16} className={filterModifiedOnly ? 'text-white' : 'text-amber-700'} />
+                {deviations.length > 0 && (
+                  <span className={`absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white shadow-2xs ${
+                    filterModifiedOnly ? 'bg-white text-amber-700 font-extrabold' : 'bg-amber-600 text-white'
+                  }`}>
+                    {deviations.length}
+                  </span>
+                )}
+              </button>
 
-               {currentDept && (
-                 <button 
-                   onClick={() => setFilterModifiedOnly(prev => !prev)} 
-                   className={`h-[40px] px-3.5 border rounded-xl flex items-center gap-2 font-bold text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm ${filterModifiedOnly ? 'bg-amber-600 border-amber-600 text-white hover:bg-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
-                   title="Chỉ hiển thị các lịch trình đã được chỉnh sửa hoặc thêm mới trong phiên làm việc hiện tại"
-                 >
-                   <Filter size={14} />
-                   <span>Lọc biến động {deviations.length > 0 ? `(${deviations.length})` : ''}</span>
-                 </button>
-               )}
+              {/* Vách ngăn */}
+              <div className="w-px h-5 bg-amber-200/80 mx-0.5" />
 
-               {currentDept && (
-                 <button 
-                   onClick={() => setIsHistoryModalOpen(true)} 
-                   className="h-[40px] px-3.5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-xl flex items-center gap-2 font-bold text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm relative cursor-pointer"
-                   title="Xem danh sách các lịch trình biến động trong phiên và hoàn tác"
-                 >
-                   <History size={14} className="text-amber-600" />
-                   <span>Lịch sử chỉnh sửa</span>
-                   {deviations.length > 0 && (
-                     <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-white shadow-sm animate-pulse">
-                       {deviations.length}
-                     </span>
-                   )}
-                 </button>
-               )}
+              {/* Nút Lịch sử chỉnh sửa */}
+              <button 
+                type="button"
+                onClick={() => setIsHistoryModalOpen(true)} 
+                className="relative flex items-center justify-center w-9 h-9 rounded-xl text-amber-700 hover:bg-amber-100/90 transition-all duration-200 active:scale-95 cursor-pointer"
+                title={`Xem nhật ký biến động và hoàn tác chỉnh sửa${deviations.length > 0 ? ` (${deviations.length} biến động)` : ''}`}
+              >
+                <History size={16} className="text-amber-700" />
+                {deviations.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-2xs animate-pulse">
+                    {deviations.length}
+                  </span>
+                )}
+              </button>
 
-               {currentDept && onSaveScheduleSnapshot && (
-                 <button 
-                   onClick={async () => {
-                     setIsSavingSnapshot(true);
-                     try {
-                       await onSaveScheduleSnapshot(currentDept.id, date);
-                       const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
-                       setSessionBaseline(currentDept.id, date, deptAppts);
-                       setFilterModifiedOnly(false);
-                     } finally {
-                       setIsSavingSnapshot(false);
-                     }
-                   }} 
-                   disabled={isSavingSnapshot}
-                   className="h-[40px] px-3.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-xl flex items-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all shadow-sm disabled:opacity-50"
-                   title="Lưu lại phiên bản chốt hiện tại làm mốc so sánh biến động"
-                 >
-                   <Check size={14} />
-                   <span>{isSavingSnapshot ? "Đang lưu..." : "Lưu phiên bản"}</span>
-                 </button>
-               )}
+              {/* Vách ngăn */}
+              {onSaveScheduleSnapshot && <div className="w-px h-5 bg-amber-200/80 mx-0.5" />}
 
-               <button onClick={handlePrintTimeline} className="hidden md:flex h-[40px] px-4 bg-white border border-slate-200 rounded-xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm items-center gap-2 font-bold text-sm shrink-0">
-                 <Printer size={16} /> In báo cáo
-               </button>
-               <button onClick={handleExportCSVTimeline} className="hidden md:flex h-[40px] px-4 bg-white border border-slate-200 rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm items-center gap-2 font-bold text-sm shrink-0">
-                 <FileText size={16} /> Xuất CSV
-               </button>
+              {/* Nút Lưu phiên bản */}
+              {onSaveScheduleSnapshot && (
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    setIsSavingSnapshot(true);
+                    try {
+                      await onSaveScheduleSnapshot(currentDept.id, date);
+                      const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
+                      setSessionBaseline(currentDept.id, date, deptAppts);
+                      setFilterModifiedOnly(false);
+                    } finally {
+                      setIsSavingSnapshot(false);
+                    }
+                  }} 
+                  disabled={isSavingSnapshot}
+                  className="relative flex items-center justify-center w-9 h-9 rounded-xl text-sky-700 hover:bg-sky-100/90 transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50"
+                  title="Lưu lại phiên bản chốt hiện tại làm mốc so sánh biến động"
+                >
+                  {isSavingSnapshot ? <Loader2 size={16} className="animate-spin text-sky-600" /> : <BookmarkCheck size={16} className="text-sky-600" />}
+                </button>
+              )}
+            </div>
+          )}
 
-               {onRecheckConflicts && (
-                 <button 
-                   onClick={onRecheckConflicts} 
-                   className="hidden md:flex h-[40px] px-4 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl items-center gap-2 font-bold text-sm shrink-0 transition-all shadow-sm"
-                   title="Kiểm tra lại toàn bộ xung đột lịch"
-                 >
-                   <AlertTriangle size={16} /> Kiểm tra lỗi
-                 </button>
-               )}
-               
-               <button onClick={() => onEmptySlotClick('', '08:00', 'GENERAL')} className="hidden md:flex h-[40px] px-4 bg-primary border border-primary rounded-xl text-white hover:bg-primary/90 transition-all shadow-sm items-center gap-2 font-bold text-sm shrink-0">
-                 <Plus size={16} /> Thêm chỉ định
-               </button>
-           </div>
+          {/* Nút In báo cáo */}
+          <button 
+            type="button"
+            onClick={handlePrintTimeline} 
+            className="flex items-center justify-center w-9 h-9 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+            title="In báo cáo Timeline"
+          >
+            <Printer size={16} />
+          </button>
+
+          {/* Nút Xuất CSV */}
+          <button 
+            type="button"
+            onClick={handleExportCSVTimeline} 
+            className="flex items-center justify-center w-9 h-9 bg-white border border-slate-200 rounded-xl text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+            title="Xuất file CSV Timeline"
+          >
+            <FileText size={16} />
+          </button>
+
+          {/* Nút Kiểm tra lỗi */}
+          {onRecheckConflicts && (
+            <button 
+              type="button"
+              onClick={onRecheckConflicts} 
+              className="flex items-center justify-center w-9 h-9 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+              title="Kiểm tra lại toàn bộ xung đột lịch"
+            >
+              <AlertTriangle size={16} />
+            </button>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-300 relative">

@@ -993,20 +993,8 @@ export const DailyReport: React.FC<DailyReportProps> = ({
           </div>
         </div>
 
-        {/* Tab switchers & Daily Date Navigator */}
+        {/* Tab switchers */}
         <div className="flex flex-wrap items-center gap-3">
-          {activeReportTab === 'daily' && onChangeDate && (
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-              <span className="text-[10px] font-black text-slate-500 uppercase px-1.5 tracking-wider hidden sm:inline">Xem ngày:</span>
-              <DateInput
-                value={activeDate}
-                onChange={onChangeDate}
-                showNavigation={true}
-                showWeekday={true}
-              />
-            </div>
-          )}
-
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 self-start md:self-auto uppercase tracking-wide">
             <button
               onClick={() => setActiveReportTab('daily')}

@@ -29,6 +29,7 @@ export interface DateInputProps {
   containerClassName?: string;
   showNavigation?: boolean; // Hiển thị các nút điều hướng: << (-7 ngày), < (-1 ngày), > (+1 ngày), >> (+7 ngày), Hôm nay
   showWeekday?: boolean; // Hiển thị thứ trong tuần (CN, T2, T3...)
+  size?: 'sm' | 'md' | 'lg'; // Kích thước điều hướng / input
   disabled?: boolean;
   minDate?: Date;
   maxDate?: Date;
@@ -43,6 +44,7 @@ export const DateInput: React.FC<DateInputProps> = ({
   containerClassName,
   showNavigation = false,
   showWeekday = false,
+  size = 'md',
   disabled = false,
   minDate,
   maxDate,
@@ -224,17 +226,66 @@ export const DateInput: React.FC<DateInputProps> = ({
 
   // Nếu showNavigation = true, hiển thị cụm điều hướng đầy đủ (<<, <, Date, >, >>, Hôm nay)
   if (showNavigation) {
+    const isLg = size === 'lg';
+    const isSm = size === 'sm';
+
+    const navBtnClass = isLg
+      ? "w-9 h-9 p-0 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300 transition-all shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+      : isSm
+      ? "p-1 rounded-md bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300 transition-all shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+      : "p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300 transition-all shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer";
+
+    const navIconSize = isLg ? 18 : isSm ? 14 : 16;
+    const calIconSize = isLg ? 16 : isSm ? 12 : 14;
+    const todayIconSize = isLg ? 15 : isSm ? 12 : 13;
+
+    const dateBoxClass = isLg
+      ? "flex items-center bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-2xs hover:border-sky-300 transition-all focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20"
+      : isSm
+      ? "flex items-center bg-white border border-slate-200 rounded-md px-2 py-0.5 shadow-2xs hover:border-sky-300 transition-all focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20"
+      : "flex items-center bg-white border border-slate-200 rounded-lg px-2.5 py-1 shadow-2xs hover:border-sky-300 transition-all focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20";
+
+    const datePickerClass = isLg
+      ? `w-[108px] bg-transparent text-[15px] font-black text-slate-800 outline-none p-0 border-none cursor-pointer tracking-tight ${className || ''}`
+      : isSm
+      ? `w-[88px] bg-transparent text-xs font-bold text-slate-800 outline-none p-0 border-none cursor-pointer tracking-tight ${className || ''}`
+      : `w-[100px] bg-transparent text-sm font-black text-slate-800 outline-none p-0 border-none cursor-pointer tracking-tight ${className || ''}`;
+
+    const weekdayClass = isLg
+      ? "ml-2 px-2 py-0.5 text-[11px] font-black rounded-lg bg-sky-50 text-sky-700 border border-sky-100 uppercase tracking-wider shrink-0 select-none"
+      : isSm
+      ? "ml-1 px-1 py-0.2 text-[9px] font-black rounded bg-sky-50 text-sky-700 border border-sky-100 uppercase tracking-wider shrink-0 select-none"
+      : "ml-1.5 px-1.5 py-0.5 text-[10px] font-black rounded-md bg-sky-50 text-sky-700 border border-sky-100 uppercase tracking-wider shrink-0 select-none";
+
+    const todayBtnClass = isLg
+      ? `h-9 px-3.5 py-1.5 text-xs font-black rounded-xl border transition-all shadow-2xs flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0 ${
+          isToday
+            ? 'bg-sky-50 text-sky-700 border-sky-200 font-extrabold'
+            : 'bg-white border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300'
+        }`
+      : isSm
+      ? `px-2 py-0.5 text-[11px] font-bold rounded-md border transition-all shadow-2xs flex items-center gap-1 active:scale-95 cursor-pointer ${
+          isToday
+            ? 'bg-sky-50 text-sky-700 border-sky-200 font-extrabold'
+            : 'bg-white border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300'
+        }`
+      : `px-2.5 py-1 text-xs font-bold rounded-lg border transition-all shadow-2xs flex items-center gap-1.5 active:scale-95 cursor-pointer ${
+          isToday
+            ? 'bg-sky-50 text-sky-700 border-sky-200 font-extrabold'
+            : 'bg-white border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300'
+        }`;
+
     return (
-      <div className={`inline-flex items-center gap-1 ${containerClassName || ''}`}>
+      <div className={`inline-flex items-center gap-1.5 ${containerClassName || ''}`}>
         {/* Nút lùi 1 tuần (-7 ngày) */}
         <button
           type="button"
           onClick={handlePrevWeek}
           disabled={disabled}
           title="Lùi 1 tuần (-7 ngày)"
-          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300 transition-all shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className={navBtnClass}
         >
-          <ChevronsLeft size={16} />
+          <ChevronsLeft size={navIconSize} />
         </button>
 
         {/* Nút lùi 1 ngày (-1 ngày) */}
@@ -243,14 +294,14 @@ export const DateInput: React.FC<DateInputProps> = ({
           onClick={handlePrevDay}
           disabled={disabled}
           title="Lùi 1 ngày (-1 ngày)"
-          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300 transition-all shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className={navBtnClass}
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={navIconSize} />
         </button>
 
         {/* Ô chọn ngày */}
-        <div className="flex items-center bg-white border border-slate-200 rounded-lg px-2.5 py-1 shadow-2xs hover:border-sky-300 transition-all focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20">
-          <Calendar size={14} className="text-sky-500 mr-1.5 shrink-0" />
+        <div className={dateBoxClass}>
+          <Calendar size={calIconSize} className="text-sky-500 mr-1.5 shrink-0" />
           <DatePicker
             id={id}
             selected={selectedDate}
@@ -261,7 +312,7 @@ export const DateInput: React.FC<DateInputProps> = ({
             minDate={minDate}
             maxDate={maxDate}
             placeholderText={placeholder}
-            className={`w-[90px] bg-transparent text-sm font-black text-slate-800 outline-none p-0 border-none cursor-pointer tracking-tight ${className || ''}`}
+            className={datePickerClass}
             portalId="portal-datepicker"
             popperClassName="z-[9999]"
             renderCustomHeader={renderCustomHeader}
@@ -271,7 +322,7 @@ export const DateInput: React.FC<DateInputProps> = ({
 
           {showWeekday && weekdayInfo && (
             <span 
-              className="ml-1.5 px-1.5 py-0.5 text-[10px] font-black rounded-md bg-sky-50 text-sky-700 border border-sky-100 uppercase tracking-wider shrink-0 select-none"
+              className={weekdayClass}
               title={weekdayInfo.full}
             >
               {weekdayInfo.short}
@@ -285,9 +336,9 @@ export const DateInput: React.FC<DateInputProps> = ({
           onClick={handleNextDay}
           disabled={disabled}
           title="Tiến 1 ngày (+1 ngày)"
-          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300 transition-all shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className={navBtnClass}
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={navIconSize} />
         </button>
 
         {/* Nút tiến 1 tuần (+7 ngày) */}
@@ -296,9 +347,9 @@ export const DateInput: React.FC<DateInputProps> = ({
           onClick={handleNextWeek}
           disabled={disabled}
           title="Tiến 1 tuần (+7 ngày)"
-          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300 transition-all shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className={navBtnClass}
         >
-          <ChevronsRight size={16} />
+          <ChevronsRight size={navIconSize} />
         </button>
 
         {/* Nút Hôm nay */}
@@ -307,13 +358,9 @@ export const DateInput: React.FC<DateInputProps> = ({
           onClick={handleToday}
           disabled={disabled}
           title={isToday ? 'Đang ở ngày hôm nay' : 'Chuyển nhanh về hôm nay'}
-          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all shadow-2xs flex items-center gap-1.5 active:scale-95 cursor-pointer ${
-            isToday
-              ? 'bg-sky-50 text-sky-700 border-sky-200 font-extrabold'
-              : 'bg-white border-slate-200 text-slate-600 hover:text-sky-600 hover:bg-sky-50 hover:border-sky-300'
-          }`}
+          className={todayBtnClass}
         >
-          <CalendarCheck size={13} className={isToday ? 'text-sky-500' : 'text-slate-400'} />
+          <CalendarCheck size={todayIconSize} className={isToday ? 'text-sky-500' : 'text-slate-400'} />
           <span className="hidden sm:inline">Hôm nay</span>
         </button>
       </div>
