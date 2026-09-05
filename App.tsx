@@ -83,6 +83,26 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  
+  // Safe updater that prevents duplicate appointments in state
+  const handleUpdateAppointmentsSafely: React.Dispatch<React.SetStateAction<Appointment[]>> = (value) => {
+    setAppointments(prev => {
+      const next = typeof value === 'function' ? (value as any)(prev) : value;
+      if (!Array.isArray(next)) return next;
+      const seen = new Set<string>();
+      const result: Appointment[] = [];
+      for (const item of next) {
+        if (item && item.id) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id);
+            result.push(item);
+          }
+        }
+      }
+      return result;
+    });
+  };
+
   const [machineShifts, setMachineShifts] = useState<MachineShift[]>([]);
   const [templates, setTemplates] = useState<AppointmentTemplate[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -2220,7 +2240,7 @@ const App: React.FC = () => {
             scheduleSnapshots={scheduleSnapshots}
             onSaveScheduleSnapshot={handleSaveScheduleSnapshot}
             onUndoAppointmentChange={handleUndoAppointmentChange}
-            onUpdateAppointments={setAppointments}
+            onUpdateAppointments={handleUpdateAppointmentsSafely}
             onUpdateTemplates={setTemplates}
           />
          )}
@@ -2278,7 +2298,7 @@ const App: React.FC = () => {
                            onUpdateBulkAttendance={handleUpdateBulkAttendance}
                            onUpdateProcedures={handleUpdateProcedures} 
                            appointments={appointments}
-                           onUpdateAppointments={setAppointments}
+                           onUpdateAppointments={handleUpdateAppointmentsSafely}
                            currentUser={currentUser!}
                         />
                  </div>

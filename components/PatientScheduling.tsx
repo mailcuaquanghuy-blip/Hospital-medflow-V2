@@ -143,6 +143,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isSavingVersion, setIsSavingVersion] = useState(false);
+  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
+  const isApplyingRef = useRef(false);
 
   const handleSaveSnapshot = async () => {
     if (!currentDept || !onSaveScheduleSnapshot) return;
@@ -495,17 +497,23 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   }, [visiblePatients, patientIdsWithIssues]);
 
   const getPatientAppointmentsForDate = (patientId: string) => {
-    return appointments
-      .filter(a => a.patientId === patientId && a.date === currentDate)
-      .sort((a, b) => {
-        const aIsCurrent = a.deptId === currentDept.id;
-        const bIsCurrent = b.deptId === currentDept.id;
-        
-        if (aIsCurrent && !bIsCurrent) return -1;
-        if (!aIsCurrent && bIsCurrent) return 1;
-        
-        return (a.startTime || '').localeCompare(b.startTime || '');
-      });
+    const raw = appointments.filter(a => a.patientId === patientId && a.date === currentDate);
+    const seen = new Set<string>();
+    const unique = raw.filter(a => {
+      if (seen.has(a.id)) return false;
+      seen.add(a.id);
+      return true;
+    });
+
+    return unique.sort((a, b) => {
+      const aIsCurrent = a.deptId === currentDept.id;
+      const bIsCurrent = b.deptId === currentDept.id;
+      
+      if (aIsCurrent && !bIsCurrent) return -1;
+      if (!aIsCurrent && bIsCurrent) return 1;
+      
+      return (a.startTime || '').localeCompare(b.startTime || '');
+    });
   };
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
@@ -563,8 +571,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const templateDifferences = useMemo(() => {
     const differences: { templateId: string; templateName: string, appointments: Appointment[], mismatch: boolean }[] = [];
     const groupedByTemplate = new Map<string, Appointment[]>();
+    const seenAppts = new Set<string>();
     for (const appt of patientAppointments) {
-         if (appt.templateId && appt.deptId === currentDept.id) {
+         if (appt.templateId && appt.deptId === currentDept.id && !seenAppts.has(appt.id)) {
+             seenAppts.add(appt.id);
              if (!groupedByTemplate.has(appt.templateId)) groupedByTemplate.set(appt.templateId, []);
              groupedByTemplate.get(appt.templateId)!.push(appt);
          }
@@ -916,6 +926,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
   const executeApplyTemplateForPatient = async (targetPatientId: string, templateObj: AppointmentTemplate) => {
     if (!targetPatientId || !templateObj) return;
+    if (isApplyingRef.current) return;
+    isApplyingRef.current = true;
+    setIsApplyingTemplate(true);
 
     try {
       // Delete existing appointments for this patient on this date in this dept
@@ -982,8 +995,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       await Promise.all(createPromises);
 
       const existingIds = new Set(existingAppts.map(a => a.id));
+      const createdIds = new Set(createdAppts.map(a => a.id));
       onUpdateAppointments?.(prev => {
-        const filtered = prev.filter(a => !existingIds.has(a.id));
+        const filtered = prev.filter(a => !existingIds.has(a.id) && !createdIds.has(a.id));
         return [...filtered, ...createdAppts];
       });
 
@@ -999,6 +1013,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     } catch (error) {
       console.error("Error applying template:", error);
       alert("Lỗi khi áp dụng mẫu lịch trình.");
+    } finally {
+      isApplyingRef.current = false;
+      setIsApplyingTemplate(false);
     }
   };
 
@@ -1013,6 +1030,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const executeSyncFromTemplate = async (templateId: string, associatedAppts: Appointment[]) => {
+    if (isApplyingRef.current) return;
+    isApplyingRef.current = true;
+    setIsApplyingTemplate(true);
+
     try {
       const tmpl = templates.find(t => t.id === templateId);
       if (!tmpl) return;
@@ -1059,8 +1080,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       await Promise.all(createPromises);
 
       const deletedIds = new Set(associatedAppts.map(a => a.id));
+      const createdIds = new Set(createdAppts.map(a => a.id));
       onUpdateAppointments?.(prev => {
-        const filtered = prev.filter(a => !deletedIds.has(a.id));
+        const filtered = prev.filter(a => !deletedIds.has(a.id) && !createdIds.has(a.id));
         return [...filtered, ...createdAppts];
       });
 
@@ -1068,6 +1090,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     } catch (error) {
       console.error("Error syncing from template:", error);
       alert(`Có lỗi xảy ra: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      isApplyingRef.current = false;
+      setIsApplyingTemplate(false);
     }
   };
 
@@ -1082,8 +1107,16 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const executeApplyTemplateToPatient = async (targetPatientId: string, templateId: string) => {
+    if (isApplyingRef.current) return;
+    isApplyingRef.current = true;
+    setIsApplyingTemplate(true);
+
     const template = templates.find(t => t.id === templateId);
-    if (!template) return;
+    if (!template) {
+      isApplyingRef.current = false;
+      setIsApplyingTemplate(false);
+      return;
+    }
 
     try {
       // Clear existing appointments for target patient on currentDate in currentDept
@@ -1132,8 +1165,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       await Promise.all(createPromises);
 
       const existingIds = new Set(existingAppts.map(a => a.id));
+      const createdIds = new Set(createdAppts.map(a => a.id));
       onUpdateAppointments?.(prev => {
-        const filtered = prev.filter(a => !existingIds.has(a.id));
+        const filtered = prev.filter(a => !existingIds.has(a.id) && !createdIds.has(a.id));
         return [...filtered, ...createdAppts];
       });
       
@@ -1143,6 +1177,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     } catch (error) {
       console.error("Error applying template:", error);
       alert("Lỗi khi áp dụng mẫu lịch trình.");
+    } finally {
+      isApplyingRef.current = false;
+      setIsApplyingTemplate(false);
     }
   };
 
@@ -1632,9 +1669,15 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                           <div className="flex flex-col items-end gap-1 shrink-0">
                               {hasIssue && <AlertTriangle size={19} className="text-rose-500 animate-blink shrink-0 mb-1" />}
                               <div className="grid grid-cols-3 gap-1">
-                                  {appointments
-                                      .filter(a => a.patientId === p.id && a.date === currentDate)
-                                  .map(a => {
+                                  {(() => {
+                                      const rawAppts = appointments.filter(a => a.patientId === p.id && a.date === currentDate);
+                                      const seen = new Set<string>();
+                                      const uniqueAppts = rawAppts.filter(a => {
+                                          if (seen.has(a.id)) return false;
+                                          seen.add(a.id);
+                                          return true;
+                                      });
+                                      return uniqueAppts.map(a => {
                                       const proc = procedures.find(pr => pr.id === a.procedureId);
                                       const procedureDeptId = proc?.deptId || a.deptId;
                                       const isCurrentDeptProc = procedureDeptId === currentDept.id;
@@ -1647,9 +1690,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                                   </div>
                                               )}
                                           </div>
-                                      ) : null;
-                                  })
-                              }
+                                       ) : null;
+                                  });
+                              })()}
                           </div>
                       </div>
                       </div>
@@ -2438,10 +2481,18 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                         <Button variant="secondary" onClick={() => setIsLoadTemplateModalOpen(false)}>Đóng</Button>
                         <Button 
                           onClick={() => handleApplyTemplate()} 
-                          disabled={!selectedTemplateId || !editingTemplate || (editingTemplate.procedures || []).length === 0} 
+                          disabled={isApplyingTemplate || !selectedTemplateId || !editingTemplate || (editingTemplate.procedures || []).length === 0} 
                           className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
                         >
-                          <CheckCircle2 size={18} /> Áp dụng mẫu
+                          {isApplyingTemplate ? (
+                            <>
+                              <RefreshCw size={18} className="animate-spin" /> Đang áp dụng...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={18} /> Áp dụng mẫu
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
