@@ -63,6 +63,8 @@ interface PatientSchedulingProps {
   scheduleSnapshots?: ScheduleSnapshot[];
   onSaveScheduleSnapshot?: (deptId: string, date: string) => void;
   onUndoAppointmentChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => void;
+  onUpdateAppointments?: React.Dispatch<React.SetStateAction<Appointment[]>>;
+  onUpdateTemplates?: React.Dispatch<React.SetStateAction<AppointmentTemplate[]>>;
 }
 
 const PIXELS_PER_MINUTE = 5.0; 
@@ -95,7 +97,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   onVerifyAction,
   scheduleSnapshots = [],
   onSaveScheduleSnapshot,
-  onUndoAppointmentChange
+  onUndoAppointmentChange,
+  onUpdateAppointments,
+  onUpdateTemplates
 }) => {
   const [activeTab, setActiveTab] = useState<'SCHEDULING' | 'TEMPLATES'>('SCHEDULING');
   const [pixelsPerMinute, setPixelsPerMinute] = useState(6.5);
@@ -655,6 +659,11 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
     try {
       await setDoc(doc(db, "templates", cleanTemplate.id), cleanTemplate);
+      onUpdateTemplates?.(prev => {
+        const exists = prev.some(t => t.id === cleanTemplate.id);
+        if (exists) return prev.map(t => t.id === cleanTemplate.id ? cleanTemplate : t);
+        return [...prev, cleanTemplate];
+      });
       setIsSaveTemplateModalOpen(false);
       setTemplateName('');
       setTemplateGroup('');
@@ -677,15 +686,14 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       return;
     }
 
-    if (confirm('Bạn có chắc chắn muốn xóa mẫu này?')) {
-      try {
-        await deleteDoc(doc(db, "templates", templateId));
-        if (selectedTemplateId === templateId) {
-          setSelectedTemplateId(null);
-        }
-      } catch (error) {
-        console.error("Error deleting template:", error);
+    try {
+      await deleteDoc(doc(db, "templates", templateId));
+      if (selectedTemplateId === templateId) {
+        setSelectedTemplateId(null);
       }
+      onUpdateTemplates?.(prev => prev.filter(t => t.id !== templateId));
+    } catch (error) {
+      console.error("Error deleting template:", error);
     }
   };
 
@@ -845,6 +853,11 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     try {
       const cleanTemplate = JSON.parse(JSON.stringify(template, (key, value) => value === undefined ? null : value));
       await setDoc(doc(db, "templates", cleanTemplate.id), cleanTemplate);
+      onUpdateTemplates?.(prev => {
+        const exists = prev.some(t => t.id === cleanTemplate.id);
+        if (exists) return prev.map(t => t.id === cleanTemplate.id ? cleanTemplate : t);
+        return [...prev, cleanTemplate];
+      });
       if (!silent) alert('Lưu mẫu thành công!');
     } catch (error) {
       console.error(error);
@@ -857,6 +870,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     try {
       const cleanTemplate = JSON.parse(JSON.stringify(editingTemplate));
       await setDoc(doc(db, "templates", cleanTemplate.id), cleanTemplate);
+      onUpdateTemplates?.(prev => prev.map(t => t.id === cleanTemplate.id ? cleanTemplate : t));
       alert('Đã lưu thay đổi mẫu!');
     } catch (error) {
       console.error("Error updating template:", error);
@@ -876,15 +890,16 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
   const executeApplyTemplate = async () => {
     try {
-      // If REPLACE mode, delete existing appointments for this patient on this date in this dept
-      if (loadMode === 'REPLACE') {
-        const existingAppts = appointments.filter(
-          a => a.patientId === selectedPatientId && a.date === currentDate && a.deptId === currentDept.id
-        );
+      // Delete existing appointments for this patient on this date in this dept
+      const existingAppts = appointments.filter(
+        a => a.patientId === selectedPatientId && a.date === currentDate && a.deptId === currentDept.id
+      );
+      if (existingAppts.length > 0) {
         await Promise.all(existingAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id))));
       }
 
-      const createPromises = (editingTemplate.procedures || []).map(async (tProc) => {
+      const createdAppts: Appointment[] = [];
+      const createPromises = (editingTemplate?.procedures || []).map(async (tProc) => {
         let staffId: string | null = null;
         let assistant1Id: string | null = null;
         let assistant2Id: string | null = null;
@@ -895,11 +910,17 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           assistant2Id = tProc.assistant2Id || null;
         }
 
+        const proc = procedures.find(p => p.id === tProc.procedureId);
+        let machineId = tProc.assignedMachineId || null;
+        if (!machineId && proc?.requireMachine && proc.availableMachines && proc.availableMachines.length > 0) {
+          machineId = proc.availableMachines[0];
+        }
+
         const apptId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newAppt: Appointment = {
           id: apptId,
           patientId: selectedPatientId,
-          templateId: editingTemplate.id,
+          templateId: editingTemplate?.id || null,
           procedureId: tProc.procedureId,
           staffId: staffId || '',
           assistant1Id: assistant1Id || null,
@@ -909,27 +930,34 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           endTime: tProc.endTime,
           deptId: currentDept.id,
           status: AppointmentStatus.PENDING,
-          notes: tProc.notes,
-          assignedMachineId: tProc.assignedMachineId,
-          mainBusyStart: tProc.mainBusyStart,
-          mainBusyEnd: tProc.mainBusyEnd,
-          asst1BusyStart: tProc.asst1BusyStart,
-          asst1BusyEnd: tProc.asst1BusyEnd,
-          asst2BusyStart: tProc.asst2BusyStart,
-          asst2BusyEnd: tProc.asst2BusyEnd,
-          restMinutes: tProc.restMinutes
+          notes: tProc.notes || '',
+          assignedMachineId: machineId,
+          mainBusyStart: tProc.mainBusyStart || null,
+          mainBusyEnd: tProc.mainBusyEnd || null,
+          asst1BusyStart: tProc.asst1BusyStart || null,
+          asst1BusyEnd: tProc.asst1BusyEnd || null,
+          asst2BusyStart: tProc.asst2BusyStart || null,
+          asst2BusyEnd: tProc.asst2BusyEnd || null,
+          restMinutes: tProc.restMinutes || 0
         };
         const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
+        createdAppts.push(cleanAppt);
         await setDoc(doc(db, "appointments", apptId), cleanAppt);
       });
 
       await Promise.all(createPromises);
+
+      const existingIds = new Set(existingAppts.map(a => a.id));
+      onUpdateAppointments?.(prev => {
+        const filtered = prev.filter(a => !existingIds.has(a.id));
+        return [...filtered, ...createdAppts];
+      });
       
       setIsLoadTemplateModalOpen(false);
       setSelectedTemplateId(null);
       setEditingTemplate(null);
       onRecheckConflicts?.();
-      alert('Đã tải mẫu lịch trình thành công!');
+      alert('Đã áp dụng mẫu lịch trình thành công!');
     } catch (error) {
       console.error("Error applying template:", error);
       alert("Lỗi khi áp dụng mẫu lịch trình.");
@@ -954,6 +982,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       // Delete associated appointments in parallel
       await Promise.all(associatedAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id))));
 
+      const createdAppts: Appointment[] = [];
       // Re-create from template in parallel
       const createPromises = (tmpl.procedures || []).map(async (tProc) => {
         let staffId = tProc.staffId;
@@ -985,10 +1014,18 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           restMinutes: tProc.restMinutes
         };
         const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
+        createdAppts.push(cleanAppt);
         await setDoc(doc(db, "appointments", apptId), cleanAppt);
       });
 
       await Promise.all(createPromises);
+
+      const deletedIds = new Set(associatedAppts.map(a => a.id));
+      onUpdateAppointments?.(prev => {
+        const filtered = prev.filter(a => !deletedIds.has(a.id));
+        return [...filtered, ...createdAppts];
+      });
+
       alert('Đã cập nhật lại lịch bệnh nhân từ mẫu!');
     } catch (error) {
       console.error("Error syncing from template:", error);
@@ -1011,7 +1048,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     if (!template) return;
 
     try {
+      // Clear existing appointments for target patient on currentDate in currentDept
+      const existingAppts = appointments.filter(a => a.patientId === targetPatientId && a.date === currentDate && a.deptId === currentDept.id);
+      if (existingAppts.length > 0) {
+        await Promise.all(existingAppts.map(a => deleteDoc(doc(db, "appointments", a.id))));
+      }
+
+      const createdAppts: Appointment[] = [];
       const createPromises = (template.procedures || []).map(async (tProc) => {
+        const proc = procedures.find(p => p.id === tProc.procedureId);
+        let machineId = tProc.assignedMachineId || null;
+        if (!machineId && proc?.requireMachine && proc.availableMachines && proc.availableMachines.length > 0) {
+          machineId = proc.availableMachines[0];
+        }
+
         const apptId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newAppt: Appointment = {
           id: apptId,
@@ -1026,21 +1076,28 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           endTime: tProc.endTime,
           deptId: currentDept.id,
           status: AppointmentStatus.PENDING,
-          notes: tProc.notes,
-          assignedMachineId: tProc.assignedMachineId,
-          mainBusyStart: tProc.mainBusyStart,
-          mainBusyEnd: tProc.mainBusyEnd,
-          asst1BusyStart: tProc.asst1BusyStart,
-          asst1BusyEnd: tProc.asst1BusyEnd,
-          asst2BusyStart: tProc.asst2BusyStart,
-          asst2BusyEnd: tProc.asst2BusyEnd,
-          restMinutes: tProc.restMinutes
+          notes: tProc.notes || '',
+          assignedMachineId: machineId,
+          mainBusyStart: tProc.mainBusyStart || null,
+          mainBusyEnd: tProc.mainBusyEnd || null,
+          asst1BusyStart: tProc.asst1BusyStart || null,
+          asst1BusyEnd: tProc.asst1BusyEnd || null,
+          asst2BusyStart: tProc.asst2BusyStart || null,
+          asst2BusyEnd: tProc.asst2BusyEnd || null,
+          restMinutes: tProc.restMinutes || 0
         };
         const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
+        createdAppts.push(cleanAppt);
         await setDoc(doc(db, "appointments", apptId), cleanAppt);
       });
 
       await Promise.all(createPromises);
+
+      const existingIds = new Set(existingAppts.map(a => a.id));
+      onUpdateAppointments?.(prev => {
+        const filtered = prev.filter(a => !existingIds.has(a.id));
+        return [...filtered, ...createdAppts];
+      });
       
       onRecheckConflicts?.();
       const patient = patients.find(p => p.id === targetPatientId);
@@ -1050,8 +1107,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       alert("Lỗi khi áp dụng mẫu lịch trình.");
     }
   };
-
-
 
   const handleSyncToTemplate = async (templateId: string, sortedAppts: Appointment[]) => {
     if (!db) return;
@@ -1087,6 +1142,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
       const cleanTemplate = JSON.parse(JSON.stringify(updatedTemplate, (key, value) => value === undefined ? null : value));
       await setDoc(doc(db, "templates", cleanTemplate.id), cleanTemplate);
+      onUpdateTemplates?.(prev => prev.map(t => t.id === cleanTemplate.id ? cleanTemplate : t));
       alert('Đã lưu các thay đổi vào mẫu!');
     } catch (error) {
        console.error("Error syncing to template:", error);
@@ -2344,7 +2400,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                         <Button variant="secondary" onClick={() => setIsLoadTemplateModalOpen(false)}>Đóng</Button>
                         <Button 
                           onClick={handleApplyTemplate} 
-                          disabled={!selectedTemplateId || !editingTemplate || (editingTemplate.procedures || []).length === 0 || (editingTemplate.procedures || []).some(tp => procedures.find(p => p.id === tp.procedureId)?.requireMachine && !tp.assignedMachineId)} 
+                          disabled={!selectedTemplateId || !editingTemplate || (editingTemplate.procedures || []).length === 0} 
                           className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
                           <CheckCircle2 size={18} /> Áp dụng mẫu

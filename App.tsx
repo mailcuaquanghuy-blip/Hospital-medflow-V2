@@ -889,7 +889,10 @@ const App: React.FC = () => {
       sourceAppts = sourceAppts.filter(a => selectedApptIds.includes(a.id));
     }
     
-    if (sourceAppts.length === 0) return;
+    if (sourceAppts.length === 0) {
+      alert("Không tìm thấy lịch trình nào để sao chép.");
+      return;
+    }
 
     // Build dateRange in a timezone-safe manner using local year, month, day integers
     let dateRange: string[] = [];
@@ -906,9 +909,26 @@ const App: React.FC = () => {
       currDate.setDate(currDate.getDate() + 1);
     }
 
-    const actualTargetDates = dateRange.filter(d => d !== sourceDate);
+    // Lọc loại ngày (ngày nghỉ vs ngày thường)
+    const isDayHoliday = (d: string) => {
+      if (!targetDeptId) return false;
+      return attendanceRecords.some(r => 
+        (r.staffId === `holiday_dept_${targetDeptId}` || r.staffId === `holiday_${targetDeptId}`) && 
+        r.date === d && 
+        r.status === AttendanceStatus.OFF_FULL
+      );
+    };
+
+    const isSourceHoliday = isDayHoliday(sourceDate);
+
+    // Tự động loại bỏ các ngày khác loại (ví dụ: nguồn là ngày thường thì chỉ sao chép sang ngày thường, nguồn là ngày nghỉ thì chỉ sao chép sang ngày nghỉ)
+    const actualTargetDates = dateRange.filter(d => d !== sourceDate && isDayHoliday(d) === isSourceHoliday);
     if (actualTargetDates.length === 0) {
-      alert("Vui lòng chọn khoảng ngày đích khác với ngày nguồn.");
+      if (dateRange.some(d => d !== sourceDate)) {
+        alert("Hệ thống tự động loại bỏ các ngày khác loại (ngày nghỉ <-> ngày thường). Vui lòng chọn khoảng ngày cùng loại với ngày nguồn.");
+      } else {
+        alert("Vui lòng chọn khoảng ngày đích khác với ngày nguồn.");
+      }
       return;
     }
 
@@ -965,10 +985,11 @@ const App: React.FC = () => {
 
     if (shiftsToCreate.length > 0) {
       try {
-        const shiftPromises = shiftsToCreate.map(shift => setDoc(doc(db, "machineShifts", shift.id), shift));
+        const cleanedShifts = shiftsToCreate.map(shift => JSON.parse(JSON.stringify(shift, (key, value) => value === undefined ? null : value)));
+        const shiftPromises = cleanedShifts.map(shift => setDoc(doc(db, "machineShifts", shift.id), shift));
         await Promise.all(shiftPromises);
-        machineShifts.push(...shiftsToCreate);
-        setMachineShifts(prev => [...prev, ...shiftsToCreate]);
+        machineShifts.push(...cleanedShifts);
+        setMachineShifts(prev => [...prev, ...cleanedShifts]);
       } catch (e) {
         console.error("Lỗi khi tự động tạo ca máy:", e);
       }
@@ -1015,7 +1036,7 @@ const App: React.FC = () => {
           source
         );
 
-        const copy: Appointment = {
+        const rawCopy: Appointment = {
           ...source,
           id: 'appt_' + Math.random().toString(36).substr(2, 9),
           date: targetDate,
@@ -1023,10 +1044,11 @@ const App: React.FC = () => {
           assignedMachineId: source.assignedMachineId || conflictRes.assignedMachineId || null, 
           machineShiftId: targetMachineShiftId,
           status: conflictRes.hasConflict ? AppointmentStatus.CONFLICT : AppointmentStatus.PENDING,
-          conflictDetails: conflictRes.conflictDetails
+          conflictDetails: conflictRes.conflictDetails || null
         };
-        newAppts.push(copy);
-        currentApptsState.push(copy); 
+        const cleanCopy: Appointment = JSON.parse(JSON.stringify(rawCopy, (key, value) => value === undefined ? null : value));
+        newAppts.push(cleanCopy);
+        currentApptsState.push(cleanCopy); 
       });
     });
 
@@ -1183,6 +1205,14 @@ const App: React.FC = () => {
       const savePromises = newAppointments.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
       await Promise.all(savePromises);
 
+      // Cập nhật React state ngay lập tức
+      setAppointments(prev => {
+        const filtered = options.overwrite 
+          ? prev.filter(a => !(a.date === activeDate && a.deptId === currentDept.id))
+          : prev;
+        return [...filtered, ...newAppointments];
+      });
+
       alert(`Đã load thành công ${newAppointments.length} chỉ định từ ngày ${options.sourceDate}.`);
     } catch (e) {
       console.error("Batch load error:", e);
@@ -1193,8 +1223,6 @@ const App: React.FC = () => {
   const handleUndoBatchLoad = async () => {
     if (!db || !currentDept || !undoData) return;
     try {
-      if (!confirm("Bạn có chắc chắn muốn hoàn tác thao tác vừa rồi không?")) return;
-      
       // 1. Xóa các chỉ định hiện tại của khoa trong ngày
       const currentDeptAppts = appointments.filter(a => a.date === activeDate && a.deptId === currentDept.id);
       const deletePromises = currentDeptAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id)));
@@ -1203,6 +1231,11 @@ const App: React.FC = () => {
       // 2. Khôi phục từ undoData
       const restorePromises = undoData.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
       await Promise.all(restorePromises);
+
+      setAppointments(prev => {
+        const filtered = prev.filter(a => !(a.date === activeDate && a.deptId === currentDept.id));
+        return [...filtered, ...undoData];
+      });
 
       setUndoData(null);
       alert("Đã hoàn tác thành công.");
@@ -1215,6 +1248,7 @@ const App: React.FC = () => {
     if (!db || !currentDept) return;
     const currentAppts = appointments.filter(a => a.date === activeDate);
     let updatedCount = 0;
+    const updatedApptList: Appointment[] = [];
 
     for (const appt of currentAppts) {
       const conflictRes = checkConflict(
@@ -1245,9 +1279,18 @@ const App: React.FC = () => {
           assignedMachineId: appt.assignedMachineId || conflictRes.assignedMachineId || null
         };
         await setDoc(doc(db, "appointments", appt.id), updatedAppt);
+        updatedApptList.push(updatedAppt as Appointment);
         updatedCount++;
       }
     }
+
+    if (updatedApptList.length > 0) {
+      setAppointments(prev => {
+        const map = new Map(updatedApptList.map(a => [a.id, a]));
+        return prev.map(a => map.get(a.id) || a);
+      });
+    }
+
     alert(`Đã kiểm tra lại lỗi. Cập nhật ${updatedCount} chỉ định.`);
   };
 
@@ -2177,6 +2220,8 @@ const App: React.FC = () => {
             scheduleSnapshots={scheduleSnapshots}
             onSaveScheduleSnapshot={handleSaveScheduleSnapshot}
             onUndoAppointmentChange={handleUndoAppointmentChange}
+            onUpdateAppointments={setAppointments}
+            onUpdateTemplates={setTemplates}
           />
          )}
 
