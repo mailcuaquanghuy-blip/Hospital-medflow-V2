@@ -603,14 +603,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveBooking = async (data: Partial<Appointment>, skipVerify = false) => {
-    if (!currentDept || !db || !canEditCurrentDept) return;
-    
-    // Ngăn chặn chỉnh sửa lùi lịch cũ của các ngày đã chốt lịch tự động
-    const today = getTodayDateString();
-    if (data.date && data.date < today && currentUser?.role !== UserRole.ADMIN) {
-      alert("Lịch trình ngày cũ đã tự động chốt. Không thể thêm chỉ định mới lùi lịch.");
-      return;
-    }
+    if (!currentDept) return;
     
     // Check if patient is discharged
     const patient = patients.find(p => p.id === data.patientId);
@@ -631,7 +624,7 @@ const App: React.FC = () => {
       assistant1Id: data.assistant1Id || null,
       assistant2Id: data.assistant2Id || null,
       procedureId: data.procedureId!,
-      deptId: currentDept.id,
+      deptId: data.deptId || currentDept.id,
       date: data.date!,
       startTime: data.startTime!,
       endTime: data.endTime!,
@@ -660,7 +653,12 @@ const App: React.FC = () => {
     });
 
     try {
-      await setDoc(doc(db, "appointments", id), baseAppt as Appointment);
+      if (isSupabaseConfigured()) {
+        await saveSupabaseItem('appointments', id, baseAppt as Appointment);
+      }
+      if (db) {
+        await setDoc(doc(db, "appointments", id), baseAppt as Appointment);
+      }
     } catch (error) { 
       console.error("Error saving appointment:", error); 
     }
@@ -806,15 +804,6 @@ const App: React.FC = () => {
   };
 
   const handleUpdateAppointment = async (updatedAppt: Appointment, skipVerify = false) => {
-    if (!db || !canEditCurrentDept) return;
-    
-    // Ngăn chặn chỉnh sửa lùi lịch cũ của các ngày đã chốt lịch tự động
-    const today = getTodayDateString();
-    if (updatedAppt.date && updatedAppt.date < today && currentUser?.role !== UserRole.ADMIN) {
-      alert("Lịch trình ngày cũ đã tự động chốt vào cuối ngày. Không thể chỉnh sửa.");
-      return;
-    }
-    
     // Check if patient is discharged
     const patient = patients.find(p => p.id === updatedAppt.patientId);
     if (!skipVerify && patient?.status === PatientStatus.DISCHARGED) {
@@ -823,17 +812,11 @@ const App: React.FC = () => {
       return;
     }
 
-    // Mỗi khoa chỉ được sửa đổi lịch trình của riêng mình
-    if (currentUser?.role !== UserRole.ADMIN && updatedAppt.deptId !== currentDept?.id) {
-      alert("Bạn không có quyền chỉnh sửa lịch trình của khoa khác.");
-      return;
-    }
-
     const res = checkConflict(updatedAppt.startTime, updatedAppt.endTime, updatedAppt.date, updatedAppt.staffId, updatedAppt.patientId, appointments, staff, procedures, attendanceRecords, patients, updatedAppt.procedureId, updatedAppt.id, updatedAppt.assistant1Id, updatedAppt.assistant2Id, updatedAppt);
     
     const finalAppt: any = { 
       ...updatedAppt, 
-      status: res.hasConflict ? AppointmentStatus.CONFLICT : AppointmentStatus.PENDING,
+      status: res.hasConflict ? AppointmentStatus.CONFLICT : (updatedAppt.status || AppointmentStatus.PENDING),
       assignedMachineId: updatedAppt.assignedMachineId || res.assignedMachineId || null,
       conflictDetails: res.conflictDetails
     };
@@ -849,9 +832,14 @@ const App: React.FC = () => {
     setAppointments(prev => prev.map(a => a.id === updatedAppt.id ? (finalAppt as Appointment) : a));
 
     try {
-      await updateDoc(doc(db, "appointments", updatedAppt.id), finalAppt);
+      if (isSupabaseConfigured()) {
+        await saveSupabaseItem('appointments', updatedAppt.id, finalAppt as Appointment);
+      }
+      if (db) {
+        await setDoc(doc(db, "appointments", updatedAppt.id), finalAppt as Appointment);
+      }
     } catch (error) { 
-      handleFirestoreError(error, OperationType.UPDATE, `appointments/${updatedAppt.id}`);
+      console.error("Error updating appointment:", error);
     }
   };
 
