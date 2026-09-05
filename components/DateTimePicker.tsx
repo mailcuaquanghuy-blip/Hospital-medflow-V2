@@ -1,6 +1,9 @@
 import React from 'react';
-import DatePicker from 'react-datepicker';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import { vi } from 'date-fns/locale';
 import { format, parseISO, parse } from 'date-fns';
+
+registerLocale('vi', vi);
 
 interface DateTimePickerProps {
   value: string;
@@ -30,6 +33,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange,
       timeIntervals={15}
       timeCaption="Giờ"
       dateFormat="dd/MM/yyyy HH:mm"
+      locale="vi"
       className={className}
       portalId="portal-datepicker"
       popperClassName="z-[9999]"
@@ -65,6 +69,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange, classNa
       timeCaption="Giờ"
       dateFormat="HH:mm"
       timeFormat="HH:mm"
+      locale="vi"
       className={className}
       portalId="portal-datepicker"
       popperClassName="z-[9999]"

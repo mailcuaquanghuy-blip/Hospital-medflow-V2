@@ -2152,9 +2152,15 @@ const App: React.FC = () => {
                         <Database size={16} className="text-sky-500" />
                         Sao lưu / Khôi phục
                       </button>
-                      <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
-                          <span className="text-[10px] font-black text-slate-400 px-2 uppercase tracking-widest">Làm việc ngày:</span>
-                          <DateInput value={activeDate} onChange={(val) => { if (!isAnyModalOpen) setActiveDate(val); }} className="bg-white border-none rounded shadow-sm text-sm font-bold text-slate-700 px-2 py-1 outline-none focus:ring-2 focus:ring-primary/20" />
+                      <div className="flex items-center gap-1.5 bg-slate-100 rounded-xl p-1 border border-slate-200 shadow-2xs">
+                          <span className="text-[10px] font-black text-slate-500 px-2 uppercase tracking-widest hidden xl:inline">Làm việc ngày:</span>
+                          <DateInput 
+                            value={activeDate} 
+                            onChange={(val) => { if (!isAnyModalOpen) setActiveDate(val); }} 
+                            showNavigation={true}
+                            showWeekday={true}
+                            disabled={isAnyModalOpen}
+                          />
                       </div>
                     </>
                   )}
@@ -2223,6 +2229,7 @@ const App: React.FC = () => {
             attendanceRecords={attendanceRecords} 
             machineShifts={machineShifts} 
             currentDate={activeDate} 
+            onChangeDate={setActiveDate}
             currentUser={currentUser!} 
             onBookAppointment={(pid, appt) => { setEditingAppt(appt || { patientId: pid, date: activeDate }); setIsModalOpen(true); }} 
             onUpdateAppointment={handleUpdateAppointment} 
@@ -2248,6 +2255,7 @@ const App: React.FC = () => {
          {activeTab === 'GENERAL_TIMELINE' && currentDept && (
            <Timeline 
              date={activeDate} 
+             onChangeDate={setActiveDate} 
              staff={staff} 
              appointments={deptAppointments} 
              procedures={procedures} 
@@ -2270,6 +2278,7 @@ const App: React.FC = () => {
             <DailyReport 
               appointments={appointments} 
               activeDate={activeDate} 
+              onChangeDate={setActiveDate} 
               procedures={procedures} 
               staff={staff} 
               patients={patients}

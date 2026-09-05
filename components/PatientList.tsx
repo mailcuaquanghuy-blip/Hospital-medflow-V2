@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Patient, PatientStatus, Department, DepartmentType, BedType, InsuranceLevel } from '../types';
 import { Button } from './Button';
 import { DateTimePicker } from './DateTimePicker';
+import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
 import { Search, Plus, User, MapPin, Bed, LogOut, FileText, Edit3, Printer, Send, Activity, FlaskConical, HeartPulse, CheckCircle2, Clock, Building2, Filter, Calendar, CheckSquare, Trash2, AlertTriangle, Power, CheckCircle, RotateCcw, X, XCircle, Pill, ChevronDown, DoorOpen, Download, Shield, Upload } from 'lucide-react';
 import { calculateAge, getAbbreviation, timeStringToMinutes, generatePatientCode } from '../utils/timeUtils';
@@ -1317,13 +1318,12 @@ export const PatientList: React.FC<PatientListProps> = ({
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
                       <Calendar size={12} /> Ngày ra viện
                     </label>
-                    <input 
-                      type="date"
+                    <DateInput 
                       className="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold text-slate-800 focus:border-rose-400 outline-none transition-all"
                       value={dischargeDateInput.split('T')[0] || ''}
-                      onChange={e => {
+                      onChange={val => {
                         const time = dischargeDateInput.split('T')[1] || '00:00';
-                        setDischargeDateInput(`${e.target.value}T${time}`);
+                        setDischargeDateInput(`${val}T${time}`);
                       }}
                     />
                   </div>
@@ -1395,22 +1395,20 @@ export const PatientList: React.FC<PatientListProps> = ({
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
                       <Calendar size={12} /> Từ ngày
                     </label>
-                    <input 
-                      type="date"
+                    <DateInput 
                       className="w-full p-3 border-2 border-slate-100 rounded-xl font-bold text-slate-800 focus:border-indigo-400 outline-none"
                       value={printFromDate}
-                      onChange={e => setPrintFromDate(e.target.value)}
+                      onChange={val => setPrintFromDate(val)}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
                       <Calendar size={12} /> Đến ngày
                     </label>
-                    <input 
-                      type="date"
+                    <DateInput 
                       className="w-full p-3 border-2 border-slate-100 rounded-xl font-bold text-slate-800 focus:border-indigo-400 outline-none"
                       value={printToDate}
-                      onChange={e => setPrintToDate(e.target.value)}
+                      onChange={val => setPrintToDate(val)}
                     />
                   </div>
                 </div>

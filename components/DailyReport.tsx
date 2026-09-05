@@ -4,10 +4,12 @@ import { Appointment, Procedure, Staff, Department, DepartmentType, Patient, Att
 import { timeStringToMinutes, minutesToTimeString, getRoleLabel } from '../utils/timeUtils';
 import { downloadCSV } from '../utils/csvUtils';
 import { Clock, User, Zap, Filter, Building2, CalendarDays, Calendar, TrendingUp, Bed, Activity, Award, FileSpreadsheet, Printer, Download, Search, RotateCcw, FileText, CheckCircle2 } from 'lucide-react';
+import { DateInput } from './DateInput';
 
 interface DailyReportProps {
   appointments: Appointment[];
   activeDate: string;
+  onChangeDate?: (date: string) => void;
   procedures: Procedure[];
   staff: Staff[]; // All staff
   patients: Patient[];
@@ -97,6 +99,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 export const DailyReport: React.FC<DailyReportProps> = ({
   appointments,
   activeDate,
+  onChangeDate,
   procedures,
   staff,
   patients,
@@ -990,30 +993,44 @@ export const DailyReport: React.FC<DailyReportProps> = ({
           </div>
         </div>
 
-        {/* Tab switchers */}
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 self-start md:self-auto uppercase tracking-wide">
-          <button
-            onClick={() => setActiveReportTab('daily')}
-            className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 select-none ${
-              activeReportTab === 'daily'
-                ? 'bg-white text-slate-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Activity size={14} className={activeReportTab === 'daily' ? 'text-blue-500' : 'text-slate-400'} />
-            Báo cáo ngày & Timeline
-          </button>
-          <button
-            onClick={() => setActiveReportTab('monthly')}
-            className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 select-none ${
-              activeReportTab === 'monthly'
-                ? 'bg-white text-slate-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Calendar size={14} className={activeReportTab === 'monthly' ? 'text-indigo-600' : 'text-slate-400'} />
-            Báo cáo tháng của khoa
-          </button>
+        {/* Tab switchers & Daily Date Navigator */}
+        <div className="flex flex-wrap items-center gap-3">
+          {activeReportTab === 'daily' && onChangeDate && (
+            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <span className="text-[10px] font-black text-slate-500 uppercase px-1.5 tracking-wider hidden sm:inline">Xem ngày:</span>
+              <DateInput
+                value={activeDate}
+                onChange={onChangeDate}
+                showNavigation={true}
+                showWeekday={true}
+              />
+            </div>
+          )}
+
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 self-start md:self-auto uppercase tracking-wide">
+            <button
+              onClick={() => setActiveReportTab('daily')}
+              className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 select-none ${
+                activeReportTab === 'daily'
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Activity size={14} className={activeReportTab === 'daily' ? 'text-blue-500' : 'text-slate-400'} />
+              Báo cáo ngày & Timeline
+            </button>
+            <button
+              onClick={() => setActiveReportTab('monthly')}
+              className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 select-none ${
+                activeReportTab === 'monthly'
+                  ? 'bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Calendar size={14} className={activeReportTab === 'monthly' ? 'text-indigo-600' : 'text-slate-400'} />
+              Báo cáo tháng của khoa
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1771,23 +1788,21 @@ export const DailyReport: React.FC<DailyReportProps> = ({
         {/* Thanh công cụ lọc Từ ngày - Đến ngày & Tìm kiếm */}
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-xs">
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1 shadow-xs">
               <span className="text-[11px] font-black text-slate-500 uppercase">Từ ngày:</span>
-              <input
-                type="date"
+              <DateInput
                 value={tcFromDate}
-                onChange={(e) => setTcFromDate(e.target.value)}
-                className="bg-transparent text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer"
+                onChange={(val) => setTcFromDate(val)}
+                className="bg-transparent text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer p-0 border-none w-[88px]"
               />
             </div>
 
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-xs">
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1 shadow-xs">
               <span className="text-[11px] font-black text-slate-500 uppercase">Đến ngày:</span>
-              <input
-                type="date"
+              <DateInput
                 value={tcToDate}
-                onChange={(e) => setTcToDate(e.target.value)}
-                className="bg-transparent text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer"
+                onChange={(val) => setTcToDate(val)}
+                className="bg-transparent text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer p-0 border-none w-[88px]"
               />
             </div>
 

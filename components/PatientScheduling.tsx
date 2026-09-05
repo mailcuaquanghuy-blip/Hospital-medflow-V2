@@ -46,6 +46,7 @@ interface PatientSchedulingProps {
   attendanceRecords: AttendanceRecord[];
   machineShifts: MachineShift[];
   currentDate: string;
+  onChangeDate?: (date: string) => void;
   currentUser: UserAccount;
   onBookAppointment: (patientId: string, appointment?: Appointment) => void;
   onUpdateAppointment: (appointment: Appointment) => void;
@@ -81,6 +82,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   attendanceRecords,
   machineShifts,
   currentDate,
+  onChangeDate,
   currentUser,
   onBookAppointment,
   onUpdateAppointment,
@@ -1727,7 +1729,21 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           <>
             <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 bg-slate-50/30 shrink-0">
                 <div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Điều trị ngày {new Date(currentDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Điều trị ngày:</span>
+                        {onChangeDate ? (
+                          <DateInput 
+                            value={currentDate} 
+                            onChange={onChangeDate} 
+                            showNavigation={true} 
+                            showWeekday={true} 
+                          />
+                        ) : (
+                          <span className="text-xs font-bold text-slate-700">
+                            {new Date(currentDate).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                        )}
+                    </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <h2 className="text-2xl font-black text-slate-800 flex items-center gap-3">
                             {selectedPatient.name}

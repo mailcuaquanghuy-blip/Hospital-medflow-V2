@@ -98,4 +98,109 @@
   }
 }
 
+/* Custom styling for Vietnamese react-datepicker */
+.react-datepicker-wrapper {
+  display: inline-block;
+  width: auto;
+}
+
+.react-datepicker {
+  font-family: inherit !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+  background-color: #ffffff !important;
+  overflow: hidden !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}
+
+.react-datepicker__header {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+.react-datepicker__current-month {
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  font-size: 0.925rem !important;
+  text-transform: capitalize !important;
+}
+
+.react-datepicker__day-names {
+  margin-top: 4px !important;
+  margin-bottom: -2px !important;
+  display: flex !important;
+  justify-content: space-around !important;
+  padding: 0 6px !important;
+}
+
+.react-datepicker__day-name {
+  color: #64748b !important;
+  font-weight: 800 !important;
+  font-size: 0.725rem !important;
+  width: 34px !important;
+  line-height: 28px !important;
+  margin: 1px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+.react-datepicker__month {
+  margin: 6px !important;
+  padding: 2px !important;
+}
+
+.react-datepicker__week {
+  display: flex !important;
+  justify-content: space-around !important;
+  margin-bottom: 2px !important;
+}
+
+.react-datepicker__day {
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  border-radius: 0.625rem !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  color: #1e293b !important;
+  margin: 1px !important;
+  transition: all 0.15s ease !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-radius: 0.625rem !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.4) !important;
+}
+
+.react-datepicker__day--today {
+  font-weight: 800 !important;
+  color: #0284c7 !important;
+  border: 1.5px solid #38bdf8 !important;
+}
+
+.react-datepicker__day--today.react-datepicker__day--selected {
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.react-datepicker__day--outside-month {
+  color: #cbd5e1 !important;
+  opacity: 0.55 !important;
+}
+
 

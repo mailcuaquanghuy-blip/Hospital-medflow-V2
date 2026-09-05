@@ -7,6 +7,7 @@ import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Sea
 import { downloadCSV } from '../utils/csvUtils';
 import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
+import { DateInput } from './DateInput';
 
 
 const getLocalDateString = (isoStr: string | null | undefined): string => {
@@ -192,6 +193,7 @@ const HeaderMultiSelect: React.FC<HeaderMultiSelectProps> = ({
 
 interface TimelineProps {
   date: string;
+  onChangeDate?: (date: string) => void;
   staff: Staff[];
   appointments: Appointment[];
   procedures: Procedure[];
@@ -215,6 +217,7 @@ interface TimelineProps {
 
 export const Timeline: React.FC<TimelineProps> = ({
   date,
+  onChangeDate,
   staff,
   appointments,
   procedures,
@@ -1013,9 +1016,19 @@ export const Timeline: React.FC<TimelineProps> = ({
            <div className="shrink-0 flex items-center justify-between w-full md:w-auto gap-4">
                <div>
                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Tổng hợp hoạt động</div>
-                   <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-                       Timeline Khoa
-                   </h2>
+                   <div className="flex flex-wrap items-center gap-3">
+                     <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                         Timeline Khoa
+                     </h2>
+                     {onChangeDate && (
+                       <DateInput
+                         value={date}
+                         onChange={onChangeDate}
+                         showNavigation={true}
+                         showWeekday={true}
+                       />
+                     )}
+                   </div>
                </div>
                <div className="flex items-center gap-2 md:hidden">
                  {activeFiltersCount > 0 && (
