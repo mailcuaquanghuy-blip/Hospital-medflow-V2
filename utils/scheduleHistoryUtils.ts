@@ -112,6 +112,9 @@ export const getAllBaselineAppointments = (
   // Collect active dates: present in current appointments
   currentDeptAppts.forEach(a => activeDatesSet.add(a.date));
 
+  // Collect active dates from explicit snapshots
+  deptSnapshots.forEach(s => activeDatesSet.add(s.date));
+
   // Collect active dates from session modifications
   if (typeof window !== 'undefined') {
     try {
@@ -125,7 +128,7 @@ export const getAllBaselineAppointments = (
     } catch (e) {}
   }
 
-  // 1. Get baseline snapshots ONLY for active dates
+  // 1. Get baseline snapshots for active dates
   deptSnapshots.forEach(s => {
     if (activeDatesSet.has(s.date)) {
       isExplicit = true;
@@ -367,9 +370,9 @@ export const calculateDeviations = (
   // 3. Kiểm tra các lịch trình xóa thêm trong phiên
   const targetDeptId = deptId || currentDeptAppts[0]?.deptId || baselineAppts[0]?.deptId;
   if (targetDeptId) {
-    const deletedSession = getAllDeletedSessionAppointments(targetDeptId);
+    const deletedSession = date ? getDeletedSessionAppointments(targetDeptId, date) : getAllDeletedSessionAppointments(targetDeptId);
     deletedSession.forEach(delAppt => {
-      if (!currentMap.has(delAppt.id) && !list.some(item => item.id === delAppt.id)) {
+      if ((!date || delAppt.date === date) && !currentMap.has(delAppt.id) && !list.some(item => item.id === delAppt.id)) {
         const patient = patients.find(p => p.id === delAppt.patientId);
         const patientName = patient?.name || 'Bệnh nhân không rõ';
         const proc = procedures.find(p => p.id === delAppt.procedureId);
