@@ -43,6 +43,8 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<Partial<AppointmentTemplate> | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [patientSearchTerm, setPatientSearchTerm] = useState('');
+  const [patientTab, setPatientTab] = useState<'NO_APPT' | 'ALL'>('NO_APPT');
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -435,6 +437,21 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
     return !hasAppts;
   });
 
+  const filteredPatientsList = visiblePatients.filter(p => {
+    const hasAppt = appointments.some(a => a.patientId === p.id && a.date === activeDate && a.deptId === currentDept.id);
+    if (patientTab === 'NO_APPT' && hasAppt) return false;
+
+    if (patientSearchTerm.trim()) {
+      const q = patientSearchTerm.toLowerCase().trim();
+      const matchName = (p.name || '').toLowerCase().includes(q);
+      const matchBed = (p.bedNumber || '').toLowerCase().includes(q);
+      const matchRoom = (p.roomNumber || '').toLowerCase().includes(q);
+      const matchId = (p.id || '').toLowerCase().includes(q);
+      return matchName || matchBed || matchRoom || matchId;
+    }
+    return true;
+  });
+
   const groupedTemplates = deptTemplates.reduce((acc, template) => {
     if (template.isFolder) {
       if (!acc[template.name]) acc[template.name] = [];
@@ -817,41 +834,61 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
       <div className="flex-[3] bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden shrink-0">
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-widest flex items-center gap-2">
-              <FolderOpen size={14} className="text-emerald-600" /> Quản lý danh sách mẫu
+            <h3 className="font-black text-slate-800 text-xs uppercase tracking-widest flex items-center gap-2">
+              <FolderOpen size={16} className="text-emerald-600" /> Quản lý danh sách mẫu
             </h3>
             <div className="flex gap-2">
-              <Button size="sm" variant="secondary" onClick={() => handleCreateFolder()} className="p-1 px-2 text-[11px]">
+              <Button size="sm" variant="secondary" onClick={() => handleCreateFolder()} className="py-1 px-2.5 text-xs font-bold">
                 + Tạo nhóm
               </Button>
-              <Button size="sm" onClick={() => handleCreateNew()} className="bg-emerald-600 hover:bg-emerald-700 text-white p-1 px-2 text-[11px]">
+              <Button size="sm" onClick={() => handleCreateNew()} className="bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-2.5 text-xs font-bold">
                 + Thêm mẫu
               </Button>
             </div>
           </div>
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text"
               placeholder="Tìm kiếm mẫu..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all font-medium text-slate-700"
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all font-medium text-slate-700"
             />
           </div>
-          <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-150 mt-1">
-            <Button size="sm" onClick={handleExportCSV} variant="secondary" className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 p-1 px-2 text-[10px] uppercase font-black tracking-wider flex items-center gap-1 shadow-sm">
-              <FileSpreadsheet size={13} className="text-emerald-600 shrink-0" /> Xuất CSV
-            </Button>
-            <Button size="sm" onClick={handlePrintTemplates} variant="secondary" className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 p-1 px-2 text-[10px] uppercase font-black tracking-wider flex items-center gap-1 shadow-sm">
-              <Printer size={13} className="text-blue-600 shrink-0" /> In bảng mẫu
-            </Button>
-            <Button size="sm" onClick={handleBackupTemplates} variant="secondary" className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 p-1 px-2 text-[10px] uppercase font-black tracking-wider flex items-center gap-1 shadow-sm">
-              <Download size={13} className="text-purple-600 shrink-0" /> Sao lưu mẫu
-            </Button>
-            <Button size="sm" onClick={() => fileInputRef.current?.click()} variant="secondary" className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 p-1 px-2 text-[10px] uppercase font-black tracking-wider flex items-center gap-1 shadow-sm">
-              <Upload size={13} className="text-indigo-600 shrink-0" /> Khôi phục mẫu
-            </Button>
+          <div className="flex items-center gap-1.5 pt-1 border-t border-slate-150 mt-1">
+            <button 
+              type="button"
+              onClick={handleExportCSV} 
+              className="flex items-center justify-center w-8 h-8 rounded-xl bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="Xuất CSV danh sách mẫu"
+            >
+              <FileSpreadsheet size={15} className="text-emerald-600 shrink-0" />
+            </button>
+            <button 
+              type="button"
+              onClick={handlePrintTemplates} 
+              className="flex items-center justify-center w-8 h-8 rounded-xl bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="In bảng mẫu"
+            >
+              <Printer size={15} className="text-blue-600 shrink-0" />
+            </button>
+            <button 
+              type="button"
+              onClick={handleBackupTemplates} 
+              className="flex items-center justify-center w-8 h-8 rounded-xl bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-700 border border-slate-200 shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="Sao lưu mẫu"
+            >
+              <Download size={15} className="text-purple-600 shrink-0" />
+            </button>
+            <button 
+              type="button"
+              onClick={() => fileInputRef.current?.click()} 
+              className="flex items-center justify-center w-8 h-8 rounded-xl bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="Khôi phục mẫu"
+            >
+              <Upload size={15} className="text-indigo-600 shrink-0" />
+            </button>
             <input 
               type="file" 
               ref={fileInputRef} 
@@ -861,54 +898,16 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             />
           </div>
         </div>
-        {patientsNoAppointments.length > 0 && (
-          <div className="p-4 border-b border-rose-100 bg-rose-50/30 shrink-0">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-1.5 h-4 bg-rose-400 rounded-full"></div>
-              <h4 className="text-[11px] font-black uppercase text-rose-600 tracking-wider">BN chưa có chỉ định hôm nay</h4>
-              <span className="text-[10px] text-rose-500 font-bold ml-auto bg-rose-100/80 px-2 py-0.5 rounded-full">{patientsNoAppointments.length}</span>
-            </div>
-            <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-thin">
-              {patientsNoAppointments.map(p => (
-                <div key={p.id} 
-                  className="min-w-[150px] flex flex-col p-2 bg-white border border-rose-100 shadow-sm rounded-xl shrink-0 cursor-grab active:cursor-grabbing hover:border-emerald-300 transition-colors"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, 'patient', p.id)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-bold text-slate-700 truncate">{p.name}</span>
-                    <span className="text-[10px] text-slate-500 font-bold">{calculateAge(p.dob)} tuổi</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-[10px] text-emerald-600 font-black bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">G.{p.bedNumber || '?'}</span>
-                    <span className={`text-[8px] font-black px-1 py-0.5 rounded uppercase ${
-                      p.bedType === 'Nội trú ban ngày' 
-                        ? 'bg-amber-100 text-amber-700' 
-                        : p.bedType === 'Ngoại trú'
-                        ? 'bg-blue-100 text-blue-700'
-                        : p.bedType === 'Khác'
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {p.bedType || 'Nội trú'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <div className="flex-1 overflow-y-auto w-full p-0">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-white shadow-sm z-10 w-full">
-              <tr className="border-b border-slate-200 text-[10px] font-black tracking-widest uppercase text-slate-400">
-                <th className="p-3 pl-4 w-[25%] border-r border-slate-100">Nhóm Mẫu</th>
-                <th className="p-3 w-[40%] border-r border-slate-100">Các Mẫu Trong Nhóm</th>
-                <th className="p-3 w-[35%]">BN Đang Sử Dụng (Hôm nay)</th>
+            <thead className="sticky top-0 bg-white shadow-xs z-10 w-full">
+              <tr className="border-b border-slate-200 text-xs font-black tracking-wider uppercase text-slate-500 bg-slate-50/90">
+                <th className="py-3 px-4 w-[26%] border-r border-slate-200/80">Nhóm Mẫu</th>
+                <th className="py-3 px-4 w-[44%] border-r border-slate-200/80">Các Mẫu Trong Nhóm</th>
+                <th className="py-3 px-4 w-[30%]">BN Đang Sử Dụng (Hôm nay)</th>
               </tr>
             </thead>
-            <tbody className="w-full text-sm">
+            <tbody className="w-full">
               {(() => {
                 const patientApptsOnDate = appointments.filter(a => a.date === activeDate && a.deptId === currentDept.id);
                 const patientMap = new Map<string, { templateIds: Set<string>, procs: string[] }>();
@@ -923,7 +922,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                 if (sortedGroups.length === 0) {
                   return (
                     <tr>
-                      <td colSpan={3} className="text-center p-8 text-slate-400 italic">Chưa có mẫu nào trong khoa.</td>
+                      <td colSpan={3} className="text-center p-8 text-slate-400 italic text-sm">Chưa có mẫu nào trong khoa.</td>
                     </tr>
                   );
                 }
@@ -942,7 +941,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                     <React.Fragment key={group}>
                       {filteredTmpls.length === 0 ? (
                         <tr className="border-b border-slate-100 group/row hover:bg-slate-50 transition-colors">
-                          <td className={`p-3 pl-4 align-top border-r border-slate-100 bg-slate-50/50 ${dragOverTarget?.type === 'group' && dragOverTarget?.id === group ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50' : ''}`}
+                          <td className={`p-3.5 px-4 align-top border-r border-slate-100 bg-slate-50/50 ${dragOverTarget?.type === 'group' && dragOverTarget?.id === group ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50' : ''}`}
                             onDragOver={(e) => handleDragOver(e, 'group', group)}
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, 'group', group)}
@@ -958,32 +957,32 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                               style={{ paddingLeft: `${getGroupDepth(group) * 16}px` }}
                             >
                               <div className="flex items-center gap-2 overflow-hidden">
-                                {getGroupDepth(group) > 0 && <span className="text-slate-300">└─</span>}
-                                <span className={`font-bold truncate ${getGroupDepth(group) === 0 ? 'text-slate-800 text-sm' : 'text-slate-600'}`} title={group}>
+                                {getGroupDepth(group) > 0 && <span className="text-slate-300 font-bold">└─</span>}
+                                <span className={`font-bold truncate ${getGroupDepth(group) === 0 ? 'text-slate-900 text-base' : 'text-slate-700 text-sm'}`} title={group}>
                                   {getGroupNameOnly(group)}
                                 </span>
                               </div>
                               {group !== 'Khác' && (
                                 <div className="flex items-center gap-0.5 opacity-0 group-hover/group:opacity-100 transition-opacity">
-                                  <button onClick={(e) => { e.stopPropagation(); const subName = prompt(`Nhập tên nhóm con cho "${group}":`); if (subName?.trim()) handleCreateFolder(group + '/' + subName.trim()); }} className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-100" title="Thêm nhóm con"><Plus size={13}/></button>
+                                  <button onClick={(e) => { e.stopPropagation(); const subName = prompt(`Nhập tên nhóm con cho "${group}":`); if (subName?.trim()) handleCreateFolder(group + '/' + subName.trim()); }} className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-100" title="Thêm nhóm con"><Plus size={14}/></button>
                                   {deptTemplates.some(t => t.isFolder && t.name === group) && (
                                     <>
-                                      <button onClick={(e) => handleRenameFolder(group, e)} className="p-1 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-100" title="Sửa tên nhóm"><Edit3 size={13}/></button>
-                                      <button onClick={(e) => handleMoveFolder(group, e)} className="p-1 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-100" title="Chuyển nhóm sang vị trí khác"><ArrowRightLeft size={13}/></button>
+                                      <button onClick={(e) => handleRenameFolder(group, e)} className="p-1 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-100" title="Sửa tên nhóm"><Edit3 size={14}/></button>
+                                      <button onClick={(e) => handleMoveFolder(group, e)} className="p-1 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-100" title="Chuyển nhóm sang vị trí khác"><ArrowRightLeft size={14}/></button>
                                     </>
                                   )}
-                                  <button onClick={(e) => handleDeleteFolder(group, e)} className="p-1 rounded text-rose-400 hover:text-rose-600 hover:bg-rose-100" title="Xóa nhóm"><Trash2 size={13}/></button>
+                                  <button onClick={(e) => handleDeleteFolder(group, e)} className="p-1 rounded text-rose-400 hover:text-rose-600 hover:bg-rose-100" title="Xóa nhóm"><Trash2 size={14}/></button>
                                 </div>
                               )}
                             </div>
                           </td>
-                          <td className={`p-3 text-slate-400 italic text-xs align-top cursor-pointer ${dragOverTarget?.type === 'group' && dragOverTarget?.id === group ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50' : ''}`} colSpan={2} onClick={() => handleCreateNew(group)}
+                          <td className={`p-3.5 px-4 text-slate-400 italic text-sm align-top cursor-pointer ${dragOverTarget?.type === 'group' && dragOverTarget?.id === group ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50' : ''}`} colSpan={2} onClick={() => handleCreateNew(group)}
                             onDragOver={(e) => handleDragOver(e, 'group', group)}
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, 'group', group)}
                           >
-                            <div className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors">
-                              <Plus size={14} /> Bấm để thêm mẫu mới vào nhóm này
+                            <div className="flex items-center gap-2 hover:text-emerald-600 font-medium transition-colors">
+                              <Plus size={15} /> Bấm để thêm mẫu mới vào nhóm này
                             </div>
                           </td>
                         </tr>
@@ -1015,9 +1014,9 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                           const isUsedGlobal = usedCount > 0;
 
                           return (
-                            <tr key={t.id} onClick={() => handleSelectTemplate(t)} className={`border-b border-slate-100 group/row cursor-pointer transition-colors ${selectedTemplateId === t.id ? 'bg-emerald-50/70' : 'hover:bg-slate-50'}`}>
+                            <tr key={t.id} onClick={() => handleSelectTemplate(t)} className={`border-b border-slate-100 group/row cursor-pointer transition-colors ${selectedTemplateId === t.id ? 'bg-emerald-50/80' : 'hover:bg-slate-50'}`}>
                               {idx === 0 && (
-                                <td rowSpan={rowSpan} className={`p-3 pl-4 align-top border-r border-slate-100 bg-white ${dragOverTarget?.type === 'group' && dragOverTarget?.id === group ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50' : ''}`}
+                                <td rowSpan={rowSpan} className={`p-3.5 pl-4 align-top border-r border-slate-100 bg-white ${dragOverTarget?.type === 'group' && dragOverTarget?.id === group ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50' : ''}`}
                                   onDragOver={(e) => handleDragOver(e, 'group', group)}
                                   onDragLeave={handleDragLeave}
                                   onDrop={(e) => handleDrop(e, 'group', group)}
@@ -1033,60 +1032,60 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                                     style={{ paddingLeft: `${getGroupDepth(group) * 16}px` }}
                                   >
                                     <div className="flex items-center gap-2 overflow-hidden">
-                                      {getGroupDepth(group) > 0 && <span className="text-slate-300">└─</span>}
-                                      <span className={`font-bold truncate ${getGroupDepth(group) === 0 ? 'text-slate-800 text-sm' : 'text-slate-600'}`} title={group}>
+                                      {getGroupDepth(group) > 0 && <span className="text-slate-300 font-bold">└─</span>}
+                                      <span className={`font-bold truncate ${getGroupDepth(group) === 0 ? 'text-slate-900 text-base' : 'text-slate-700 text-sm'}`} title={group}>
                                         {getGroupNameOnly(group)}
                                       </span>
                                     </div>
                                     {group !== 'Khác' && (
                                       <div className="flex items-center gap-0.5 opacity-0 group-hover/group:opacity-100 transition-opacity shrink-0">
-                                        <button onClick={(e) => { e.stopPropagation(); const subName = prompt(`Nhập tên nhóm con cho "${group}":`); if (subName?.trim()) handleCreateFolder(group + '/' + subName.trim()); }} className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-100" title="Thêm nhóm con"><Plus size={13}/></button>
+                                        <button onClick={(e) => { e.stopPropagation(); const subName = prompt(`Nhập tên nhóm con cho "${group}":`); if (subName?.trim()) handleCreateFolder(group + '/' + subName.trim()); }} className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-100" title="Thêm nhóm con"><Plus size={14}/></button>
                                         {deptTemplates.some(t => t.isFolder && t.name === group) && (
                                           <>
-                                            <button onClick={(e) => handleRenameFolder(group, e)} className="p-1 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-100" title="Sửa tên nhóm"><Edit3 size={13}/></button>
-                                            <button onClick={(e) => handleMoveFolder(group, e)} className="p-1 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-100" title="Chuyển nhóm sang vị trí khác"><ArrowRightLeft size={13}/></button>
+                                            <button onClick={(e) => handleRenameFolder(group, e)} className="p-1 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-100" title="Sửa tên nhóm"><Edit3 size={14}/></button>
+                                            <button onClick={(e) => handleMoveFolder(group, e)} className="p-1 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-100" title="Chuyển nhóm sang vị trí khác"><ArrowRightLeft size={14}/></button>
                                           </>
                                         )}
-                                        <button onClick={(e) => handleDeleteFolder(group, e)} className="p-1 rounded text-rose-400 hover:text-rose-600 hover:bg-rose-100" title="Xóa nhóm"><Trash2 size={13}/></button>
+                                        <button onClick={(e) => handleDeleteFolder(group, e)} className="p-1 rounded text-rose-400 hover:text-rose-600 hover:bg-rose-100" title="Xóa nhóm"><Trash2 size={14}/></button>
                                       </div>
                                     )}
                                   </div>
                                 </td>
                               )}
-                              <td className={`p-3 align-top border-r border-slate-100 relative group/cell ${dragOverTarget?.type === 'template' && dragOverTarget?.id === t.id ? (draggedItem?.type === 'patient' ? 'ring-2 ring-inset ring-blue-500 bg-blue-50' : 'border-t-2 border-t-emerald-500') : ''}`}
+                              <td className={`p-3.5 px-4 align-top border-r border-slate-100 relative group/cell ${dragOverTarget?.type === 'template' && dragOverTarget?.id === t.id ? (draggedItem?.type === 'patient' ? 'ring-2 ring-inset ring-blue-500 bg-blue-50' : 'border-t-2 border-t-emerald-500') : ''}`}
                                 onDragOver={(e) => handleDragOver(e, 'template', t.id)}
                                 onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, 'template', t.id)}
                               >
                                 <div 
-                                  className="flex flex-col cursor-grab active:cursor-grabbing"
+                                  className="flex flex-col cursor-grab active:cursor-grabbing gap-0.5"
                                   draggable
                                   onDragStart={(e) => handleDragStart(e, 'template', t.id, group)}
                                   onDragEnd={handleDragEnd}
                                 >
-                                  <span className={`font-semibold text-sm ${selectedTemplateId === t.id ? 'text-emerald-700' : 'text-slate-800'}`}>
+                                  <span className={`font-bold text-base ${selectedTemplateId === t.id ? 'text-emerald-700' : 'text-slate-800'}`}>
                                     {t.name}
                                   </span>
-                                  <span className="text-[10px] text-slate-400">{(t.procedures || []).length} lịch trình</span>
+                                  <span className="text-xs text-slate-500 font-medium">{(t.procedures || []).length} lịch trình</span>
                                 </div>
                                 <div className="absolute right-2 top-3 opacity-0 group-hover/cell:opacity-100 transition-opacity flex gap-1">
-                                  <button onClick={(e) => { e.stopPropagation(); onDeleteTemplate(t.id); if (selectedTemplateId === t.id) setEditingTemplate(null); }} className="p-1.5 hover:bg-rose-100 text-rose-400 hover:text-rose-600 rounded-md shadow-sm bg-white border border-slate-200"><Trash2 size={12} /></button>
+                                  <button onClick={(e) => { e.stopPropagation(); onDeleteTemplate(t.id); if (selectedTemplateId === t.id) setEditingTemplate(null); }} className="p-1.5 hover:bg-rose-100 text-rose-400 hover:text-rose-600 rounded-md shadow-xs bg-white border border-slate-200"><Trash2 size={13} /></button>
                                 </div>
                               </td>
-                              <td className={`p-3 align-top text-xs leading-relaxed ${isUsedGlobal ? 'font-medium text-emerald-700 bg-emerald-50/30' : 'text-slate-500'}`}>
-                                {isUsedGlobal ? usedPatientNames.join(', ') : <span className="opacity-50 italic">Không có</span>}
+                              <td className={`p-3.5 px-4 align-top text-sm leading-relaxed ${isUsedGlobal ? 'font-bold text-emerald-700 bg-emerald-50/40' : 'text-slate-500'}`}>
+                                {isUsedGlobal ? usedPatientNames.join(', ') : <span className="opacity-40 italic font-normal">Không có</span>}
                               </td>
                             </tr>
                           );
                         })}
                         <tr className="border-b border-slate-100/50 group/row hover:bg-slate-50/50 transition-colors">
-                          <td className={`p-3 text-slate-400 italic text-xs align-top cursor-pointer ${dragOverTarget?.type === 'group' && dragOverTarget?.id === group ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50' : ''}`} colSpan={2} onClick={() => handleCreateNew(group)}
+                          <td className={`p-3.5 px-4 text-slate-400 italic text-sm align-top cursor-pointer ${dragOverTarget?.type === 'group' && dragOverTarget?.id === group ? 'ring-2 ring-inset ring-emerald-500 bg-emerald-50' : ''}`} colSpan={2} onClick={() => handleCreateNew(group)}
                             onDragOver={(e) => handleDragOver(e, 'group', group)}
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, 'group', group)}
                           >
-                            <div className="flex items-center gap-1.5 hover:text-emerald-500 transition-colors">
-                              <Plus size={14} /> Bấm để thêm mẫu mới vào nhóm này
+                            <div className="flex items-center gap-2 hover:text-emerald-600 font-medium transition-colors">
+                              <Plus size={15} /> Bấm để thêm mẫu mới vào nhóm này
                             </div>
                           </td>
                         </tr>
@@ -1096,147 +1095,265 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                   );
                 });
 
-                const patientsNotUsingTemplates = visiblePatients.filter(p => !patientsUsedTemplates.has(p.id));
-
-                return (
-                  <>
-                    {renderedGroups}
-                    {patientsNotUsingTemplates.length > 0 && !searchTerm && (
-                      <tr className="border-t-2 border-slate-200 bg-amber-50/30 group hover:bg-amber-50/60 transition-colors">
-                        <td colSpan={2} className="p-3 pl-4 align-top border-r border-slate-100">
-                          <span className="font-bold text-amber-800">Những bệnh nhân chưa dùng mẫu</span>
-                          <div className="text-[10px] text-amber-600/80 font-medium">Bao gồm bệnh nhân trống lịch trên dòng thời gian hoặc lịch chỉ định không thuộc mẫu cấu hình nào</div>
-                        </td>
-                        <td className="p-3 align-top text-xs leading-relaxed text-amber-700 font-medium">
-                          {patientsNotUsingTemplates.map(p => p.name).join(', ')}
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
+                return renderedGroups;
               })()}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Editor Panel */}
-      <div 
-        className={`flex-[2] bg-white rounded-3xl shadow-sm border flex flex-col overflow-hidden min-w-[400px] transition-all ${dragOverTarget?.type === 'template' && dragOverTarget?.id === editingTemplate?.id && draggedItem?.type === 'patient' ? 'ring-2 ring-inset ring-blue-500 bg-blue-50 border-blue-500' : 'border-slate-200'}`}
-        onDragOver={(e) => editingTemplate && handleDragOver(e, 'template', editingTemplate.id)}
-        onDragLeave={handleDragLeave}
-        onDrop={(e) => editingTemplate && handleDrop(e, 'template', editingTemplate.id)}
-      >
-        {editingTemplate ? (
-          <>
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="font-bold text-slate-700">Chi tiết mẫu lịch trình</h3>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setEditingTemplate(null)}>Hủy</Button>
-                <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                  <Save size={16} className="mr-2" /> Lưu mẫu
-                </Button>
-              </div>
+      {/* Right Column: Patient Management (Top) + Template Details Editor (Bottom) */}
+      <div className="flex-[2] flex flex-col gap-4 min-w-[420px] h-full overflow-hidden shrink-0">
+        
+        {/* Top Panel: Quản lý bệnh nhân khoa */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden flex-1 min-h-[220px]">
+          {/* Header */}
+          <div className="p-3 px-4 border-b border-slate-200 bg-white flex flex-col gap-2 shrink-0 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-slate-800 text-[11px] uppercase tracking-wider flex items-center gap-2">
+                <User size={15} className="text-rose-500" /> Quản lý bệnh nhân khoa
+              </h3>
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                Tổng {visiblePatients.length} BN
+              </span>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Tên mẫu</label>
-                  <input 
-                    type="text"
-                    value={editingTemplate.name || ''}
-                    onChange={e => setEditingTemplate({...editingTemplate, name: e.target.value})}
-                    placeholder="VD: Khám nội soi định kỳ..."
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:bg-white transition-all font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Nhóm mẫu</label>
-                  <div className="relative">
-                    <input 
-                      list="template-groups"
-                      value={editingTemplate.group || ''}
-                      onChange={e => setEditingTemplate({...editingTemplate, group: e.target.value})}
-                      placeholder="Chọn hoặc nhập nhóm mẫu... (Dùng / cho nhóm con)"
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:bg-white transition-all font-medium"
-                    />
-                    <datalist id="template-groups">
-                      {Object.keys(groupedTemplates)
-                        .filter(g => g !== 'Khác')
-                        .sort((a, b) => a.localeCompare(b, 'vi'))
-                        .map(g => (
-                          <option key={g} value={g}>{g}</option>
-                      ))}
-                    </datalist>
+
+            {/* Patient Search Box */}
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text"
+                placeholder="Tìm kiếm bệnh nhân (Tên, giường, buồng)..."
+                value={patientSearchTerm}
+                onChange={e => setPatientSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-rose-400 focus:bg-white transition-all font-medium text-slate-700"
+              />
+              {patientSearchTerm && (
+                <button 
+                  onClick={() => setPatientSearchTerm('')} 
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setPatientTab('NO_APPT')}
+                className={`flex-1 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  patientTab === 'NO_APPT'
+                    ? 'bg-rose-500 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <span>BN chưa có chỉ định</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] ${patientTab === 'NO_APPT' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'}`}>
+                  {patientsNoAppointments.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPatientTab('ALL')}
+                className={`flex-1 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  patientTab === 'ALL'
+                    ? 'bg-slate-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <span>Tất cả BN</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] ${patientTab === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  {visiblePatients.length}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Patient Cards List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin bg-slate-50/50">
+            {filteredPatientsList.length > 0 ? (
+              filteredPatientsList.map(p => {
+                const hasAppt = appointments.some(a => a.patientId === p.id && a.date === activeDate && a.deptId === currentDept.id);
+                return (
+                  <div 
+                    key={p.id}
+                    className={`p-2.5 bg-white border rounded-2xl shadow-2xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing group relative ${
+                      !hasAppt ? 'border-rose-200 hover:border-rose-300' : 'border-slate-200 hover:border-emerald-300'
+                    }`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, 'patient', p.id)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          {p.name}
+                          <span className="text-[10px] font-medium text-slate-400">({calculateAge(p.dob)}t)</span>
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium">Mã BN: {p.id}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[10px] text-emerald-700 font-black bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                          G.{p.bedNumber || '?'}
+                        </span>
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase ${
+                          p.bedType === 'Nội trú ban ngày' 
+                            ? 'bg-amber-100 text-amber-700' 
+                            : p.bedType === 'Ngoại trú'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {p.bedType || 'Nội trú'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-100 text-[10px]">
+                      <span className={`font-bold flex items-center gap-1 ${!hasAppt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${!hasAppt ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
+                        {!hasAppt ? 'Chưa có chỉ định hôm nay' : 'Đã có chỉ định hôm nay'}
+                      </span>
+                      <span className="text-slate-400 italic group-hover:text-slate-600 transition-colors">
+                        Kéo thả để gán mẫu
+                      </span>
+                    </div>
                   </div>
+                );
+              })
+            ) : (
+              <div className="p-6 text-center text-slate-400 italic text-xs">
+                Không tìm thấy bệnh nhân nào phù hợp.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Panel: Chi tiết mẫu lịch trình */}
+        <div 
+          className={`bg-white rounded-3xl shadow-sm border flex flex-col overflow-hidden flex-1 min-h-[280px] transition-all ${dragOverTarget?.type === 'template' && dragOverTarget?.id === editingTemplate?.id && draggedItem?.type === 'patient' ? 'ring-2 ring-inset ring-blue-500 bg-blue-50 border-blue-500' : 'border-slate-200'}`}
+          onDragOver={(e) => editingTemplate && editingTemplate.id && handleDragOver(e, 'template', editingTemplate.id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => editingTemplate && editingTemplate.id && handleDrop(e, 'template', editingTemplate.id)}
+        >
+          {editingTemplate ? (
+            <>
+              <div className="p-3 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <h3 className="font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Edit3 size={15} className="text-emerald-600" /> Chi tiết mẫu lịch trình
+                </h3>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => { setEditingTemplate(null); setSelectedTemplateId(null); }} className="py-1 px-3 text-xs">
+                    Hủy
+                  </Button>
+                  <Button size="sm" onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 text-xs">
+                    <Save size={14} className="mr-1.5" /> Lưu mẫu
+                  </Button>
                 </div>
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-bold text-slate-700">Danh sách lịch trình</label>
-                  <Button size="sm" onClick={addProcedure} className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none">
-                    <Plus size={14} className="mr-1" /> Thêm dòng
-                  </Button>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Tên mẫu</label>
+                    <input 
+                      type="text"
+                      value={editingTemplate.name || ''}
+                      onChange={e => setEditingTemplate({...editingTemplate, name: e.target.value})}
+                      placeholder="VD: Khám nội soi định kỳ..."
+                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:bg-white transition-all text-xs font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nhóm mẫu</label>
+                    <div className="relative">
+                      <input 
+                        list="template-groups"
+                        value={editingTemplate.group || ''}
+                        onChange={e => setEditingTemplate({...editingTemplate, group: e.target.value})}
+                        placeholder="Chọn hoặc nhập nhóm..."
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:bg-white transition-all text-xs font-medium"
+                      />
+                      <datalist id="template-groups">
+                        {Object.keys(groupedTemplates)
+                          .filter(g => g !== 'Khác')
+                          .sort((a, b) => a.localeCompare(b, 'vi'))
+                          .map(g => (
+                            <option key={g} value={g}>{g}</option>
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
                 </div>
-                
-                {editingTemplate.procedures && editingTemplate.procedures.length > 0 ? (
-                  <div className="space-y-3">
-                    {editingTemplate.procedures.map((tProc, idx) => {
-                      const procInfo = procedures.find(p => p.id === tProc.procedureId);
-                      const staffInfo = staff.find(s => s.id === tProc.staffId);
-                      return (
-                        <div key={idx} onClick={() => handleEditProc(idx)} className="p-4 rounded-xl border border-slate-200 bg-white hover:border-emerald-300 hover:shadow-md cursor-pointer transition-all flex justify-between items-center group relative overflow-hidden">
-                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                          <div className="flex flex-col gap-1.5 flex-1 pl-1">
-                            <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                              {procInfo?.name || 'Lịch trình trống'}
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{tProc.startTime} - {tProc.endTime}</span>
-                            </span>
-                            <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
-                              <span className="flex items-center gap-1.5"><User size={14} className="text-emerald-500" /> {staffInfo?.name || 'Trống'}</span>
-                              {tProc.assistant1Id && <span className="flex items-center gap-1.5 opacity-70"><User size={13} /> {staff.find(s => s.id === tProc.assistant1Id)?.name}</span>}
-                              {tProc.assistant2Id && <span className="flex items-center gap-1.5 opacity-70"><User size={13} /> {staff.find(s => s.id === tProc.assistant2Id)?.name}</span>}
-                              {tProc.assignedMachineId && <span className="flex items-center gap-1.5 opacity-70"><Monitor size={13} /> Chọn máy tự động ({tProc.assignedMachineId})</span>}
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-slate-700">Danh sách lịch trình ({editingTemplate.procedures?.length || 0})</label>
+                    <Button size="sm" onClick={addProcedure} className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none py-1 px-2.5 text-[11px]">
+                      <Plus size={13} className="mr-1" /> Thêm dòng
+                    </Button>
+                  </div>
+                  
+                  {editingTemplate.procedures && editingTemplate.procedures.length > 0 ? (
+                    <div className="space-y-2">
+                      {editingTemplate.procedures.map((tProc, idx) => {
+                        const procInfo = procedures.find(p => p.id === tProc.procedureId);
+                        const staffInfo = staff.find(s => s.id === tProc.staffId);
+                        return (
+                          <div key={idx} onClick={() => handleEditProc(idx)} className="p-3 rounded-xl border border-slate-200 bg-white hover:border-emerald-300 hover:shadow-xs cursor-pointer transition-all flex justify-between items-center group relative overflow-hidden">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div className="flex flex-col gap-1 flex-1 pl-1">
+                              <span className="font-bold text-slate-800 text-xs flex items-center gap-2">
+                                {procInfo?.name || 'Lịch trình trống'}
+                                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{tProc.startTime} - {tProc.endTime}</span>
+                              </span>
+                              <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
+                                <span className="flex items-center gap-1"><User size={13} className="text-emerald-500" /> {staffInfo?.name || 'Trống'}</span>
+                                {tProc.assistant1Id && <span className="flex items-center gap-1 opacity-70"><User size={12} /> {staff.find(s => s.id === tProc.assistant1Id)?.name}</span>}
+                                {tProc.assistant2Id && <span className="flex items-center gap-1 opacity-70"><User size={12} /> {staff.find(s => s.id === tProc.assistant2Id)?.name}</span>}
+                                {tProc.assignedMachineId && <span className="flex items-center gap-1 opacity-70"><Monitor size={12} /> Máy: {tProc.assignedMachineId}</span>}
+                              </div>
                             </div>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newProcs = [...editingTemplate.procedures!];
+                                newProcs.splice(idx, 1);
+                                setEditingTemplate({...editingTemplate, procedures: newProcs});
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                              title="Xóa lịch trình"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const newProcs = [...editingTemplate.procedures!];
-                              newProcs.splice(idx, 1);
-                              setEditingTemplate({...editingTemplate, procedures: newProcs});
-                            }}
-                            className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                            title="Xóa lịch trình"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 flex flex-col items-center justify-center gap-2">
-                     <FolderOpen size={30} className="text-slate-300" />
-                     <p className="text-slate-500 font-medium">Chưa có lịch trình nào trong mẫu.</p>
-                     <Button size="sm" onClick={addProcedure} variant="secondary" className="mt-2 text-xs">Thêm lịch trình</Button>
-                  </div>
-                )}
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 flex flex-col items-center justify-center gap-1.5">
+                       <FolderOpen size={24} className="text-slate-300" />
+                       <p className="text-slate-500 text-xs font-medium">Chưa có lịch trình nào trong mẫu này.</p>
+                       <Button size="sm" onClick={addProcedure} variant="secondary" className="mt-1 text-[11px] py-1 px-3">Thêm dòng lịch trình</Button>
+                    </div>
+                  )}
+                </div>
               </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-300 p-6 text-center bg-slate-50/50">
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-100 mb-3 rotate-2">
+                <FolderOpen size={24} className="text-slate-300" />
+              </div>
+              <p className="font-bold text-xs text-slate-500 tracking-tight uppercase">Chi tiết mẫu lịch trình</p>
+              <p className="text-[11px] mt-1.5 text-slate-400 font-medium max-w-xs">
+                Chọn một mẫu ở danh sách bên trái hoặc bấm <span className="font-bold text-emerald-600 cursor-pointer" onClick={() => handleCreateNew()}>"+ Thêm mẫu"</span> để chỉnh sửa nội dung.
+              </p>
             </div>
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-300 p-8 text-center bg-slate-50/50">
-            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-xl border border-slate-100 mb-6 rotate-3">
-              <FolderOpen size={40} className="text-slate-200" />
-            </div>
-            <p className="font-black text-xl text-slate-400 tracking-tight uppercase">Chọn mẫu để chỉnh sửa</p>
-            <p className="text-sm mt-3 text-slate-400 font-medium max-w-sm">
-              Bạn có thể tạo các mẫu lịch trình dùng chung cho nhiều bệnh nhân và quản lý chúng theo nhóm nội trú, ngoại trú, v.v.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
+
       </div>
       
       {isProcModalOpen && editingTemplate && (
