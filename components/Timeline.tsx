@@ -3,7 +3,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole, ScheduleSnapshot } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString } from '../utils/timeUtils';
-import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2 } from 'lucide-react';
+import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
 import { getBaselineAppointments, getAllBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
@@ -339,6 +339,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   const activeFiltersCount = useMemo(() => {
     return (
+      (filterModifiedOnly ? 1 : 0) +
       headerPatientStatusFilters.length +
       headerPatientFilters.length +
       headerBedTypeFilters.length +
@@ -351,6 +352,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       headerMachineFilters.length
     );
   }, [
+    filterModifiedOnly,
     headerPatientStatusFilters,
     headerPatientFilters,
     headerBedTypeFilters,
@@ -363,7 +365,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     headerMachineFilters
   ]);
 
-  const handleClearAllFilters = () => {
+  const clearHeaderFiltersOnly = () => {
     setHeaderPatientStatusFilters([]);
     setHeaderPatientFilters([]);
     setHeaderBedTypeFilters([]);
@@ -387,6 +389,20 @@ export const Timeline: React.FC<TimelineProps> = ({
     sessionStorage.removeItem(`medflow_tl_staffId_${deptKey}`);
     sessionStorage.removeItem(`medflow_tl_timeShift_${deptKey}`);
     sessionStorage.removeItem(`medflow_tl_machine_${deptKey}`);
+  };
+
+  const handleClearAllFilters = () => {
+    clearHeaderFiltersOnly();
+    setFilterModifiedOnly(false);
+  };
+
+  const handleToggleFilterModifiedOnly = () => {
+    if (!filterModifiedOnly) {
+      clearHeaderFiltersOnly();
+      setFilterModifiedOnly(true);
+    } else {
+      setFilterModifiedOnly(false);
+    }
   };
 
   // Derived helper lists to prevent virtual filtering data
@@ -1015,29 +1031,69 @@ export const Timeline: React.FC<TimelineProps> = ({
     return (
       <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Thanh công cụ gọn gàng phía trên Timeline */}
-        <div className="px-4 py-2 border-b border-slate-200 bg-slate-50/80 flex items-center justify-end gap-2.5 flex-wrap shrink-0">
-          {/* Nút Bỏ lọc tất cả dạng biểu tượng */}
-          {activeFiltersCount > 0 && (
+        <div className="px-4 py-2 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between gap-2.5 flex-wrap shrink-0">
+          {/* Cụm các nút bên trái: Bỏ lọc, In báo cáo, Xuất CSV, Kiểm tra lỗi */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Nút Bỏ lọc tất cả dạng biểu tượng */}
+            {activeFiltersCount > 0 && (
+              <button 
+                type="button"
+                onClick={handleClearAllFilters} 
+                className="relative flex items-center justify-center w-9 h-9 bg-orange-600 hover:bg-orange-700 text-white border border-orange-700 rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
+                title={`Bỏ tất cả các bộ lọc đang kích hoạt (${activeFiltersCount})`}
+              >
+                <div className="relative flex items-center justify-center">
+                  <Filter size={15} className="text-white" />
+                  <span className="absolute -bottom-1 -right-1.5 bg-white text-orange-600 rounded-full p-[1.5px] shadow-xs flex items-center justify-center ring-1 ring-orange-200">
+                    <X size={9} strokeWidth={3.5} />
+                  </span>
+                </div>
+                <span className="absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] px-1 text-[9px] font-black bg-white text-orange-700 rounded-full flex items-center justify-center border-2 border-orange-600 shadow-xs">
+                  {activeFiltersCount}
+                </span>
+              </button>
+            )}
+
+            {/* Nút In báo cáo */}
             <button 
               type="button"
-              onClick={handleClearAllFilters} 
-              className="relative flex items-center justify-center w-9 h-9 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
-              title={`Bỏ tất cả các bộ lọc đang kích hoạt (${activeFiltersCount})`}
+              onClick={handlePrintTimeline} 
+              className="flex items-center justify-center w-9 h-9 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+              title="In báo cáo Timeline"
             >
-              <FilterX size={16} className="text-amber-700" />
-              <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 text-[9px] font-black bg-amber-300 text-amber-900 rounded-full flex items-center justify-center border-2 border-white shadow-2xs">
-                {activeFiltersCount}
-              </span>
+              <Printer size={16} />
             </button>
-          )}
 
-          {/* Nhóm 3 nút gộp thành 1 cụm: Lọc biến động, Lịch sử chỉnh sửa, Lưu phiên bản */}
+            {/* Nút Xuất CSV */}
+            <button 
+              type="button"
+              onClick={handleExportCSVTimeline} 
+              className="flex items-center justify-center w-9 h-9 bg-white border border-slate-200 rounded-xl text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+              title="Xuất file CSV Timeline"
+            >
+              <FileText size={16} />
+            </button>
+
+            {/* Nút Kiểm tra lỗi */}
+            {onRecheckConflicts && (
+              <button 
+                type="button"
+                onClick={onRecheckConflicts} 
+                className="flex items-center justify-center w-9 h-9 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+                title="Kiểm tra lại toàn bộ xung đột lịch"
+              >
+                <AlertTriangle size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Nhóm 3 nút gộp thành 1 cụm chuyển sang bên phải: Lọc biến động, Lịch sử chỉnh sửa, Lưu phiên bản */}
           {currentDept && (
-            <div className="flex items-center bg-amber-50/80 border border-amber-200/90 rounded-2xl p-1 shadow-2xs shrink-0">
+            <div className="flex items-center bg-amber-50/80 border border-amber-200/90 rounded-2xl p-1 shadow-2xs shrink-0 ml-auto">
               {/* Nút Lọc biến động */}
               <button 
                 type="button"
-                onClick={() => setFilterModifiedOnly(prev => !prev)} 
+                onClick={handleToggleFilterModifiedOnly} 
                 className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 cursor-pointer ${
                   filterModifiedOnly 
                     ? 'bg-amber-600 text-white shadow-xs shadow-amber-600/30' 
@@ -1099,38 +1155,6 @@ export const Timeline: React.FC<TimelineProps> = ({
                 </button>
               )}
             </div>
-          )}
-
-          {/* Nút In báo cáo */}
-          <button 
-            type="button"
-            onClick={handlePrintTimeline} 
-            className="flex items-center justify-center w-9 h-9 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-sky-50 hover:text-sky-600 hover:border-sky-300 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
-            title="In báo cáo Timeline"
-          >
-            <Printer size={16} />
-          </button>
-
-          {/* Nút Xuất CSV */}
-          <button 
-            type="button"
-            onClick={handleExportCSVTimeline} 
-            className="flex items-center justify-center w-9 h-9 bg-white border border-slate-200 rounded-xl text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
-            title="Xuất file CSV Timeline"
-          >
-            <FileText size={16} />
-          </button>
-
-          {/* Nút Kiểm tra lỗi */}
-          {onRecheckConflicts && (
-            <button 
-              type="button"
-              onClick={onRecheckConflicts} 
-              className="flex items-center justify-center w-9 h-9 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
-              title="Kiểm tra lại toàn bộ xung đột lịch"
-            >
-              <AlertTriangle size={16} />
-            </button>
           )}
         </div>
 

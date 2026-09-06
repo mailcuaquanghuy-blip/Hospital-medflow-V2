@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Patient, PatientStatus, Department, DepartmentType, BedType, InsuranceLevel } from '../types';
+import { Patient, PatientStatus, Department, DepartmentType, BedType, InsuranceLevel, UserAccount, UserRole } from '../types';
 import { Button } from './Button';
 import { DateTimePicker } from './DateTimePicker';
 import { DateInput } from './DateInput';
@@ -39,6 +39,7 @@ interface PatientListProps {
   appointments: Appointment[];
   procedures: Procedure[];
   staff: Staff[];
+  currentUser?: UserAccount;
   onAddPatient: () => void;
   onEditPatient: (p: Patient) => void;
   onDeletePatient: (patientId: string) => void;
@@ -56,6 +57,7 @@ export const PatientList: React.FC<PatientListProps> = ({
   appointments,
   procedures,
   staff,
+  currentUser,
   onAddPatient,
   onEditPatient,
   onDeletePatient,
@@ -1822,9 +1824,10 @@ export const PatientList: React.FC<PatientListProps> = ({
                                   type="button"
                                   onClick={() => {
                                     setOpenActionsMenuPatientId(null);
+                                    const isAdmin = currentUser?.role === UserRole.ADMIN;
                                     const hasAppointments = appointments.some(a => a.patientId === p.id);
-                                    if (hasAppointments) {
-                                      alert("Không thể xóa bệnh nhân này vì vẫn còn lịch trình. Vui lòng xóa toàn bộ lịch trình của bệnh nhân trước khi xóa hồ sơ.");
+                                    if (!isAdmin && hasAppointments) {
+                                      alert("Không thể xóa bệnh nhân này vì vẫn còn thủ thuật. Vui lòng xóa toàn bộ thủ thuật của bệnh nhân trước khi xóa hồ sơ.");
                                     } else {
                                       setDeletingPatient(p);
                                     }
@@ -1836,7 +1839,9 @@ export const PatientList: React.FC<PatientListProps> = ({
                                   </span>
                                   <div className="flex flex-col">
                                     <span className="font-extrabold text-[11px] leading-tight">Xóa hồ sơ</span>
-                                    <span className="text-[9px] text-rose-400 font-normal leading-tight">Xóa vĩnh viễn khỏi danh sách</span>
+                                    <span className="text-[9px] text-rose-400 font-normal leading-tight">
+                                      {currentUser?.role === UserRole.ADMIN ? 'Quản trị: Xóa kèm thủ thuật' : 'Xóa vĩnh viễn khỏi danh sách'}
+                                    </span>
                                   </div>
                                 </button>
                               </>
@@ -1860,29 +1865,67 @@ export const PatientList: React.FC<PatientListProps> = ({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {deletingPatient && (
-        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] p-10 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex flex-col items-center text-center space-y-6">
-              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center">
-                <Trash2 size={32} />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-tight">XÓA HỒ SƠ</h3>
-                <p className="text-sm text-slate-500 font-bold">Bệnh nhân: <span className="text-slate-800">{deletingPatient.name}</span></p>
-              </div>
-              <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-start gap-3">
-                <AlertTriangle size={20} className="text-rose-500 shrink-0" />
-                <p className="text-[11px] text-rose-600 font-bold text-left leading-relaxed uppercase">Hành động này sẽ xóa vĩnh viễn hồ sơ và toàn bộ chỉ định liên quan. Không thể hoàn tác!</p>
-              </div>
-              <div className="flex gap-4 w-full pt-2">
-                <button onClick={() => setDeletingPatient(null)} className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-2xl transition-all uppercase tracking-widest text-xs">HỦY</button>
-                <button onClick={handleConfirmDelete} className="flex-1 py-4 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-200 uppercase tracking-widest text-xs">XÓA NGAY</button>
+      {deletingPatient && (() => {
+        const isAdmin = currentUser?.role === UserRole.ADMIN;
+        const patientApptCount = appointments.filter(a => a.patientId === deletingPatient.id).length;
+
+        return (
+          <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="flex flex-col items-center text-center space-y-5">
+                <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center shadow-inner">
+                  <Trash2 size={32} />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight leading-tight">XÓA HỒ SƠ BỆNH NHÂN</h3>
+                  <p className="text-sm text-slate-500 font-bold">
+                    Bệnh nhân: <span className="text-slate-800 font-black">{deletingPatient.name}</span> {deletingPatient.bedNumber ? `(Giường ${deletingPatient.bedNumber})` : ''}
+                  </p>
+                </div>
+
+                {isAdmin && patientApptCount > 0 ? (
+                  <div className="w-full bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3 text-left">
+                    <AlertTriangle size={22} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-black text-amber-800 uppercase tracking-tight">
+                        Tài khoản Quản trị: Tự động xóa {patientApptCount} thủ thuật
+                      </p>
+                      <p className="text-[12px] text-amber-700 font-medium leading-relaxed">
+                        Bệnh nhân hiện đang có <strong className="font-black text-amber-900">{patientApptCount}</strong> thủ thuật. Vì bạn đang đăng nhập bằng tài khoản quản trị, hệ thống sẽ <strong className="font-black text-rose-700">tự động xóa toàn bộ các thủ thuật này</strong> cùng với hồ sơ bệnh nhân.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-start gap-3 text-left">
+                    <AlertTriangle size={20} className="text-rose-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-rose-600 font-bold leading-relaxed uppercase">
+                      Hành động này sẽ xóa vĩnh viễn hồ sơ bệnh nhân khỏi danh sách. Không thể hoàn tác!
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 w-full pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setDeletingPatient(null)} 
+                    className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-2xl transition-all uppercase tracking-widest text-xs"
+                  >
+                    HỦY
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={handleConfirmDelete} 
+                    className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-2xl transition-all shadow-lg shadow-rose-200 uppercase tracking-widest text-xs flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 size={16} />
+                    <span>XÓA NGAY</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Discharge Confirmation Modal */}
       {dischargingPatient && (

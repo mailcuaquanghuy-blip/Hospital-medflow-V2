@@ -599,15 +599,32 @@ const App: React.FC = () => {
 
   const handleDeletePatient = async (patientId: string) => {
     try {
-      // Kiểm tra xem bệnh nhân còn lịch trình nào không bằng local state
-      const hasAppointments = appointments.some(appt => appt.patientId === patientId);
-      
-      if (hasAppointments) {
-        alert("Không thể xóa bệnh nhân này vì vẫn còn lịch trình. Vui lòng xóa toàn bộ lịch trình của bệnh nhân trước khi xóa hồ sơ.");
+      const isAdmin = currentUser?.role === UserRole.ADMIN;
+      const patientAppointments = appointments.filter(appt => appt.patientId === patientId);
+
+      if (!isAdmin && patientAppointments.length > 0) {
+        alert("Không thể xóa bệnh nhân này vì vẫn còn thủ thuật. Vui lòng xóa toàn bộ thủ thuật của bệnh nhân trước khi xóa hồ sơ.");
         return;
       }
 
-      // Optimistic update
+      // Khi xóa hồ sơ bệnh nhân bằng tài khoản quản trị thì các thủ thuật của bệnh nhân đó sẽ tự động xóa hết
+      if (isAdmin && patientAppointments.length > 0) {
+        setAppointments(prev => prev.filter(appt => appt.patientId !== patientId));
+
+        if (isSupabaseConfigured()) {
+          for (const appt of patientAppointments) {
+            await deleteSupabaseItem('appointments', appt.id);
+          }
+        }
+        if (db) {
+          const apptDeletePromises = patientAppointments.map(appt =>
+            deleteDoc(doc(db, "appointments", appt.id))
+          );
+          await Promise.all(apptDeletePromises);
+        }
+      }
+
+      // Optimistic update bệnh nhân
       setPatients(prev => prev.filter(p => p.id !== patientId));
 
       if (isSupabaseConfigured()) {
@@ -616,7 +633,7 @@ const App: React.FC = () => {
       if (db) {
         await deleteDoc(doc(db, "patients", patientId));
       }
-      console.log(`Đã xóa hồ sơ bệnh nhân ${patientId}`);
+      console.log(`Đã xóa hồ sơ bệnh nhân ${patientId}${isAdmin && patientAppointments.length > 0 ? ` cùng ${patientAppointments.length} thủ thuật` : ''}`);
     } catch (error) { 
       console.error("Error deleting patient:", error);
     }
@@ -2350,7 +2367,7 @@ const App: React.FC = () => {
          {activeTab === 'ACCOUNT_MANAGER' && <AccountManager users={users} onSaveUser={handleSaveUser} onDeleteUser={handleDeleteUser} />}
          {activeTab === 'ACCOUNT_BACKUP' && <BackupManager backups={backups} departments={DEPARTMENTS} currentUser={currentUser} onCreateBackup={handleCreateBackup} onRestoreBackup={handleRestoreBackup} onDeleteBackup={handleDeleteBackup} onImportData={handleImportData} />}
          
-         {activeTab === 'PATIENT_RECORDS' && currentDept && <PatientList patients={patients} activeDate={activeDate} currentDept={currentDept} appointments={appointments} procedures={procedures} staff={staff} onAddPatient={() => { setEditingPatient(null); setIsPatientEditModalOpen(true); }} onEditPatient={p => { setEditingPatient(p); setIsPatientEditModalOpen(true); }} onDeletePatient={handleDeletePatient} onUpdateStatus={handleUpdateStatus} onReferral={(pid, s) => { setReferralModal({ patientId: pid, specialty: s, procedureIds: [], referralTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) }); }} onFinishReferral={handleFinishReferral} onCancelFinishReferral={handleCancelFinishReferral} onCancelReferral={handleCancelReferral} />}
+         {activeTab === 'PATIENT_RECORDS' && currentDept && <PatientList patients={patients} activeDate={activeDate} currentDept={currentDept} appointments={appointments} procedures={procedures} staff={staff} currentUser={currentUser || undefined} onAddPatient={() => { setEditingPatient(null); setIsPatientEditModalOpen(true); }} onEditPatient={p => { setEditingPatient(p); setIsPatientEditModalOpen(true); }} onDeletePatient={handleDeletePatient} onUpdateStatus={handleUpdateStatus} onReferral={(pid, s) => { setReferralModal({ patientId: pid, specialty: s, procedureIds: [], referralTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) }); }} onFinishReferral={handleFinishReferral} onCancelFinishReferral={handleCancelFinishReferral} onCancelReferral={handleCancelReferral} />}
 
          {activeTab === 'SCHEDULING' && currentDept && (
           <PatientScheduling 

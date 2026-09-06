@@ -1407,7 +1407,21 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           {/* Nút Biểu tượng Lọc biến động */}
           <button 
             type="button"
-            onClick={() => setFilterModifiedOnly(prev => !prev)} 
+            onClick={() => {
+              if (!filterModifiedOnly) {
+                setSearchTerm('');
+                setReferringDeptFilter('ALL');
+                setProcedureFilter('ALL');
+                setStaffFilter('ALL');
+                setBedTypeFilter('ALL');
+                setShowConflictedOnly(false);
+                setShowNoProcedureOnly(false);
+                setFilterAdmissionDate('');
+                setFilterModifiedOnly(true);
+              } else {
+                setFilterModifiedOnly(false);
+              }
+            }} 
             className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 cursor-pointer ${
               filterModifiedOnly 
                 ? 'bg-amber-600 text-white shadow-xs shadow-amber-600/30' 
