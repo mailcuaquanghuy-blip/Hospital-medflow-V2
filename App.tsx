@@ -783,24 +783,53 @@ const App: React.FC = () => {
       uniqueDates.add(dateStr);
       deptAppts.forEach(a => uniqueDates.add(a.date));
 
+      // Include all existing snapshot dates for this department so empty/stale historical snapshots are cleaned
+      const deptSnapshots = scheduleSnapshots.filter(s => s.deptId === deptId);
+      deptSnapshots.forEach(s => uniqueDates.add(s.date));
+
+      // Include any session-saved baseline dates
+      if (typeof window !== 'undefined') {
+        try {
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key && (key.startsWith(`medflow_baseline_${deptId}_`) || key.startsWith(`medflow_deleted_${deptId}_`))) {
+              const dStr = key.replace(`medflow_baseline_${deptId}_`, '').replace(`medflow_deleted_${deptId}_`, '');
+              if (dStr) uniqueDates.add(dStr);
+            }
+          }
+        } catch (e) {}
+      }
+
+      const newSnapshots: ScheduleSnapshot[] = [];
+
       const savePromises = Array.from(uniqueDates).map(async (d) => {
         const dateAppts = deptAppts.filter(a => a.date === d);
         const snapshotId = `${deptId}_${d}`;
-        await setDoc(doc(db, 'scheduleSnapshots', snapshotId), {
+        const snapObj: ScheduleSnapshot = {
           id: snapshotId,
           deptId,
           date: d,
           createdAt: new Date().toISOString(),
           createdBy: currentUser?.fullName || 'Hệ thống',
           appointments: dateAppts
-        });
+        };
+        newSnapshots.push(snapObj);
+
+        await setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj);
         setSessionBaseline(deptId, d, dateAppts);
         clearDeletedSessionAppointments(deptId, d);
       });
 
       await Promise.all(savePromises);
       clearAllSessionBaselines(deptId);
-      alert('Đã lưu phiên bản chốt tất cả các ngày thành công! Tất cả nhật ký chỉnh sửa đã được làm sạch.');
+
+      // Immediately update local React state so baseline is instantly in sync
+      setScheduleSnapshots(prev => {
+        const filtered = prev.filter(s => s.deptId !== deptId || !uniqueDates.has(s.date));
+        return [...filtered, ...newSnapshots];
+      });
+
+      alert('Đã lưu phiên bản chốt thành công! Tất cả nhật ký chỉnh sửa đã được làm sạch.');
     } catch (err) {
       console.error('Error saving schedule snapshot:', err);
       alert('Không thể lưu phiên bản chốt. Vui lòng thử lại.');
