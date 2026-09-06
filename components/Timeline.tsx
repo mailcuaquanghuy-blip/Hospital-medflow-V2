@@ -5,7 +5,7 @@ import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString } from '../utils/timeUtils';
 import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2 } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
-import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
+import { getBaselineAppointments, getAllBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
 import { DateInput } from './DateInput';
 
@@ -307,12 +307,12 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   const baselineInfo = useMemo(() => {
     if (!currentDept) return { baselineAppts: [], isExplicitSnapshot: false, snapshotInfo: undefined };
-    return getBaselineAppointments(currentDept.id, date, appointments, scheduleSnapshots);
-  }, [currentDept, date, appointments, scheduleSnapshots]);
+    return getAllBaselineAppointments(currentDept.id, appointments, scheduleSnapshots);
+  }, [currentDept, appointments, scheduleSnapshots]);
 
   const deviations: DeviationItem[] = useMemo(() => {
     if (!currentDept) return [];
-    const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
+    const deptAppts = appointments.filter(a => a.deptId === currentDept.id);
     return calculateDeviations(deptAppts, baselineInfo.baselineAppts, patients, procedures, staff, currentDept.id, date);
   }, [appointments, baselineInfo, currentDept, date, patients, procedures, staff]);
 
@@ -546,7 +546,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
     // Lọc các lịch trình có biến động so với bản chốt
     if (filterModifiedOnly) {
-      const changedIds = new Set(deviations.map(d => d.id));
+      const changedIds = new Set(deviations.filter(d => d.date === date).map(d => d.id));
       result = result.filter(a => changedIds.has(a.id));
     }
     

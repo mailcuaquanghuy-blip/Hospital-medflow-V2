@@ -435,7 +435,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     // Fix: Discharged patients should be visible if showDischarged is true, even if they are "scheduled"
     const isDischarged = p.status === 'DISCHARGED';
     
-    const matchesModified = !filterModifiedOnly || deviations.some(d => d.patientId === p.id);
+    const matchesModified = !filterModifiedOnly || deviations.some(d => d.patientId === p.id && d.date === currentDate);
     
     return matchesSearch && matchesDept && matchesAdmissionDate && matchesProcedure && matchesNoProcedure && matchesStaff && matchesBedType && matchesConflict && matchesModified;
   }).sort((a, b) => {

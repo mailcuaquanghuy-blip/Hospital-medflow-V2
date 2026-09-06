@@ -778,21 +778,26 @@ const App: React.FC = () => {
 
   const handleSaveScheduleSnapshot = async (deptId: string, dateStr: string) => {
     try {
-      const deptAppts = appointments.filter(a => a.deptId === deptId && a.date === dateStr);
-      const snapshotId = `${deptId}_${dateStr}`;
-      
-      await setDoc(doc(db, 'scheduleSnapshots', snapshotId), {
-        id: snapshotId,
-        deptId,
-        date: dateStr,
-        createdAt: new Date().toISOString(),
-        createdBy: currentUser?.fullName || 'Hệ thống',
-        appointments: deptAppts
-      });
-      
-      setSessionBaseline(deptId, dateStr, deptAppts);
-      clearDeletedSessionAppointments(deptId, dateStr);
-      alert('Đã lưu phiên bản chốt thành công! Tất cả nhật ký chỉnh sửa của phiên đã được làm sạch.');
+      const deptAppts = appointments.filter(a => a.deptId === deptId);
+      const uniqueDates = new Set<string>();
+      uniqueDates.add(dateStr);
+      deptAppts.forEach(a => uniqueDates.add(a.date));
+
+      for (const d of Array.from(uniqueDates)) {
+        const dateAppts = deptAppts.filter(a => a.date === d);
+        const snapshotId = `${deptId}_${d}`;
+        await setDoc(doc(db, 'scheduleSnapshots', snapshotId), {
+          id: snapshotId,
+          deptId,
+          date: d,
+          createdAt: new Date().toISOString(),
+          createdBy: currentUser?.fullName || 'Hệ thống',
+          appointments: dateAppts
+        });
+        setSessionBaseline(deptId, d, dateAppts);
+        clearDeletedSessionAppointments(deptId, d);
+      }
+      alert('Đã lưu phiên bản chốt tất cả các ngày thành công! Tất cả nhật ký chỉnh sửa đã được làm sạch.');
     } catch (err) {
       console.error('Error saving schedule snapshot:', err);
       alert('Không thể lưu phiên bản chốt. Vui lòng thử lại.');

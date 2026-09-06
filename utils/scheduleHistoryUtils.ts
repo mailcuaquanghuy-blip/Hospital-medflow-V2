@@ -9,7 +9,17 @@ export interface DeviationItem {
   changeDetails: string;
   currentAppt?: Appointment;
   originalAppt?: Appointment;
+  date: string; // YYYY-MM-DD - Ngày của lịch trình
 }
+
+export const formatDateVi = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
 
 export const getBaselineAppointments = (
   deptId: string,
@@ -66,6 +76,85 @@ export const getBaselineAppointments = (
   };
 };
 
+export const getAllBaselineAppointments = (
+  deptId: string,
+  currentAppointments: Appointment[],
+  scheduleSnapshots?: ScheduleSnapshot[]
+): {
+  baselineAppts: Appointment[];
+  isExplicitSnapshot: boolean;
+  snapshotInfo?: ScheduleSnapshot;
+} => {
+  const deptSnapshots = (scheduleSnapshots || []).filter(s => s.deptId === deptId);
+  const baselineApptsMap = new Map<string, Appointment>();
+  let isExplicit = false;
+  let latestSnapshot: ScheduleSnapshot | undefined;
+
+  // 1. Lấy tất cả các snapshot đã chốt trong CSDL cho các ngày
+  if (deptSnapshots.length > 0) {
+    isExplicit = true;
+    deptSnapshots.forEach(s => {
+      if (Array.isArray(s.appointments)) {
+        s.appointments.forEach(a => baselineApptsMap.set(a.id, a));
+      }
+      if (!latestSnapshot || (s.createdAt && s.createdAt > (latestSnapshot.createdAt || ''))) {
+        latestSnapshot = s;
+      }
+    });
+  }
+
+  // 2. Thu thập danh sách tất cả các ngày có trong lịch và session storage
+  const currentDeptAppts = currentAppointments.filter(a => a.deptId === deptId);
+  const datesSet = new Set<string>();
+  currentDeptAppts.forEach(a => datesSet.add(a.date));
+  deptSnapshots.forEach(s => datesSet.add(s.date));
+
+  if (typeof window !== 'undefined') {
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith(`medflow_baseline_${deptId}_`)) {
+          const dStr = key.replace(`medflow_baseline_${deptId}_`, '');
+          if (dStr) datesSet.add(dStr);
+        }
+      }
+    } catch (e) {}
+  }
+
+  datesSet.forEach(dStr => {
+    const hasExplicit = deptSnapshots.some(s => s.date === dStr);
+    if (!hasExplicit && typeof window !== 'undefined') {
+      const sessionKey = `medflow_baseline_${deptId}_${dStr}`;
+      try {
+        const saved = sessionStorage.getItem(sessionKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((a: Appointment) => {
+              if (!baselineApptsMap.has(a.id)) {
+                baselineApptsMap.set(a.id, a);
+              }
+            });
+            return;
+          }
+        }
+      } catch (e) {}
+
+      const initialDateAppts = currentDeptAppts.filter(a => a.date === dStr);
+      try {
+        sessionStorage.setItem(sessionKey, JSON.stringify(initialDateAppts));
+      } catch (e) {}
+      initialDateAppts.forEach(a => baselineApptsMap.set(a.id, a));
+    }
+  });
+
+  return {
+    baselineAppts: Array.from(baselineApptsMap.values()),
+    isExplicitSnapshot: isExplicit,
+    snapshotInfo: latestSnapshot
+  };
+};
+
 export const setSessionBaseline = (deptId: string, date: string, appts: Appointment[]) => {
   if (typeof window === 'undefined') return;
   const sessionKey = `medflow_baseline_${deptId}_${date}`;
@@ -90,6 +179,28 @@ export const getDeletedSessionAppointments = (deptId: string, date: string): App
     console.warn('Error reading deleted session appointments:', e);
   }
   return [];
+};
+
+export const getAllDeletedSessionAppointments = (deptId: string): Appointment[] => {
+  if (typeof window === 'undefined') return [];
+  const result: Appointment[] = [];
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith(`medflow_deleted_${deptId}_`)) {
+        const saved = sessionStorage.getItem(key);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            result.push(...parsed);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading all deleted session appointments:', e);
+  }
+  return result;
 };
 
 export const saveDeletedSessionAppointment = (appt: Appointment) => {
@@ -158,13 +269,17 @@ export const calculateDeviations = (
         patientName,
         procedureName,
         type: 'NEW',
-        changeDetails: 'Lịch trình mới được thêm vào danh sách',
-        currentAppt: appt
+        changeDetails: `Lịch trình mới được thêm/copy sang ngày ${formatDateVi(appt.date)}`,
+        currentAppt: appt,
+        date: appt.date
       });
     } else {
       const norm = (val: any) => (val === null || val === undefined) ? '' : String(val).trim();
       const diffs: string[] = [];
 
+      if (norm(appt.date) !== norm(baseline.date)) {
+        diffs.push(`Dời sang ngày ${formatDateVi(appt.date)} (từ ${formatDateVi(baseline.date)})`);
+      }
       if (norm(appt.startTime) !== norm(baseline.startTime) || norm(appt.endTime) !== norm(baseline.endTime)) {
         diffs.push(`Dời giờ (${baseline.startTime} ➔ ${appt.startTime})`);
       }
@@ -203,7 +318,8 @@ export const calculateDeviations = (
           type: 'MODIFIED',
           changeDetails: diffs.join(', '),
           currentAppt: appt,
-          originalAppt: baseline
+          originalAppt: baseline,
+          date: appt.date
         });
       }
     }
@@ -223,17 +339,17 @@ export const calculateDeviations = (
         patientName,
         procedureName,
         type: 'DELETED',
-        changeDetails: `Đã xóa lịch trình (${baseline.startTime} - BS: ${staff.find(s => s.id === baseline.staffId)?.name || 'Không rõ'})`,
-        originalAppt: baseline
+        changeDetails: `Đã xóa lịch trình ngày ${formatDateVi(baseline.date)} (${baseline.startTime} - BS: ${staff.find(s => s.id === baseline.staffId)?.name || 'Không rõ'})`,
+        originalAppt: baseline,
+        date: baseline.date
       });
     }
   });
 
   // 3. Kiểm tra các lịch trình xóa thêm trong phiên
   const targetDeptId = deptId || currentDeptAppts[0]?.deptId || baselineAppts[0]?.deptId;
-  const targetDate = date || currentDeptAppts[0]?.date || baselineAppts[0]?.date;
-  if (targetDeptId && targetDate) {
-    const deletedSession = getDeletedSessionAppointments(targetDeptId, targetDate);
+  if (targetDeptId) {
+    const deletedSession = getAllDeletedSessionAppointments(targetDeptId);
     deletedSession.forEach(delAppt => {
       if (!currentMap.has(delAppt.id) && !list.some(item => item.id === delAppt.id)) {
         const patient = patients.find(p => p.id === delAppt.patientId);
@@ -247,8 +363,9 @@ export const calculateDeviations = (
           patientName,
           procedureName,
           type: 'DELETED',
-          changeDetails: `Đã xóa lịch trình (${delAppt.startTime} - BS: ${staff.find(s => s.id === delAppt.staffId)?.name || 'Không rõ'})`,
-          originalAppt: delAppt
+          changeDetails: `Đã xóa lịch trình ngày ${formatDateVi(delAppt.date)} (${delAppt.startTime} - BS: ${staff.find(s => s.id === delAppt.staffId)?.name || 'Không rõ'})`,
+          originalAppt: delAppt,
+          date: delAppt.date
         });
       }
     });
@@ -256,3 +373,4 @@ export const calculateDeviations = (
 
   return list;
 };
+
