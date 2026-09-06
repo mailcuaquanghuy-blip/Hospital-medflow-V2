@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { DateTimePicker } from './DateTimePicker';
 import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
-import { Search, Plus, User, MapPin, Bed, LogOut, FileText, Edit3, Printer, Send, Activity, FlaskConical, HeartPulse, CheckCircle2, Clock, Building2, Filter, Calendar, CheckSquare, Trash2, AlertTriangle, Power, CheckCircle, RotateCcw, X, XCircle, Pill, ChevronDown, DoorOpen, Download, Shield, Upload } from 'lucide-react';
+import { Search, Plus, User, MapPin, Bed, LogOut, FileText, Edit3, Printer, Send, Activity, FlaskConical, HeartPulse, CheckCircle2, Clock, Building2, Filter, Calendar, CheckSquare, Trash2, AlertTriangle, Power, CheckCircle, RotateCcw, X, XCircle, Pill, ChevronDown, DoorOpen, Download, Shield, Upload, ArrowUpDown, ArrowUp, ArrowDown, ArrowUpAZ, ArrowDownZA, Check, Wrench } from 'lucide-react';
 import { calculateAge, getAbbreviation, timeStringToMinutes, generatePatientCode } from '../utils/timeUtils';
 import { DEPARTMENTS } from '../constants';
 import { Appointment, Procedure, Staff } from '../types';
@@ -28,7 +28,7 @@ const getLocalDateString = (isoStr: string | null | undefined): string => {
   return `${year}-${month}-${day}`;
 };
 
-type SortField = 'NAME' | 'ROOM' | 'BED' | 'ADMISSION';
+type SortField = 'NAME' | 'GENDER' | 'AGE' | 'DEPT' | 'BHYT' | 'ROOM' | 'BED' | 'BED_TYPE' | 'ADMISSION' | 'DISCHARGE';
 type SortDirection = 'ASC' | 'DESC';
 interface SortConfig { field: SortField; direction: SortDirection }
 
@@ -68,9 +68,10 @@ export const PatientList: React.FC<PatientListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'TREATING' | 'DISCHARGED'>('TREATING');
   const [bedTypeFilter, setBedTypeFilter] = useState<string>('ALL');
+  const [insuranceFilter, setInsuranceFilter] = useState<string>('ALL');
+  const [openHeaderFilter, setOpenHeaderFilter] = useState<'BHYT' | 'BED_TYPE' | null>(null);
   const [referringDeptFilter, setReferringDeptFilter] = useState<string>('ALL');
-  const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([{ field: 'ADMISSION', direction: 'ASC' }]);
-  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [dischargingPatient, setDischargingPatient] = useState<Patient | null>(null);
   const [deletingPatient, setDeletingPatient] = useState<Patient | null>(null);
   const [finishingReferral, setFinishingReferral] = useState<{patient: Patient, specialty: string} | null>(null);
@@ -93,6 +94,8 @@ export const PatientList: React.FC<PatientListProps> = ({
 
   // State cho dropdown chọn chuyên khoa gửi khám
   const [openReferralMenuPatientId, setOpenReferralMenuPatientId] = useState<string | null>(null);
+  // State cho dropdown menu tác vụ quản lý (cờ lê) của từng bệnh nhân
+  const [openActionsMenuPatientId, setOpenActionsMenuPatientId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -102,6 +105,12 @@ export const PatientList: React.FC<PatientListProps> = ({
       const target = event.target as HTMLElement;
       if (!target.closest('.referral-menu-container')) {
         setOpenReferralMenuPatientId(null);
+      }
+      if (!target.closest('.header-filter-container')) {
+        setOpenHeaderFilter(null);
+      }
+      if (!target.closest('.patient-actions-menu-container')) {
+        setOpenActionsMenuPatientId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -590,43 +599,72 @@ export const PatientList: React.FC<PatientListProps> = ({
       const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
       if (!matchesBedType) return false;
 
+      const matchesInsurance = insuranceFilter === 'ALL' || (p.insuranceLevel || '100%') === insuranceFilter;
+      if (!matchesInsurance) return false;
+
       const matchesDeptFilter = referringDeptFilter === 'ALL' || p.admittedByDeptId === referringDeptFilter;
       if (!matchesDeptFilter) return false;
 
       return true;
     }).sort((a, b) => {
-      const getFirstName = (fullName: string) => {
-        const parts = fullName.trim().split(/\s+/);
-        return parts[parts.length - 1] || '';
-      };
-
-      for (const config of sortConfigs) {
-        let cmp = 0;
-        if (config.field === 'NAME') {
-          const firstNameA = getFirstName(a.name);
-          const firstNameB = getFirstName(b.name);
-          cmp = firstNameA.localeCompare(firstNameB, 'vi');
-          if (cmp === 0) {
-            cmp = a.name.localeCompare(b.name, 'vi');
-          }
-        } else if (config.field === 'ROOM') {
-          const roomA = a.roomNumber || '';
-          const roomB = b.roomNumber || '';
-          cmp = roomA.localeCompare(roomB, undefined, { numeric: true, sensitivity: 'base' });
-        } else if (config.field === 'BED') {
-          const bedA = a.bedNumber || '';
-          const bedB = b.bedNumber || '';
-          cmp = bedA.localeCompare(bedB, undefined, { numeric: true, sensitivity: 'base' });
-        } else if (config.field === 'ADMISSION') {
-          cmp = new Date(a.admissionDate).getTime() - new Date(b.admissionDate).getTime();
-        }
-        if (cmp !== 0) {
-          return config.direction === 'ASC' ? cmp : -cmp;
-        }
+      if (!sortConfig) {
+        // Mặc định: theo thời gian vào viện tăng dần (sớm nhất trước)
+        return new Date(a.admissionDate).getTime() - new Date(b.admissionDate).getTime();
       }
-      return 0;
+
+      const { field, direction } = sortConfig;
+      let cmp = 0;
+
+      if (field === 'NAME') {
+        const getFirstName = (fullName: string) => {
+          const parts = (fullName || '').trim().split(/\s+/);
+          return parts[parts.length - 1] || '';
+        };
+        const firstNameA = getFirstName(a.name);
+        const firstNameB = getFirstName(b.name);
+        cmp = firstNameA.localeCompare(firstNameB, 'vi');
+        if (cmp === 0) {
+          cmp = (a.name || '').localeCompare(b.name || '', 'vi');
+        }
+      } else if (field === 'GENDER') {
+        cmp = (a.gender || '').localeCompare(b.gender || '', 'vi');
+      } else if (field === 'AGE') {
+        const ageA = a.dob ? (Number(calculateAge(a.dob)) || 0) : 0;
+        const ageB = b.dob ? (Number(calculateAge(b.dob)) || 0) : 0;
+        cmp = ageA - ageB;
+        if (cmp === 0) {
+          cmp = (a.dob || '').localeCompare(b.dob || '');
+        }
+      } else if (field === 'DEPT') {
+        const deptA = DEPARTMENTS.find(d => d.id === a.admittedByDeptId)?.name || '';
+        const deptB = DEPARTMENTS.find(d => d.id === b.admittedByDeptId)?.name || '';
+        cmp = deptA.localeCompare(deptB, 'vi');
+      } else if (field === 'BHYT') {
+        const parseLevel = (lvl?: string | null) => parseInt((lvl || '0%').replace('%', ''), 10) || 0;
+        cmp = parseLevel(a.insuranceLevel) - parseLevel(b.insuranceLevel);
+      } else if (field === 'ROOM') {
+        const roomA = a.roomNumber || '';
+        const roomB = b.roomNumber || '';
+        cmp = roomA.localeCompare(roomB, undefined, { numeric: true, sensitivity: 'base' });
+      } else if (field === 'BED') {
+        const bedA = a.bedNumber || '';
+        const bedB = b.bedNumber || '';
+        cmp = bedA.localeCompare(bedB, undefined, { numeric: true, sensitivity: 'base' });
+      } else if (field === 'BED_TYPE') {
+        const typeA = a.bedType || 'Nội trú';
+        const typeB = b.bedType || 'Nội trú';
+        cmp = typeA.localeCompare(typeB, 'vi');
+      } else if (field === 'ADMISSION') {
+        cmp = new Date(a.admissionDate).getTime() - new Date(b.admissionDate).getTime();
+      } else if (field === 'DISCHARGE') {
+        const timeA = a.dischargeDate ? new Date(a.dischargeDate).getTime() : 0;
+        const timeB = b.dischargeDate ? new Date(b.dischargeDate).getTime() : 0;
+        cmp = timeA - timeB;
+      }
+
+      return direction === 'ASC' ? cmp : -cmp;
     });
-  }, [patients, activeDate, filterStatus, searchTerm, bedTypeFilter, referringDeptFilter, currentDept, sortConfigs]);
+  }, [patients, activeDate, filterStatus, searchTerm, bedTypeFilter, insuranceFilter, referringDeptFilter, currentDept, sortConfig]);
 
   const handleConfirmDischarge = async () => {
     if (dischargingPatient) {
@@ -909,6 +947,68 @@ export const PatientList: React.FC<PatientListProps> = ({
     return time || date || '--:--';
   };
 
+  const handleSort = (field: SortField) => {
+    if (!sortConfig || sortConfig.field !== field) {
+      setSortConfig({ field, direction: 'ASC' });
+    } else if (sortConfig.direction === 'ASC') {
+      setSortConfig({ field, direction: 'DESC' });
+    } else {
+      setSortConfig(null);
+    }
+  };
+
+  const renderSortHeader = (
+    field: SortField, 
+    label: string, 
+    align: 'center' | 'left' = 'center',
+    isAlpha = false,
+    className = ''
+  ) => {
+    const isSorted = sortConfig?.field === field;
+    const isAsc = isSorted && sortConfig?.direction === 'ASC';
+    const isDesc = isSorted && sortConfig?.direction === 'DESC';
+
+    let tooltip = `Nhấn lần 1: Sắp xếp ${isAlpha ? 'A-Z' : 'tăng dần'} • Lần 2: ${isAlpha ? 'Z-A' : 'giảm dần'} • Lần 3: Hủy sắp xếp`;
+    if (isAsc) {
+      tooltip = `Đang xếp ${isAlpha ? 'A-Z' : 'tăng dần'} (Nhấn lần 2 để đổi sang ${isAlpha ? 'Z-A' : 'giảm dần'})`;
+    } else if (isDesc) {
+      tooltip = `Đang xếp ${isAlpha ? 'Z-A' : 'giảm dần'} (Nhấn lần 3 để hủy sắp xếp)`;
+    }
+
+    return (
+      <th 
+        onClick={() => handleSort(field)}
+        title={tooltip}
+        className={`p-3.5 select-none cursor-pointer transition-colors duration-150 hover:bg-slate-100 hover:text-slate-900 group ${className} ${
+          isSorted ? 'bg-sky-50 text-sky-700 font-black' : 'text-slate-600'
+        }`}
+      >
+        <div className={`flex items-center gap-1.5 ${align === 'center' ? 'justify-center' : 'justify-start'}`}>
+          <span className={`text-[11px] font-black tracking-[0.08em] ${isSorted ? 'text-sky-700' : ''}`}>
+            {label}
+          </span>
+          <span className="inline-flex items-center shrink-0">
+            {isAsc ? (
+              isAlpha ? (
+                <ArrowUpAZ size={14} className="text-sky-600 stroke-[2.5]" />
+              ) : (
+                <ArrowUp size={14} className="text-sky-600 stroke-[2.5]" />
+              )
+            ) : isDesc ? (
+              isAlpha ? (
+                <ArrowDownZA size={14} className="text-sky-600 stroke-[2.5]" />
+              ) : (
+                <ArrowDown size={14} className="text-sky-600 stroke-[2.5]" />
+              )
+            ) : (
+              <ArrowUpDown size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
+          </span>
+        </div>
+      </th>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-4 bg-slate-50/50">
@@ -916,32 +1016,32 @@ export const PatientList: React.FC<PatientListProps> = ({
            <div className="flex bg-slate-200 rounded-xl p-1 shrink-0">
               <button 
                 onClick={() => setFilterStatus('ALL')} 
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-3.5 py-1.5 rounded-lg text-[11px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
                 title="Tất cả bệnh nhân hiện diện trong ngày làm việc"
               >
-                Tất cả <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-extrabold ${filterStatus === 'ALL' ? 'bg-primary/10 text-primary' : 'bg-slate-300 text-slate-600'}`}>{counts.all}</span>
+                Tất cả <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${filterStatus === 'ALL' ? 'bg-primary/10 text-primary' : 'bg-slate-300 text-slate-700'}`}>{counts.all}</span>
               </button>
               <button 
                 onClick={() => setFilterStatus('TREATING')} 
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'TREATING' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-3.5 py-1.5 rounded-lg text-[11px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'TREATING' ? 'bg-white text-primary shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
                 title="Bệnh nhân đang điều trị trong ngày làm việc"
               >
-                Đang điều trị <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-extrabold ${filterStatus === 'TREATING' ? 'bg-primary/10 text-primary' : 'bg-slate-300 text-slate-600'}`}>{counts.treating}</span>
+                Đang điều trị <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${filterStatus === 'TREATING' ? 'bg-primary/10 text-primary' : 'bg-slate-300 text-slate-700'}`}>{counts.treating}</span>
               </button>
               <button 
                 onClick={() => setFilterStatus('DISCHARGED')} 
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'DISCHARGED' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-3.5 py-1.5 rounded-lg text-[11px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'DISCHARGED' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
                 title="Bệnh nhân ra viện trong ngày làm việc"
               >
-                Ra viện <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-extrabold ${filterStatus === 'DISCHARGED' ? 'bg-rose-100 text-rose-700' : 'bg-slate-300 text-slate-600'}`}>{counts.discharged}</span>
+                Ra viện <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${filterStatus === 'DISCHARGED' ? 'bg-rose-100 text-rose-700' : 'bg-slate-300 text-slate-700'}`}>{counts.discharged}</span>
               </button>
            </div>
            
            {isSupportDept && (
-             <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
-               <Filter size={14} className="text-slate-400" />
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Từ khoa:</span>
-               <select className="text-xs font-bold bg-transparent outline-none cursor-pointer" value={referringDeptFilter} onChange={e => setReferringDeptFilter(e.target.value)}>
+             <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3.5 py-1.5 shadow-sm">
+               <Filter size={15} className="text-slate-400" />
+               <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider mr-1">Từ khoa:</span>
+               <select className="text-xs font-bold bg-transparent outline-none cursor-pointer text-slate-700" value={referringDeptFilter} onChange={e => setReferringDeptFilter(e.target.value)}>
                   <option value="ALL">Tất cả khoa lâm sàng</option>
                   <option value="dept_ngoai">Khoa Ngoại</option>
                   <option value="dept_noi">Khoa Nội</option>
@@ -949,99 +1049,11 @@ export const PatientList: React.FC<PatientListProps> = ({
                </select>
              </div>
            )}
-
-           <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
-             <Bed size={14} className="text-slate-400" />
-             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Loại giường:</span>
-             <select className="text-xs font-bold bg-transparent outline-none cursor-pointer" value={bedTypeFilter} onChange={e => setBedTypeFilter(e.target.value)}>
-                <option value="ALL">Tất cả</option>
-                <option value="Nội trú">Nội trú</option>
-                <option value="Nội trú ban ngày">Nội trú ban ngày</option>
-                <option value="Ngoại trú">Ngoại trú</option>
-                <option value="Khác">Khác</option>
-             </select>
-           </div>
         </div>
 
         <div className="flex-1 max-md:hidden max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-slate-100 focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all" placeholder="Tìm tên, mã BN..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-        </div>
-
-        <div className="relative">
-          <button onClick={() => setIsSortMenuOpen(!isSortMenuOpen)} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm hover:bg-slate-50 transition-all">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sắp xếp {sortConfigs.length > 0 ? `(${sortConfigs.length})` : ''}</span>
-            <ChevronDown size={14} className="text-slate-400" />
-          </button>
-          
-          {isSortMenuOpen && (
-            <div className="absolute top-full right-0 mt-2 w-[320px] bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-50 flex flex-col gap-3">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs font-black text-slate-800 uppercase tracking-widest">Điều kiện sắp xếp</span>
-                <button onClick={() => setIsSortMenuOpen(false)} className="text-slate-400 hover:text-rose-500"><X size={16}/></button>
-              </div>
-              
-              {sortConfigs.length === 0 && (
-                <p className="text-xs text-slate-400 font-bold text-center py-2">Chưa có điều kiện sắp xếp (Mặc định)</p>
-              )}
-
-              {sortConfigs.map((config, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <select 
-                    className="flex-1 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 outline-none focus:border-primary"
-                    value={config.field}
-                    onChange={e => {
-                      const newConfigs = [...sortConfigs];
-                      newConfigs[idx].field = e.target.value as SortField;
-                      setSortConfigs(newConfigs);
-                    }}
-                  >
-                    <option value="NAME">Tên bệnh nhân</option>
-                    <option value="ROOM">Phòng</option>
-                    <option value="BED">Giường</option>
-                    <option value="ADMISSION">Thời gian vào viện</option>
-                  </select>
-                  
-                  <button 
-                    onClick={() => {
-                      const newConfigs = [...sortConfigs];
-                      newConfigs[idx].direction = config.direction === 'ASC' ? 'DESC' : 'ASC';
-                      setSortConfigs(newConfigs);
-                    }}
-                    className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 font-bold text-[10px] w-14 text-center uppercase"
-                    title="Đổi chiều sắp xếp"
-                  >
-                    {config.direction === 'ASC' ? 'Tăng' : 'Giảm'}
-                  </button>
-                  
-                  <button 
-                    onClick={() => {
-                      const newConfigs = sortConfigs.filter((_, i) => i !== idx);
-                      setSortConfigs(newConfigs);
-                    }}
-                    className="p-2 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"
-                    title="Xóa điều kiện này"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-              
-              {sortConfigs.length < 4 && (
-                <button 
-                  onClick={() => {
-                    const usedFields = sortConfigs.map(c => c.field);
-                    const availableFields: SortField[] = ['NAME', 'ROOM', 'BED', 'ADMISSION'];
-                    const nextField = availableFields.find(f => !usedFields.includes(f)) || 'NAME';
-                    setSortConfigs([...sortConfigs, { field: nextField, direction: 'ASC' }]);
-                  }}
-                  className="flex items-center justify-center gap-1 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all mt-1"
-                >
-                  <Plus size={14} /> Thêm điều kiện
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
         {!isSupportDept && (
@@ -1110,20 +1122,246 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       <div className="flex-1 overflow-auto scrollbar-thin">
         <table className="w-full text-sm text-left border-collapse">
-          <thead className="bg-slate-50 text-slate-500 font-black sticky top-0 z-20 text-[10px] uppercase tracking-[0.1em] border-b border-slate-200">
+          <thead className="bg-slate-50 text-slate-500 font-black sticky top-0 z-20 uppercase border-b border-slate-200">
+            {/* Hàng 1: Phân nhóm các khối cột thông tin */}
+            <tr className="border-b border-slate-200/80 bg-slate-100/70">
+              <th rowSpan={2} className="p-3 w-12 text-center border-r border-slate-200 text-slate-600 font-black text-xs">STT</th>
+              <th colSpan={3} className="py-2.5 px-3 text-center font-black tracking-wider text-[11px] text-slate-700 border-r border-slate-200 bg-slate-100/90">
+                THÔNG TIN BỆNH NHÂN
+              </th>
+              <th colSpan={5} className="py-2.5 px-3 text-center font-black tracking-wider text-[11px] text-slate-700 border-r border-slate-200 bg-slate-100/90">
+                {isSupportDept ? 'THÔNG TIN TIẾP NHẬN & BUỒNG GIƯỜNG' : 'THÔNG TIN ĐIỀU TRỊ & BUỒNG GIƯỜNG'}
+              </th>
+              <th colSpan={3} className="py-2.5 px-3 text-center font-black tracking-wider text-[11px] text-slate-700 border-r border-slate-200 bg-slate-100/90">
+                {isSupportDept ? 'CHỈ ĐỊNH & THỜI GIAN' : 'GỬI KHÁM & THỜI GIAN'}
+              </th>
+              <th rowSpan={2} className="p-3 w-20 text-center text-slate-600 font-black text-xs">QUẢN LÝ</th>
+            </tr>
+
+            {/* Hàng 2: Các cột chi tiết có chức năng sắp xếp và bộ lọc */}
             <tr>
-              <th className="p-4 w-12 text-center">STT</th>
-              <th className="p-4 min-w-[200px]">THÔNG TIN BỆNH NHÂN</th>
-              <th className="p-4 w-24 text-center">GIỚI TÍNH</th>
-              <th className="p-4 w-24 text-center">TUỔI</th>
-              <th className="p-4 w-48 text-center">{isSupportDept ? 'KHOA GỬI KHÁM' : 'KHOA ĐIỀU TRỊ'}</th>
-              <th className="p-4 w-24 text-center">BHYT</th>
-              <th className="p-4 w-24 text-center">PHÒNG</th>
-              <th className="p-4 w-24 text-center">GIƯỜNG</th>
-              <th className="p-4 w-32 text-center">LOẠI GIƯỜNG</th>
-              <th className="p-4 w-[320px] text-center">{isSupportDept ? 'CHỈ ĐỊNH' : 'TÌNH TRẠNG GỬI KHÁM'}</th>
-              <th className="p-4 w-48 text-center">{isSupportDept ? 'GIỜ VÀO VIỆN' : 'THỜI GIAN'}</th>
-              <th className="p-4 w-32 text-center">QUẢN LÝ</th>
+              {renderSortHeader('NAME', 'HỌ VÀ TÊN', 'left', true, 'min-w-[210px]')}
+              {renderSortHeader('GENDER', 'GIỚI TÍNH', 'center', false, 'w-24 text-center')}
+              {renderSortHeader('AGE', 'TUỔI', 'center', false, 'w-20 text-center border-r border-slate-200')}
+              {renderSortHeader('DEPT', isSupportDept ? 'KHOA GỬI' : 'KHOA ĐIỀU TRỊ', 'center', true, 'w-36 text-center')}
+              
+              {/* Cột BHYT với tính năng lọc mức hưởng & sắp xếp */}
+              <th className={`p-3 select-none relative header-filter-container ${
+                sortConfig?.field === 'BHYT' ? 'bg-sky-50 text-sky-700 font-black' : 'text-slate-600'
+              } w-28 text-center`}>
+                <div className="flex items-center justify-center gap-1.5">
+                  <div 
+                    onClick={() => handleSort('BHYT')}
+                    className="flex items-center gap-1 cursor-pointer hover:text-slate-900 group"
+                    title="Nhấn để sắp xếp theo mức BHYT"
+                  >
+                    <span className={`text-[11px] font-black tracking-[0.08em] ${sortConfig?.field === 'BHYT' ? 'text-sky-700' : ''}`}>
+                      BHYT
+                    </span>
+                    <span className="inline-flex items-center shrink-0">
+                      {sortConfig?.field === 'BHYT' ? (
+                        sortConfig.direction === 'ASC' ? (
+                          <ArrowUp size={14} className="text-sky-600 stroke-[2.5]" />
+                        ) : (
+                          <ArrowDown size={14} className="text-sky-600 stroke-[2.5]" />
+                        )
+                      ) : (
+                        <ArrowUpDown size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenHeaderFilter(openHeaderFilter === 'BHYT' ? null : 'BHYT');
+                      }}
+                      className={`p-1 rounded-md transition-all flex items-center gap-0.5 cursor-pointer ${
+                        insuranceFilter !== 'ALL'
+                          ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300'
+                          : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/70'
+                      }`}
+                      title={`Lọc mức hưởng BHYT ${insuranceFilter !== 'ALL' ? `(Đang lọc: ${insuranceFilter})` : ''}`}
+                    >
+                      <Filter size={13} className={insuranceFilter !== 'ALL' ? 'text-white' : ''} />
+                      {insuranceFilter !== 'ALL' && (
+                        <span className="text-[10px] font-black">{insuranceFilter}</span>
+                      )}
+                    </button>
+
+                    {openHeaderFilter === 'BHYT' && (
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-left font-normal"
+                      >
+                        <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 px-1">
+                          <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Mức hưởng BHYT</span>
+                          {insuranceFilter !== 'ALL' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setInsuranceFilter('ALL');
+                                setOpenHeaderFilter(null);
+                              }}
+                              className="text-xs text-rose-500 hover:text-rose-600 font-bold"
+                            >
+                              Xóa lọc
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {[
+                            { val: 'ALL', label: 'Tất cả mức hưởng', badge: null },
+                            { val: '100%', label: '100%', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                            { val: '95%', label: '95%', badge: 'bg-lime-50 text-lime-700 border-lime-200' },
+                            { val: '80%', label: '80%', badge: 'bg-orange-50 text-orange-700 border-orange-200' },
+                            { val: '0%', label: '0% (Không BHYT)', badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+                          ].map(opt => {
+                            const isSelected = insuranceFilter === opt.val;
+                            return (
+                              <button
+                                key={opt.val}
+                                type="button"
+                                onClick={() => {
+                                  setInsuranceFilter(opt.val);
+                                  setOpenHeaderFilter(null);
+                                }}
+                                className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                                  isSelected ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {opt.badge ? (
+                                    <span className={`px-2 py-0.5 rounded-lg border text-[11px] font-black ${opt.badge}`}>
+                                      {opt.label}
+                                    </span>
+                                  ) : (
+                                    <span>{opt.label}</span>
+                                  )}
+                                </div>
+                                {isSelected && <Check size={14} className="text-primary" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </th>
+
+              {renderSortHeader('ROOM', 'PHÒNG', 'center', false, 'w-20 text-center')}
+              {renderSortHeader('BED', 'GIƯỜNG', 'center', false, 'w-20 text-center')}
+              
+              {/* Cột LOẠI GIƯỜNG với tính năng lọc loại giường & sắp xếp */}
+              <th className={`p-3 select-none relative header-filter-container border-r border-slate-200 ${
+                sortConfig?.field === 'BED_TYPE' ? 'bg-sky-50 text-sky-700 font-black' : 'text-slate-600'
+              } w-36 text-center`}>
+                <div className="flex items-center justify-center gap-1.5">
+                  <div 
+                    onClick={() => handleSort('BED_TYPE')}
+                    className="flex items-center gap-1 cursor-pointer hover:text-slate-900 group"
+                    title="Nhấn để sắp xếp theo loại giường"
+                  >
+                    <span className={`text-[11px] font-black tracking-[0.08em] ${sortConfig?.field === 'BED_TYPE' ? 'text-sky-700' : ''}`}>
+                      LOẠI GIƯỜNG
+                    </span>
+                    <span className="inline-flex items-center shrink-0">
+                      {sortConfig?.field === 'BED_TYPE' ? (
+                        sortConfig.direction === 'ASC' ? (
+                          <ArrowUp size={14} className="text-sky-600 stroke-[2.5]" />
+                        ) : (
+                          <ArrowDown size={14} className="text-sky-600 stroke-[2.5]" />
+                        )
+                      ) : (
+                        <ArrowUpDown size={12} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenHeaderFilter(openHeaderFilter === 'BED_TYPE' ? null : 'BED_TYPE');
+                      }}
+                      className={`p-1 rounded-md transition-all flex items-center gap-0.5 cursor-pointer ${
+                        bedTypeFilter !== 'ALL'
+                          ? 'bg-sky-600 text-white shadow-sm ring-2 ring-sky-300'
+                          : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/70'
+                      }`}
+                      title={`Lọc loại giường ${bedTypeFilter !== 'ALL' ? `(Đang lọc: ${bedTypeFilter})` : ''}`}
+                    >
+                      <Filter size={13} className={bedTypeFilter !== 'ALL' ? 'text-white' : ''} />
+                    </button>
+
+                    {openHeaderFilter === 'BED_TYPE' && (
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-left font-normal"
+                      >
+                        <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 px-1">
+                          <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">Loại giường</span>
+                          {bedTypeFilter !== 'ALL' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBedTypeFilter('ALL');
+                                setOpenHeaderFilter(null);
+                              }}
+                              className="text-xs text-rose-500 hover:text-rose-600 font-bold"
+                            >
+                              Xóa lọc
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {[
+                            { val: 'ALL', label: 'Tất cả loại giường', badge: null },
+                            { val: 'Nội trú', label: 'Nội trú', badge: 'bg-slate-50 text-slate-600 border-slate-200' },
+                            { val: 'Nội trú ban ngày', label: 'Nội trú ban ngày', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+                            { val: 'Ngoại trú', label: 'Ngoại trú', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+                            { val: 'Khác', label: 'Khác', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+                          ].map(opt => {
+                            const isSelected = bedTypeFilter === opt.val;
+                            return (
+                              <button
+                                key={opt.val}
+                                type="button"
+                                onClick={() => {
+                                  setBedTypeFilter(opt.val);
+                                  setOpenHeaderFilter(null);
+                                }}
+                                className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                                  isSelected ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {opt.badge ? (
+                                    <span className={`px-2 py-0.5 rounded-lg border text-[11px] font-black ${opt.badge}`}>
+                                      {opt.label}
+                                    </span>
+                                  ) : (
+                                    <span>{opt.label}</span>
+                                  )}
+                                </div>
+                                {isSelected && <Check size={14} className="text-primary" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </th>
+
+              <th className="p-3.5 min-w-[260px] text-center text-[11px] font-black tracking-wider text-slate-600">{isSupportDept ? 'CHỈ ĐỊNH' : 'TÌNH TRẠNG GỬI KHÁM'}</th>
+              {renderSortHeader('ADMISSION', 'VÀO VIỆN', 'center', false, 'w-44 text-center')}
+              {renderSortHeader('DISCHARGE', 'RA VIỆN', 'center', false, 'w-44 text-center border-r border-slate-200')}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -1133,13 +1371,13 @@ export const PatientList: React.FC<PatientListProps> = ({
                 const dId = currentDept.id.toLowerCase();
                 const dName = currentDept.name.toLowerCase();
                 const isMatch = s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
-                               (s.includes('phcn') && dId.includes('phcn')) ||
-                               (s.includes('cdha') && dId.includes('cdha')) ||
-                               (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
-                               (s.includes('duoc') && dId.includes('duoc')) ||
-                               (dId === 'dept_phcn' && s === 'dept_phcn') ||
-                               (dId === 'dept_cdha' && s === 'dept_cdha') ||
-                               (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
+                                (s.includes('phcn') && dId.includes('phcn')) ||
+                                (s.includes('cdha') && dId.includes('cdha')) ||
+                                (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
+                                (s.includes('duoc') && dId.includes('duoc')) ||
+                                (dId === 'dept_phcn' && s === 'dept_phcn') ||
+                                (dId === 'dept_cdha' && s === 'dept_cdha') ||
+                                (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
                 return isMatch && r.status !== 'FINISHED';
               });
               const isOwner = p.admittedByDeptId === currentDept.id;
@@ -1147,35 +1385,39 @@ export const PatientList: React.FC<PatientListProps> = ({
               
               return (
                 <tr key={p.id} className="hover:bg-slate-50/80 transition-all group">
-                  <td className="p-4 text-slate-400 text-center font-mono text-xs">{idx + 1}</td>
-                  <td className="p-4">
+                  <td className="p-3 text-slate-500 text-center font-mono text-xs font-bold border-r border-slate-100">{idx + 1}</td>
+                  
+                  {/* Nhóm 1: Thông tin bệnh nhân */}
+                  <td className="p-3">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-black shadow-sm ${p.gender === 'Nam' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
+                      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-sm font-black shadow-sm shrink-0 ${p.gender === 'Nam' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
                         {p.name.charAt(0)}
                       </div>
-                      <div className="flex flex-col">
-                        <div className="font-black text-slate-800 text-sm leading-tight uppercase">{p.name}</div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="font-black text-slate-800 text-[13.5px] leading-tight uppercase whitespace-nowrap" title={p.name}>{p.name}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 text-center">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${p.gender === 'Nam' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700'}`}>
+                  <td className="p-3 text-center">
+                    <span className={`text-xs font-bold px-3 py-1.5 rounded-xl inline-block whitespace-nowrap ${p.gender === 'Nam' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700'}`}>
                       {p.gender}
                     </span>
                   </td>
-                  <td className="p-4 text-center">
-                    <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg whitespace-nowrap">
+                  <td className="p-3 text-center border-r border-slate-100">
+                    <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl whitespace-nowrap inline-block">
                       {calculateAge(p.dob)} tuổi
                     </span>
                   </td>
-                  <td className="p-4 text-center">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest whitespace-nowrap shadow-sm">
-                       <Building2 size={14} className="text-primary/60" />
-                       {referringDept?.name || 'Chưa rõ'}
+
+                  {/* Nhóm 2: Thông tin điều trị & Buồng giường */}
+                  <td className="p-3 text-center">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-black text-slate-700 uppercase tracking-wider whitespace-nowrap shadow-xs">
+                       <Building2 size={14} className="text-primary/70 shrink-0" />
+                       <span className="whitespace-nowrap">{referringDept?.name || 'Chưa rõ'}</span>
                     </div>
                   </td>
-                  <td className="p-4 text-center">
-                    <div className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-bold border shadow-sm w-fit whitespace-nowrap mx-auto ${
+                  <td className="p-3 text-center">
+                    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black border shadow-xs w-fit whitespace-nowrap mx-auto ${
                       p.insuranceLevel === '0%' 
                         ? 'bg-rose-50 text-rose-700 border-rose-200' 
                         : p.insuranceLevel === '80%'
@@ -1184,36 +1426,38 @@ export const PatientList: React.FC<PatientListProps> = ({
                         ? 'bg-lime-50 text-lime-700 border-lime-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     }`}>
-                      <Shield size={10} />
+                      <Shield size={12} className="stroke-[2.5]" />
                       {p.insuranceLevel || '100%'}
                     </div>
                   </td>
-                  <td className="p-4 text-center">
-                    <div className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-700 px-3 py-1.5 rounded-xl text-[10px] font-black border border-slate-200 shadow-sm w-fit whitespace-nowrap mx-auto">
-                      <DoorOpen size={14} className="text-primary/60" /> 
+                  <td className="p-3 text-center">
+                    <div className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-800 px-3 py-1.5 rounded-xl text-[11px] font-black border border-slate-200 shadow-xs w-fit whitespace-nowrap mx-auto">
+                      <DoorOpen size={14} className="text-primary/70" /> 
                       <span>{p.roomNumber || '?'}</span>
                     </div>
                   </td>
-                  <td className="p-4 text-center">
-                    <div className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-700 px-3 py-1.5 rounded-xl text-[10px] font-black border border-slate-200 shadow-sm w-fit whitespace-nowrap mx-auto">
-                      <Bed size={14} className="text-primary/60" /> 
+                  <td className="p-3 text-center">
+                    <div className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-800 px-3 py-1.5 rounded-xl text-[11px] font-black border border-slate-200 shadow-xs w-fit whitespace-nowrap mx-auto">
+                      <Bed size={14} className="text-primary/70" /> 
                       <span>{p.bedNumber}</span>
                     </div>
                   </td>
-                  <td className="p-4 text-center">
-                    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black border shadow-sm w-fit whitespace-nowrap mx-auto ${
+                  <td className="p-3 text-center border-r border-slate-100">
+                    <div className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-black border shadow-xs w-fit whitespace-nowrap mx-auto ${
                       p.bedType === 'Nội trú ban ngày' 
                         ? 'bg-amber-50 text-amber-700 border-amber-200' 
                         : p.bedType === 'Ngoại trú'
                         ? 'bg-blue-50 text-blue-700 border-blue-200'
                         : p.bedType === 'Khác'
                         ? 'bg-purple-50 text-purple-700 border-purple-200'
-                        : 'bg-slate-50 text-slate-600 border-slate-200'
+                        : 'bg-slate-50 text-slate-700 border-slate-200'
                     }`}>
                       {p.bedType || 'Nội trú'}
                     </div>
                   </td>
-                  <td className="p-4">
+
+                  {/* Nhóm 3: Chỉ định / Gửi khám & Thời gian */}
+                  <td className="p-3">
                     {isSupportDept ? (
                       <div className="flex flex-col gap-1.5 items-start">
                         {p.referrals?.filter(r => {
@@ -1238,7 +1482,7 @@ export const PatientList: React.FC<PatientListProps> = ({
                                   if (!proc) return null;
                                   const appt = appointments.find(a => a.patientId === p.id && a.procedureId === procId && a.date === activeDate);
                                   
-                                  let badgeClass = "bg-slate-50 text-slate-500 border-slate-200";
+                                  let badgeClass = "bg-slate-50 text-slate-600 border-slate-200";
                                   let statusText = "Chờ xếp lịch";
                                   let indicator = "bg-slate-400";
 
@@ -1249,15 +1493,15 @@ export const PatientList: React.FC<PatientListProps> = ({
                                   }
 
                                   return (
-                                    <div key={procId} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm ${badgeClass}`}>
-                                      <div className={`w-1.5 h-1.5 rounded-full ${indicator}`} />
+                                    <div key={procId} className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border shadow-xs ${badgeClass}`}>
+                                      <div className={`w-2 h-2 rounded-full ${indicator}`} />
                                       <span>{proc.name}</span>
-                                      <span className="text-[9px] font-black opacity-60 bg-black/5 px-1.5 py-0.5 rounded-md uppercase tracking-wider">{statusText}</span>
+                                      <span className="text-[10px] font-black opacity-70 bg-black/5 px-1.5 py-0.5 rounded-md uppercase tracking-wider">{statusText}</span>
                                     </div>
                                   );
                                 })}
                                 {refProcIds.length === 0 && (
-                                  <span className="text-[10px] text-slate-400 font-bold italic">Không có lịch trình chỉ định</span>
+                                  <span className="text-xs text-slate-400 font-bold italic">Không có lịch trình chỉ định</span>
                                 )}
                               </div>
                             );
@@ -1268,12 +1512,12 @@ export const PatientList: React.FC<PatientListProps> = ({
                             return (
                               <div key={idx} className="flex flex-wrap gap-2 justify-center">
                                 {procNames.length > 0 ? procNames.map((name, i) => (
-                                  <div key={i} className="flex items-center gap-2.5 px-3 py-2 bg-blue-50/80 text-blue-700 border border-blue-100 rounded-xl text-xs font-bold w-fit shadow-sm hover:bg-blue-100 transition-all">
+                                  <div key={i} className="flex items-center gap-2.5 px-3.5 py-2 bg-blue-50/80 text-blue-700 border border-blue-100 rounded-xl text-xs font-bold w-fit shadow-xs hover:bg-blue-100 transition-all">
                                     <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-black bg-blue-100 text-blue-600 shrink-0">{getAbbreviation(name)}</div>
                                     <span className="truncate max-w-[300px]">{name}</span>
                                   </div>
                                 )) : (
-                                  <span className="text-[10px] text-slate-400 font-bold italic">Chờ chỉ định lịch trình</span>
+                                  <span className="text-xs text-slate-400 font-bold italic">Chờ chỉ định lịch trình</span>
                                 )}
                               </div>
                             );
@@ -1292,52 +1536,52 @@ export const PatientList: React.FC<PatientListProps> = ({
                                  (dId === 'dept_cdha' && s === 'dept_cdha') ||
                                  (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
                         }) && (
-                          <span className="text-[10px] text-slate-400 font-bold italic">Không có gửi khám</span>
+                          <span className="text-xs text-slate-400 font-bold italic">Không có gửi khám</span>
                         )}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-2 min-w-[220px]">
                         {/* Hiển thị thẻ các chuyên khoa đã gửi khám cùng ngày giờ */}
                         {p.referrals && p.referrals.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 items-center justify-center w-full">
+                          <div className="flex flex-wrap gap-2 items-center justify-center w-full">
                             {p.referrals.map((ref, rIdx) => {
                               const spec = referralSpecialties.find(s => s.id === ref.specialty);
                               const label = spec?.label || ref.specialty.replace('dept_', '').toUpperCase();
-                              const icon = spec?.icon || <Activity size={12} />;
+                              const icon = spec?.icon || <Activity size={13} />;
                               const badgeBg = spec?.badgeColor || 'bg-blue-50 text-blue-700 border-blue-200';
                               const dateTimeStr = formatReferralDateTime(ref);
 
                               return (
                                 <div 
                                   key={rIdx} 
-                                  className={`flex flex-col px-2.5 py-1.5 rounded-xl border shadow-2xs text-left transition-all ${badgeBg} ${ref.status === 'FINISHED' ? 'opacity-70' : ''}`}
+                                  className={`flex flex-col px-3 py-1.5 rounded-xl border shadow-xs text-left transition-all ${badgeBg} ${ref.status === 'FINISHED' ? 'opacity-70' : ''}`}
                                 >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="flex items-center gap-1 font-black text-[11px] uppercase tracking-wide">
+                                  <div className="flex items-center justify-between gap-2.5">
+                                    <span className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wide">
                                       {icon}
                                       <span>{label}</span>
                                     </span>
                                     {ref.status === 'FINISHED' ? (
-                                      <span className="text-[9px] font-extrabold bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded">Xong</span>
+                                      <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">Xong</span>
                                     ) : (
                                       p.admittedByDeptId === currentDept.id && (
                                         <button 
                                           onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            if (window.confirm(`Hủy gửi khám chuyên khoa ${label} cho bệnh nhân ${p.name}?`)) {
-                                              onCancelReferral(p.id, ref.specialty); 
-                                            }
-                                          }} 
-                                          className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-0.5 rounded transition-colors"
-                                          title="Hủy gửi khám"
-                                        >
-                                          <X size={11} />
-                                        </button>
+                                           e.stopPropagation(); 
+                                           if (window.confirm(`Hủy gửi khám chuyên khoa ${label} cho bệnh nhân ${p.name}?`)) {
+                                             onCancelReferral(p.id, ref.specialty); 
+                                           }
+                                         }} 
+                                         className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-0.5 rounded transition-colors"
+                                         title="Hủy gửi khám"
+                                       >
+                                         <X size={12} />
+                                       </button>
                                       )
                                     )}
                                   </div>
-                                  <div className="text-[9px] font-bold text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
-                                    <Clock size={10} className="text-slate-400 shrink-0" />
+                                  <div className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5 mt-0.5 font-mono">
+                                    <Clock size={11} className="text-slate-400 shrink-0" />
                                     <span>{dateTimeStr}</span>
                                   </div>
                                 </div>
@@ -1364,23 +1608,23 @@ export const PatientList: React.FC<PatientListProps> = ({
                                   e.stopPropagation();
                                   setOpenReferralMenuPatientId(isMenuOpen ? null : p.id);
                                 }}
-                                className={`px-3 py-1.5 rounded-xl font-extrabold transition-all flex items-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer ${
+                                className={`px-3.5 py-1.5 rounded-xl font-extrabold transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer ${
                                   hasReferrals 
-                                    ? 'bg-slate-100 hover:bg-sky-50 text-slate-600 hover:text-sky-700 border border-slate-200 hover:border-sky-200 text-[10px]' 
+                                    ? 'bg-slate-100 hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-200 hover:border-sky-200 text-xs' 
                                     : 'bg-sky-500 hover:bg-sky-600 text-white shadow-sky-500/20 shadow-md hover:scale-[1.02] text-xs'
                                 }`}
                               >
-                                <Plus size={hasReferrals ? 12 : 13} className="stroke-[2.5]" />
+                                <Plus size={hasReferrals ? 13 : 14} className="stroke-[2.5]" />
                                 <span>{hasReferrals ? 'Gửi thêm chuyên khoa' : 'Gửi khám chuyên khoa'}</span>
-                                <ChevronDown size={12} className={`transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                                <ChevronDown size={13} className={`transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
                               </button>
 
                               {isMenuOpen && (
                                 <div 
-                                  className="absolute left-1/2 -translate-x-1/2 mt-1.5 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-left"
+                                  className="absolute left-1/2 -translate-x-1/2 mt-1.5 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-left"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <div className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+                                  <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
                                     Chọn chuyên khoa gửi khám
                                   </div>
                                   <div className="space-y-0.5">
@@ -1397,8 +1641,8 @@ export const PatientList: React.FC<PatientListProps> = ({
                                           {spec.icon}
                                         </span>
                                         <div className="flex flex-col">
-                                          <span className="font-extrabold text-[11px] leading-tight">{spec.label}</span>
-                                          <span className="text-[9px] text-slate-400 font-normal leading-tight">{spec.fullName}</span>
+                                          <span className="font-extrabold text-xs leading-tight">{spec.label}</span>
+                                          <span className="text-[10px] text-slate-400 font-normal leading-tight">{spec.fullName}</span>
                                         </div>
                                       </button>
                                     ))}
@@ -1410,62 +1654,195 @@ export const PatientList: React.FC<PatientListProps> = ({
                         })()}
 
                         {(!p.referrals || p.referrals.length === 0) && (p.status !== 'TREATING' || p.admittedByDeptId !== currentDept.id) && (
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">Chưa gửi khám</span>
+                          <span className="text-xs font-bold text-slate-400 uppercase">Chưa gửi khám</span>
                         )}
                       </div>
                     )}
                   </td>
-                  <td className="p-4 text-center">
-                    <div className="flex flex-col gap-1.5 text-[10px] font-bold items-center">
-                      <div className="inline-flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 shadow-sm whitespace-nowrap">
-                        <Clock size={14} className="text-emerald-500" />
-                        <span>Vào: {new Date(p.admissionDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', hour12: false })}</span>
-                      </div>
-                      {p.dischargeDate && (
-                        <div className="inline-flex items-center gap-1.5 text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100 shadow-sm whitespace-nowrap">
-                          <Clock size={14} className="text-rose-500" />
-                          <span>Ra: {new Date(p.dischargeDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', hour12: false })}</span>
-                        </div>
-                      )}
+                  <td className="p-3 text-center">
+                    <div className="inline-flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 shadow-xs whitespace-nowrap text-xs font-bold mx-auto">
+                      <Clock size={13} className="text-emerald-500 shrink-0" />
+                      <span>{new Date(p.admissionDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', hour12: false })}</span>
                     </div>
                   </td>
-                  <td className="p-4">
-                    <div className="flex justify-center gap-2">
-                      {isOwner ? (
-                          <button onClick={() => onEditPatient(p)} className="p-2.5 bg-white border border-slate-100 shadow-sm text-slate-400 hover:text-primary rounded-xl transition-all" title="Sửa hồ sơ"><Edit3 size={16} /></button>
-                      ) : (
-                          isSupportDept && activeReferralForMe && (
-                            <button 
-                                onClick={() => setFinishingReferral({ patient: p, specialty: activeReferralForMe.specialty })} 
-                                className="p-2.5 bg-rose-50 border border-rose-100 shadow-sm text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all flex items-center gap-2" 
-                                title="Kết thúc khám chuyên khoa"
-                            >
-                                <Power size={18} />
-                                <span className="hidden group-hover:block text-[10px] font-black uppercase">Kết thúc</span>
-                            </button>
-                          )
-                      )}
-                      
-                      {!isSupportDept && (
-                        <>
-                          <button onClick={() => setPrintingPatient(p)} className="p-2.5 bg-white border border-slate-100 shadow-sm text-slate-400 hover:text-indigo-600 rounded-xl transition-all" title="In chỉ định"><Printer size={16} /></button>
-                          <button onClick={() => setDischargingPatient(p)} className={`p-2.5 bg-white border border-slate-100 shadow-sm transition-all rounded-xl ${p.status === 'DISCHARGED' ? 'text-rose-600 border-rose-200 bg-rose-50' : 'text-slate-400 hover:text-rose-600'}`} title={p.status === 'DISCHARGED' ? "Sửa giờ ra viện" : "Ra viện"}><LogOut size={16} /></button>
-                          {p.status === PatientStatus.DISCHARGED && (
-                            <button onClick={() => {
-                              if (window.confirm(`Bạn có chắc chắn muốn hủy ra viện cho bệnh nhân ${p.name} không?`)) {
-                                onUpdateStatus(p, PatientStatus.TREATING);
-                              }
-                            }} className="p-2.5 bg-white border border-emerald-100 hover:border-emerald-300 shadow-sm text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all" title="Hủy ra viện"><RotateCcw size={16} /></button>
-                          )}
-                          <button onClick={() => {
-                            const hasAppointments = appointments.some(a => a.patientId === p.id);
-                            if (hasAppointments) {
-                              alert("Không thể xóa bệnh nhân này vì vẫn còn lịch trình. Vui lòng xóa toàn bộ lịch trình của bệnh nhân trước khi xóa hồ sơ.");
-                            } else {
-                              setDeletingPatient(p);
-                            }
-                          }} className="p-2.5 bg-white border border-slate-100 shadow-sm text-slate-400 hover:text-rose-600 rounded-xl transition-all" title="Xóa hồ sơ"><Trash2 size={16} /></button>
-                        </>
+                  <td className="p-3 text-center border-r border-slate-100">
+                    {p.dischargeDate ? (
+                      <div className="inline-flex items-center gap-1.5 text-rose-700 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100 shadow-xs whitespace-nowrap text-xs font-bold mx-auto">
+                        <Clock size={13} className="text-rose-500 shrink-0" />
+                        <span>{new Date(p.dischargeDate).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', hour12: false })}</span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-300 font-bold text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="p-3 text-center">
+                    <div className="relative inline-block text-center patient-actions-menu-container">
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenActionsMenuPatientId(openActionsMenuPatientId === p.id ? null : p.id);
+                        }}
+                        className={`p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-center shadow-xs mx-auto ${
+                          openActionsMenuPatientId === p.id
+                            ? 'bg-primary text-white border-primary shadow-primary/20 shadow-md'
+                            : 'bg-white border-slate-200 text-slate-500 hover:text-primary hover:border-primary/40 hover:bg-slate-50'
+                        }`}
+                        title="Công cụ quản lý hồ sơ"
+                      >
+                        <Wrench size={16} className={openActionsMenuPatientId === p.id ? 'stroke-[2.5]' : ''} />
+                      </button>
+
+                      {openActionsMenuPatientId === p.id && (
+                        <div 
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-left font-normal"
+                        >
+                          <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
+                            <span>Công cụ quản lý</span>
+                            <span className="text-[10px] text-slate-400 font-mono">#{idx + 1}</span>
+                          </div>
+
+                          <div className="space-y-0.5">
+                            {/* Sửa thông tin */}
+                            {isOwner && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionsMenuPatientId(null);
+                                  onEditPatient(p);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition-colors text-left group"
+                              >
+                                <span className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-sky-100 text-slate-500 group-hover:text-sky-600 transition-colors">
+                                  <Edit3 size={14} />
+                                </span>
+                                <div className="flex flex-col">
+                                  <span className="font-extrabold text-[11px] leading-tight">Sửa thông tin</span>
+                                  <span className="text-[9px] text-slate-400 font-normal leading-tight">Cập nhật hồ sơ bệnh nhân</span>
+                                </div>
+                              </button>
+                            )}
+
+                            {/* In chỉ định */}
+                            {!isSupportDept && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionsMenuPatientId(null);
+                                  setPrintingPatient(p);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors text-left group"
+                              >
+                                <span className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-indigo-100 text-slate-500 group-hover:text-indigo-600 transition-colors">
+                                  <Printer size={14} />
+                                </span>
+                                <div className="flex flex-col">
+                                  <span className="font-extrabold text-[11px] leading-tight">In chỉ định</span>
+                                  <span className="text-[9px] text-slate-400 font-normal leading-tight">Xuất phiếu chỉ định khám</span>
+                                </div>
+                              </button>
+                            )}
+
+                            {/* Ra viện / Sửa giờ ra viện */}
+                            {!isSupportDept && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionsMenuPatientId(null);
+                                  setDischargingPatient(p);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-colors text-left group"
+                              >
+                                <span className={`p-1.5 rounded-lg text-slate-500 transition-colors ${
+                                  p.status === 'DISCHARGED' 
+                                    ? 'bg-rose-100 text-rose-600 group-hover:bg-rose-200' 
+                                    : 'bg-slate-100 group-hover:bg-amber-100 group-hover:text-amber-600'
+                                }`}>
+                                  <LogOut size={14} />
+                                </span>
+                                <div className="flex flex-col">
+                                  <span className="font-extrabold text-[11px] leading-tight">
+                                    {p.status === 'DISCHARGED' ? 'Sửa giờ ra viện' : 'Cho ra viện'}
+                                  </span>
+                                  <span className="text-[9px] text-slate-400 font-normal leading-tight">
+                                    {p.status === 'DISCHARGED' ? 'Cập nhật thời gian ra viện' : 'Hoàn tất điều trị nội trú'}
+                                  </span>
+                                </div>
+                              </button>
+                            )}
+
+                            {/* Hủy ra viện */}
+                            {!isSupportDept && p.status === PatientStatus.DISCHARGED && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionsMenuPatientId(null);
+                                  if (window.confirm(`Bạn có chắc chắn muốn hủy ra viện cho bệnh nhân ${p.name} không?`)) {
+                                    onUpdateStatus(p, PatientStatus.TREATING);
+                                  }
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-left group"
+                              >
+                                <span className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-emerald-100 text-slate-500 group-hover:text-emerald-600 transition-colors">
+                                  <RotateCcw size={14} />
+                                </span>
+                                <div className="flex flex-col">
+                                  <span className="font-extrabold text-[11px] leading-tight">Hủy ra viện</span>
+                                  <span className="text-[9px] text-slate-400 font-normal leading-tight">Chuyển về đang điều trị</span>
+                                </div>
+                              </button>
+                            )}
+
+                            {/* Kết thúc khám (khoa cận lâm sàng / hỗ trợ) */}
+                            {isSupportDept && activeReferralForMe && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionsMenuPatientId(null);
+                                  setFinishingReferral({ patient: p, specialty: activeReferralForMe.specialty });
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-rose-50 hover:text-rose-700 transition-colors text-left group"
+                              >
+                                <span className="p-1.5 rounded-lg bg-rose-100 text-rose-600 group-hover:bg-rose-200 transition-colors">
+                                  <Power size={14} />
+                                </span>
+                                <div className="flex flex-col">
+                                  <span className="font-extrabold text-[11px] leading-tight">Kết thúc khám</span>
+                                  <span className="text-[9px] text-slate-400 font-normal leading-tight">Hoàn tất chỉ định gửi khám</span>
+                                </div>
+                              </button>
+                            )}
+
+                            {/* Xóa hồ sơ */}
+                            {!isSupportDept && (
+                              <>
+                                <div className="my-1 border-t border-slate-100" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenActionsMenuPatientId(null);
+                                    const hasAppointments = appointments.some(a => a.patientId === p.id);
+                                    if (hasAppointments) {
+                                      alert("Không thể xóa bệnh nhân này vì vẫn còn lịch trình. Vui lòng xóa toàn bộ lịch trình của bệnh nhân trước khi xóa hồ sơ.");
+                                    } else {
+                                      setDeletingPatient(p);
+                                    }
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left group"
+                                >
+                                  <span className="p-1.5 rounded-lg bg-rose-100/60 text-rose-500 group-hover:bg-rose-200/80 group-hover:text-rose-600 transition-colors">
+                                    <Trash2 size={14} />
+                                  </span>
+                                  <div className="flex flex-col">
+                                    <span className="font-extrabold text-[11px] leading-tight">Xóa hồ sơ</span>
+                                    <span className="text-[9px] text-rose-400 font-normal leading-tight">Xóa vĩnh viễn khỏi danh sách</span>
+                                  </div>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </td>

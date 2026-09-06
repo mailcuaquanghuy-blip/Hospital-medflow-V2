@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Patient, Appointment, Procedure, Staff, AppointmentStatus, Department, DepartmentType, UserAccount, UserRole, AttendanceRecord, ConflictDetail, AppointmentTemplate, TemplateProcedure, AttendanceStatus, MachineShift, ScheduleSnapshot } from '../types';
+import { Patient, Appointment, Procedure, Staff, AppointmentStatus, PatientStatus, Department, DepartmentType, UserAccount, UserRole, AttendanceRecord, ConflictDetail, AppointmentTemplate, TemplateProcedure, AttendanceStatus, MachineShift, ScheduleSnapshot } from '../types';
 import { Button } from './Button';
-import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History } from 'lucide-react';
+import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut } from 'lucide-react';
 
 import { calculateAge, timeStringToMinutes, minutesToPixels, minutesToTimeString, addMinutesToTime, isInsideOfficeHours, checkConflict, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
 import { CopyRangeModal } from './CopyRangeModal';
@@ -11,6 +11,7 @@ import { MachineShiftManager } from './MachineShiftManager';
 import { TemplateManager } from './TemplateManager';
 import { QuickScheduleModal } from './QuickScheduleModal';
 import { DateInput } from './DateInput';
+import { TimeInput } from './TimeInput';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
 import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { DEPARTMENTS, OFFICE_SHIFTS } from '../constants';
@@ -66,6 +67,7 @@ interface PatientSchedulingProps {
   onUndoAppointmentChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => void;
   onUpdateAppointments?: React.Dispatch<React.SetStateAction<Appointment[]>>;
   onUpdateTemplates?: React.Dispatch<React.SetStateAction<AppointmentTemplate[]>>;
+  onUpdateStatus?: (patient: Patient, status: PatientStatus, dischargeDate?: string) => Promise<boolean>;
 }
 
 const PIXELS_PER_MINUTE = 5.0; 
@@ -101,11 +103,40 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   onSaveScheduleSnapshot,
   onUndoAppointmentChange,
   onUpdateAppointments,
-  onUpdateTemplates
+  onUpdateTemplates,
+  onUpdateStatus
 }) => {
   const [activeTab, setActiveTab] = useState<'SCHEDULING' | 'TEMPLATES'>('SCHEDULING');
   const [pixelsPerMinute, setPixelsPerMinute] = useState(6.5);
   const deptKey = currentDept?.id || 'default';
+
+  const [dischargingPatient, setDischargingPatient] = useState<Patient | null>(null);
+  const [dischargeDateInput, setDischargeDateInput] = useState<string>('');
+
+  const handleConfirmDischarge = async () => {
+    if (dischargingPatient && onUpdateStatus) {
+      const result = await onUpdateStatus(dischargingPatient, PatientStatus.DISCHARGED, dischargeDateInput);
+      if (result !== false) {
+        setDischargingPatient(null);
+      }
+    }
+  };
+
+  const openDischargeModal = (p: Patient) => {
+    const currentDischargeDate = p.dischargeDate 
+      ? p.dischargeDate.slice(0, 16) 
+      : `${currentDate}T${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+    setDischargeDateInput(currentDischargeDate);
+    setDischargingPatient(p);
+  };
+
+  const handleCancelDischarge = async (p: Patient) => {
+    if (window.confirm(`Bạn có chắc chắn muốn hủy ra viện cho bệnh nhân ${p.name} không?`)) {
+      if (onUpdateStatus) {
+        await onUpdateStatus(p, PatientStatus.TREATING);
+      }
+    }
+  };
 
   const [searchTerm, setSearchTerm] = useState(() => sessionStorage.getItem(`medflow_sched_search_${deptKey}`) || '');
   const [referringDeptFilter, setReferringDeptFilter] = useState<string>(() => sessionStorage.getItem(`medflow_sched_refDept_${deptKey}`) || 'ALL');
@@ -1304,38 +1335,56 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     <div className="flex flex-col flex-1 h-full min-h-0 gap-4">
       <div className="flex items-center justify-between gap-2.5 shrink-0 w-full flex-wrap">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <button 
-            onClick={() => setActiveTab('SCHEDULING')} 
-            className={`px-6 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 ${activeTab === 'SCHEDULING' ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20 cursor-default' : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-slate-200/80 shadow-sm'}`}
-          >
-            Chỉ định & Lịch trình
-          </button>
-          <button 
-            onClick={() => setActiveTab('TEMPLATES')} 
-            className={`px-6 py-2.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 ${activeTab === 'TEMPLATES' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20 cursor-default' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80 shadow-sm'}`}
-          >
-            Quản lý mẫu
-          </button>
-
-          {activeTab === 'SCHEDULING' && (
+          {/* Nhóm 3 nút chuyển thành dạng icon gọn gàng */}
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-2xl p-1 shadow-2xs">
             <button 
-              onClick={() => setIsQuickScheduleModalOpen(true)} 
-              className="flex items-center gap-2 px-6 py-2.5 bg-violet-50 text-violet-600 hover:bg-violet-100 border border-violet-200 rounded-2xl text-xs font-extrabold uppercase tracking-widest transition-all duration-300 shadow-sm"
-              title="Tự động sắp xếp lịch thông minh cho khoa"
+              type="button"
+              onClick={() => setActiveTab('SCHEDULING')} 
+              className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 cursor-pointer ${
+                activeTab === 'SCHEDULING' 
+                  ? 'bg-sky-500 text-white shadow-xs shadow-sky-500/30' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title="Chỉ định & Lịch trình"
             >
-              <Zap size={14} className="fill-violet-500 text-violet-500" />
-              Sắp xếp lịch nhanh
+              <Calendar size={17} className={activeTab === 'SCHEDULING' ? 'text-white' : 'text-slate-600'} />
             </button>
-          )}
+            <button 
+              type="button"
+              onClick={() => setActiveTab('TEMPLATES')} 
+              className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 cursor-pointer ${
+                activeTab === 'TEMPLATES' 
+                  ? 'bg-emerald-600 text-white shadow-xs shadow-emerald-600/30' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title="Quản lý mẫu"
+            >
+              <FolderOpen size={17} className={activeTab === 'TEMPLATES' ? 'text-white' : 'text-slate-600'} />
+            </button>
+
+            {activeTab === 'SCHEDULING' && (
+              <>
+                <div className="w-px h-5 bg-slate-200 mx-0.5" />
+                <button 
+                  type="button"
+                  onClick={() => setIsQuickScheduleModalOpen(true)} 
+                  className="flex items-center justify-center w-9 h-9 rounded-xl text-violet-600 hover:bg-violet-50 transition-all duration-200 cursor-pointer"
+                  title="Sắp xếp lịch nhanh (Tự động sắp xếp lịch thông minh cho khoa)"
+                >
+                  <Zap size={17} className="fill-violet-500 text-violet-500" />
+                </button>
+              </>
+            )}
+          </div>
 
           {hasUndoData && (
             <button 
               onClick={onUndoBatchLoad} 
-              className="flex items-center gap-2 px-5 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border-2 border-rose-100 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm animate-in fade-in slide-in-from-right-2"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-2xs cursor-pointer"
               title="Hoàn tác thao tác load hàng loạt vừa xong"
             >
               <RotateCcw size={14} />
-              Hoàn tác Load
+              <span>Hoàn tác Load</span>
             </button>
           )}
         </div>
@@ -1781,6 +1830,44 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                     } />
                                     BHYT: {selectedPatient.insuranceLevel}
                                 </span>
+                            )}
+
+                            {/* Nút Cho ra viện / Sửa giờ ra viện & Hủy ra viện */}
+                            {!isSupportDept && (
+                                <div className="flex items-center gap-1.5">
+                                  {selectedPatient.status === 'DISCHARGED' ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => openDischargeModal(selectedPatient)}
+                                        className="text-xs font-bold px-2.5 py-1 rounded-xl shadow-2xs whitespace-nowrap border flex items-center gap-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border-rose-200 cursor-pointer transition-all active:scale-95"
+                                        title="Chỉnh sửa ngày giờ ra viện của bệnh nhân"
+                                      >
+                                        <LogOut size={13} className="text-rose-500" />
+                                        <span>Sửa giờ ra viện</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCancelDischarge(selectedPatient)}
+                                        className="text-xs font-bold px-2.5 py-1 rounded-xl shadow-2xs whitespace-nowrap border flex items-center gap-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 cursor-pointer transition-all active:scale-95"
+                                        title="Hủy trạng thái ra viện, chuyển bệnh nhân về đang điều trị"
+                                      >
+                                        <RotateCcw size={13} className="text-emerald-600" />
+                                        <span>Hủy ra viện</span>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => openDischargeModal(selectedPatient)}
+                                      className="text-xs font-bold px-2.5 py-1 rounded-xl shadow-2xs whitespace-nowrap border flex items-center gap-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800 border-rose-200 cursor-pointer transition-all active:scale-95"
+                                      title="Cho bệnh nhân ra viện"
+                                    >
+                                      <LogOut size={13} className="text-rose-500" />
+                                      <span>Cho ra viện</span>
+                                    </button>
+                                  )}
+                                </div>
                             )}
 
                             {isReferralFinished && (
@@ -2631,6 +2718,61 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         isSavingSnapshot={isSavingVersion}
         onUndoChange={onUndoAppointmentChange}
       />
+
+      {/* Discharge Confirmation Modal */}
+      {dischargingPatient && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-2">
+                <LogOut size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                {dischargingPatient.status === 'DISCHARGED' ? 'CẬP NHẬT GIỜ RA VIỆN' : 'XÁC NHẬN RA VIỆN'}
+              </h3>
+              <p className="text-sm text-slate-500 font-bold">Bệnh nhân: <span className="text-slate-800">{dischargingPatient.name}</span></p>
+              
+              <div className="w-full space-y-4 text-left">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                      <Calendar size={12} /> Ngày ra viện
+                    </label>
+                    <DateInput 
+                      className="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold text-slate-800 focus:border-rose-400 outline-none transition-all"
+                      value={dischargeDateInput.split('T')[0] || ''}
+                      onChange={val => {
+                        const time = dischargeDateInput.split('T')[1] || '00:00';
+                        setDischargeDateInput(`${val}T${time}`);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                      <Clock size={12} /> Giờ ra viện
+                    </label>
+                    <TimeInput 
+                      className="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold text-slate-800 focus:border-rose-400 outline-none transition-all"
+                      value={dischargeDateInput.split('T')[1] || ''}
+                      onChange={val => {
+                        const date = dischargeDateInput.split('T')[0] || new Date().toISOString().split('T')[0];
+                        setDischargeDateInput(`${date}T${val}`);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 w-full pt-4">
+                <Button onClick={() => setDischargingPatient(null)} variant="secondary" className="flex-1">HỦY</Button>
+                <Button onClick={handleConfirmDischarge} className="flex-1 bg-rose-600 hover:bg-rose-700">
+                  {dischargingPatient.status === 'DISCHARGED' ? 'CẬP NHẬT' : 'RA VIỆN'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isProcessingBatch && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6 text-center">

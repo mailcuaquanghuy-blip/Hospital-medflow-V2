@@ -2254,6 +2254,7 @@ const App: React.FC = () => {
             onUndoAppointmentChange={handleUndoAppointmentChange}
             onUpdateAppointments={handleUpdateAppointmentsSafely}
             onUpdateTemplates={setTemplates}
+            onUpdateStatus={handleUpdateStatus}
           />
          )}
 
