@@ -91,19 +91,24 @@ export const PatientList: React.FC<PatientListProps> = ({
   const [csvPatients, setCsvPatients] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
+  // State cho dropdown chọn chuyên khoa gửi khám
+  const [openReferralMenuPatientId, setOpenReferralMenuPatientId] = useState<string | null>(null);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
         setIsAddMenuOpen(false);
       }
+      const target = event.target as HTMLElement;
+      if (!target.closest('.referral-menu-container')) {
+        setOpenReferralMenuPatientId(null);
+      }
     };
-    if (isAddMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isAddMenuOpen]);
+  }, []);
 
   const isValidDdMmYyyy = (str: string): boolean => {
     if (!/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return false;
@@ -855,11 +860,54 @@ export const PatientList: React.FC<PatientListProps> = ({
   };
 
   const referralSpecialties = [
-    { id: 'dept_phcn', label: 'PHCN', icon: <Activity size={12} /> },
-    { id: 'dept_xetnghiem', label: 'Xét nghiệm', icon: <FlaskConical size={12} /> },
-    { id: 'dept_cdha', label: 'CDHA', icon: <HeartPulse size={12} /> },
-    { id: 'dept_duoc', label: 'Dược', icon: <Pill size={12} /> }
+    { 
+      id: 'dept_phcn', 
+      label: 'PHCN', 
+      fullName: 'Phục hồi chức năng',
+      icon: <Activity size={13} />, 
+      badgeColor: 'bg-sky-50 text-sky-700 border-sky-200' 
+    },
+    { 
+      id: 'dept_xetnghiem', 
+      label: 'Xét nghiệm', 
+      fullName: 'Khoa Xét nghiệm',
+      icon: <FlaskConical size={13} />, 
+      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+    },
+    { 
+      id: 'dept_cdha', 
+      label: 'CDHA', 
+      fullName: 'Chẩn đoán hình ảnh',
+      icon: <HeartPulse size={13} />, 
+      badgeColor: 'bg-purple-50 text-purple-700 border-purple-200' 
+    },
+    { 
+      id: 'dept_duoc', 
+      label: 'Dược', 
+      fullName: 'Khoa Dược',
+      icon: <Pill size={13} />, 
+      badgeColor: 'bg-amber-50 text-amber-700 border-amber-200' 
+    }
   ];
+
+  const formatReferralDateTime = (ref: any): string => {
+    const time = ref.timestamp ? (ref.timestamp.length > 5 ? ref.timestamp.slice(0, 5) : ref.timestamp) : '';
+    let date = '';
+    if (ref.referralDate) {
+      if (ref.referralDate.includes('-')) {
+        const parts = ref.referralDate.split('T')[0].split('-');
+        if (parts.length === 3) {
+          date = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        } else {
+          date = ref.referralDate;
+        }
+      } else {
+        date = ref.referralDate;
+      }
+    }
+    if (time && date) return `${time} ${date}`;
+    return time || date || '--:--';
+  };
 
   return (
     <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
@@ -1248,29 +1296,121 @@ export const PatientList: React.FC<PatientListProps> = ({
                         )}
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        {p.referrals && p.referrals.length > 0 ? (
-                          <div className="flex flex-wrap gap-2 items-center justify-center">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">Đã gửi khám:</span>
-                            {p.referrals.map((ref, rIdx) => (
-                              <div key={rIdx} className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 border border-blue-100">
-                                {referralSpecialties.find(s => s.id === ref.specialty)?.label || ref.specialty.replace('dept_', '')}
-                                {p.admittedByDeptId === currentDept.id && (
-                                  <button onClick={(e) => { e.stopPropagation(); onCancelReferral(p.id, ref.specialty); }} className="ml-1 hover:text-rose-500"><X size={10} /></button>
-                                )}
-                              </div>
-                            ))}
+                      <div className="flex flex-col items-center justify-center gap-2 min-w-[220px]">
+                        {/* Hiển thị thẻ các chuyên khoa đã gửi khám cùng ngày giờ */}
+                        {p.referrals && p.referrals.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 items-center justify-center w-full">
+                            {p.referrals.map((ref, rIdx) => {
+                              const spec = referralSpecialties.find(s => s.id === ref.specialty);
+                              const label = spec?.label || ref.specialty.replace('dept_', '').toUpperCase();
+                              const icon = spec?.icon || <Activity size={12} />;
+                              const badgeBg = spec?.badgeColor || 'bg-blue-50 text-blue-700 border-blue-200';
+                              const dateTimeStr = formatReferralDateTime(ref);
+
+                              return (
+                                <div 
+                                  key={rIdx} 
+                                  className={`flex flex-col px-2.5 py-1.5 rounded-xl border shadow-2xs text-left transition-all ${badgeBg} ${ref.status === 'FINISHED' ? 'opacity-70' : ''}`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="flex items-center gap-1 font-black text-[11px] uppercase tracking-wide">
+                                      {icon}
+                                      <span>{label}</span>
+                                    </span>
+                                    {ref.status === 'FINISHED' ? (
+                                      <span className="text-[9px] font-extrabold bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded">Xong</span>
+                                    ) : (
+                                      p.admittedByDeptId === currentDept.id && (
+                                        <button 
+                                          onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            if (window.confirm(`Hủy gửi khám chuyên khoa ${label} cho bệnh nhân ${p.name}?`)) {
+                                              onCancelReferral(p.id, ref.specialty); 
+                                            }
+                                          }} 
+                                          className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-0.5 rounded transition-colors"
+                                          title="Hủy gửi khám"
+                                        >
+                                          <X size={11} />
+                                        </button>
+                                      )
+                                    )}
+                                  </div>
+                                  <div className="text-[9px] font-bold text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
+                                    <Clock size={10} className="text-slate-400 shrink-0" />
+                                    <span>{dateTimeStr}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        ) : (
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">Chưa gửi khám</span>
                         )}
-                        
-                        {p.status === 'TREATING' && p.admittedByDeptId === currentDept.id && (
-                          <div className="flex justify-center gap-2 mt-1 w-full">
-                            {referralSpecialties.filter(s => !p.referrals?.some(r => r.specialty === s.id && r.status !== 'FINISHED')).map(s => (
-                              <button key={s.id} onClick={() => onReferral(p.id, s.id)} className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[8px] font-black text-slate-500 hover:text-primary hover:border-primary transition-all flex items-center gap-1">{s.icon} {s.label}</button>
-                            ))}
-                          </div>
+
+                        {/* Nút bấm + Gửi khám chuyên khoa / + Gửi thêm */}
+                        {p.status === 'TREATING' && p.admittedByDeptId === currentDept.id && (() => {
+                          const unreferredSpecialties = referralSpecialties.filter(
+                            s => !p.referrals?.some(r => r.specialty === s.id && r.status !== 'FINISHED')
+                          );
+
+                          if (unreferredSpecialties.length === 0) return null;
+
+                          const isMenuOpen = openReferralMenuPatientId === p.id;
+                          const hasReferrals = (p.referrals?.length || 0) > 0;
+
+                          return (
+                            <div className="relative inline-block text-center referral-menu-container">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenReferralMenuPatientId(isMenuOpen ? null : p.id);
+                                }}
+                                className={`px-3 py-1.5 rounded-xl font-extrabold transition-all flex items-center gap-1.5 shadow-2xs whitespace-nowrap cursor-pointer ${
+                                  hasReferrals 
+                                    ? 'bg-slate-100 hover:bg-sky-50 text-slate-600 hover:text-sky-700 border border-slate-200 hover:border-sky-200 text-[10px]' 
+                                    : 'bg-sky-500 hover:bg-sky-600 text-white shadow-sky-500/20 shadow-md hover:scale-[1.02] text-xs'
+                                }`}
+                              >
+                                <Plus size={hasReferrals ? 12 : 13} className="stroke-[2.5]" />
+                                <span>{hasReferrals ? 'Gửi thêm chuyên khoa' : 'Gửi khám chuyên khoa'}</span>
+                                <ChevronDown size={12} className={`transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                              </button>
+
+                              {isMenuOpen && (
+                                <div 
+                                  className="absolute left-1/2 -translate-x-1/2 mt-1.5 w-52 bg-white rounded-2xl shadow-xl border border-slate-200 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-left"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+                                    Chọn chuyên khoa gửi khám
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    {unreferredSpecialties.map(spec => (
+                                      <button
+                                        key={spec.id}
+                                        onClick={() => {
+                                          setOpenReferralMenuPatientId(null);
+                                          onReferral(p.id, spec.id);
+                                        }}
+                                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition-colors text-left group"
+                                      >
+                                        <span className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-sky-100 text-slate-500 group-hover:text-sky-600 transition-colors">
+                                          {spec.icon}
+                                        </span>
+                                        <div className="flex flex-col">
+                                          <span className="font-extrabold text-[11px] leading-tight">{spec.label}</span>
+                                          <span className="text-[9px] text-slate-400 font-normal leading-tight">{spec.fullName}</span>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        {(!p.referrals || p.referrals.length === 0) && (p.status !== 'TREATING' || p.admittedByDeptId !== currentDept.id) && (
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Chưa gửi khám</span>
                         )}
                       </div>
                     )}
