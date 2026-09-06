@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, ComposedChart, LabelList } from 'recharts';
 import { Appointment, Procedure, Staff, Department, DepartmentType, Patient, AttendanceRecord, AttendanceStatus, AppointmentStatus } from '../types';
-import { timeStringToMinutes, minutesToTimeString, getRoleLabel } from '../utils/timeUtils';
+import { timeStringToMinutes, minutesToTimeString, getRoleLabel, calculateAge } from '../utils/timeUtils';
 import { downloadCSV } from '../utils/csvUtils';
 import { Clock, User, Zap, Filter, Building2, CalendarDays, Calendar, TrendingUp, Bed, Activity, Award, FileSpreadsheet, Printer, Download, Search, RotateCcw, FileText, CheckCircle2 } from 'lucide-react';
 import { DateInput } from './DateInput';
@@ -1055,7 +1055,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
               <Building2 size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Bệnh nhân Vào viện</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Bệnh nhân vào viện</span>
               <span className="text-xl font-black text-slate-850 block text-emerald-600">
                 + {admissionDischargeStats.daily.admissionsCount} <span className="text-xs font-semibold text-slate-400">người</span>
               </span>
@@ -1067,7 +1067,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
               <Clock size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Bệnh nhân Ra viện</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Bệnh nhân ra viện</span>
               <span className="text-xl font-black text-slate-850 block text-rose-600">
                 - {admissionDischargeStats.daily.dischargesCount} <span className="text-xs font-semibold text-slate-400">người</span>
               </span>
@@ -1075,14 +1075,14 @@ export const DailyReport: React.FC<DailyReportProps> = ({
           </div>
         </div>
 
-        {/* Danh sách người vào viện/ra viện hôm nay */}
+        {/* Danh sách bệnh nhân vào viện/ra viện hôm nay */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Vào viện hôm nay */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Danh sách người vào viện hôm nay ({admissionDischargeStats.daily.admissionsCount})
+                Danh sách bệnh nhân vào viện hôm nay ({admissionDischargeStats.daily.admissionsCount})
               </h4>
             </div>
             <div className="flex-1 max-h-[220px] overflow-y-auto pr-2 divide-y divide-slate-50">
@@ -1090,11 +1090,11 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                 admissionDischargeStats.daily.admissions.map(p => (
                   <div key={p.id} className="py-2 flex items-center justify-between text-xs hover:bg-slate-50/50 transition-colors px-2 rounded-lg">
                     <div className="min-w-0 flex-1">
-                      <div className="font-extrabold text-slate-700 uppercase tracking-wide truncate">{p.name}</div>
+                      <div className="font-extrabold text-slate-700 uppercase tracking-wide truncate">{(p.name || '').normalize('NFC')}</div>
                       <div className="text-[10px] text-slate-400 font-mono mt-0.5">Mã BN: {p.code} | Giường: {p.bedNumber} {p.roomNumber ? `(Buồng ${p.roomNumber})` : ''}</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-650 rounded-md font-bold text-[9px]">{p.gender} - {new Date().getFullYear() - Number(p.dob.split('-')[0])} T</span>
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-650 rounded-md font-bold text-[9px]">{p.gender} • {calculateAge(p.dob)} tuổi</span>
                       <div className="text-[9px] text-emerald-600 font-extrabold mt-1">Giờ vào: {p.admissionDate ? new Date(p.admissionDate).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'}) : '--:--'}</div>
                     </div>
                   </div>
@@ -1112,7 +1112,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                Danh sách người ra viện hôm nay ({admissionDischargeStats.daily.dischargesCount})
+                Danh sách bệnh nhân ra viện hôm nay ({admissionDischargeStats.daily.dischargesCount})
               </h4>
             </div>
             <div className="flex-1 max-h-[220px] overflow-y-auto pr-2 divide-y divide-slate-50">
@@ -1120,11 +1120,11 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                 admissionDischargeStats.daily.discharges.map(p => (
                   <div key={p.id} className="py-2 flex items-center justify-between text-xs hover:bg-slate-50/50 transition-colors px-2 rounded-lg">
                     <div className="min-w-0 flex-1">
-                      <div className="font-extrabold text-slate-700 uppercase tracking-wide truncate">{p.name}</div>
+                      <div className="font-extrabold text-slate-700 uppercase tracking-wide truncate">{(p.name || '').normalize('NFC')}</div>
                       <div className="text-[10px] text-slate-400 font-mono mt-0.5">Mã BN: {p.code} | Giường: {p.bedNumber} {p.roomNumber ? `(Buồng ${p.roomNumber})` : ''}</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-650 rounded-md font-bold text-[9px]">{p.gender} - {new Date().getFullYear() - Number(p.dob.split('-')[0])} T</span>
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-650 rounded-md font-bold text-[9px]">{p.gender} • {calculateAge(p.dob)} tuổi</span>
                       <div className="text-[9px] text-rose-500 font-extrabold mt-1">Giờ ra: {p.dischargeDate ? new Date(p.dischargeDate).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'}) : '--:--'}</div>
                     </div>
                   </div>
@@ -1337,7 +1337,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
             <div>
               <span className="text-[11px] font-bold text-slate-500 block uppercase tracking-wider">BN Vào viện</span>
               <span className="text-2xl font-black text-teal-600">+{admissionDischargeStats.monthly.admissionsCount}</span>
-              <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">người trong tháng</span>
+              <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">bệnh nhân trong tháng</span>
             </div>
           </div>
 
@@ -1348,7 +1348,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
             <div>
               <span className="text-[11px] font-bold text-slate-500 block uppercase tracking-wider">BN Ra viện</span>
               <span className="text-2xl font-black text-amber-600">-{admissionDischargeStats.monthly.dischargesCount}</span>
-              <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">người trong tháng</span>
+              <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">bệnh nhân trong tháng</span>
             </div>
           </div>
         </div>
@@ -1524,7 +1524,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
           <div className="xl:col-span-3 border border-slate-100 p-4 rounded-xl flex flex-col">
             <h4 className="text-xs font-black uppercase text-slate-600 tracking-wider mb-4 flex items-center gap-2">
               <TrendingUp size={16} className="text-teal-500" />
-              Biểu đồ trực quan so lượng Vào viện & Ra viện theo ngày
+              Biểu đồ trực quan số lượng Vào viện & Ra viện theo ngày
             </h4>
             <div className="h-[320px] w-full flex-1">
               {admissionDischargeStats.monthly.admissionsCount > 0 || admissionDischargeStats.monthly.dischargesCount > 0 ? (
@@ -1591,7 +1591,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({
                   <div key={`${row.p.id}-${row.type}-${idx}`} className="py-2.5 flex items-center justify-between text-xs hover:bg-slate-50/70 transition-colors">
                     <div className="min-w-0 flex-1">
                       <div className="font-bold text-slate-700 uppercase truncate max-w-[140px] sm:max-w-none">
-                        {row.p.name}
+                        {(row.p.name || '').normalize('NFC')}
                       </div>
                       <div className="text-[9px] text-slate-400 font-mono mt-0.5">
                         Mã: {row.p.code} | Giường {row.p.bedNumber}

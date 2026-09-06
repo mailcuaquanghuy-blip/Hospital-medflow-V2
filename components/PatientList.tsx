@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Patient, PatientStatus, Department, DepartmentType, BedType, InsuranceLevel } from '../types';
 import { Button } from './Button';
 import { DateTimePicker } from './DateTimePicker';
@@ -86,8 +86,24 @@ export const PatientList: React.FC<PatientListProps> = ({
 
   // States & Helpers cho nhập CSV bệnh nhân
   const [isCsvImportModalOpen, setIsCsvImportModalOpen] = useState(false);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
   const [csvPatients, setCsvPatients] = useState<any[]>([]);
   const [dragActive, setDragActive] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
+        setIsAddMenuOpen(false);
+      }
+    };
+    if (isAddMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAddMenuOpen]);
 
   const isValidDdMmYyyy = (str: string): boolean => {
     if (!/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return false;
@@ -981,13 +997,65 @@ export const PatientList: React.FC<PatientListProps> = ({
         </div>
 
         {!isSupportDept && (
-          <div className="flex items-center gap-2">
-            <Button onClick={() => { setCsvPatients([]); setIsCsvImportModalOpen(true); }} variant="secondary" className="border border-slate-200">
-              <Upload size={18} /> Nhập từ file CSV
-            </Button>
-            <Button onClick={onAddPatient} className="shadow-lg shadow-primary/10">
-              <Plus size={18} /> BN vào khoa mới
-            </Button>
+          <div className="relative shrink-0" ref={addMenuRef}>
+            <div className="flex items-center shadow-md shadow-primary/10 rounded-xl overflow-hidden border border-primary/20 bg-primary">
+              <button 
+                type="button"
+                onClick={onAddPatient}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white hover:bg-primary/90 transition-all active:scale-95 cursor-pointer"
+                title="BN vào khoa mới"
+              >
+                <Plus size={16} />
+                <span>Thêm</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setIsAddMenuOpen(prev => !prev)}
+                className="flex items-center justify-center w-8 h-8 text-white/90 hover:text-white hover:bg-primary/80 border-l border-white/20 transition-all active:scale-95 cursor-pointer"
+                title="Tùy chọn thêm bệnh nhân"
+              >
+                <ChevronDown size={14} className={`transition-transform duration-200 ${isAddMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+
+            {isAddMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddMenuOpen(false);
+                    onAddPatient();
+                  }}
+                  className="w-full p-2.5 rounded-xl text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-primary flex items-center gap-3 transition-colors cursor-pointer"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Plus size={15} />
+                  </div>
+                  <div>
+                    <div className="text-slate-800">BN vào khoa mới</div>
+                    <div className="text-[10px] text-slate-400 font-normal">Thêm hồ sơ 1 bệnh nhân</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddMenuOpen(false);
+                    setCsvPatients([]);
+                    setIsCsvImportModalOpen(true);
+                  }}
+                  className="w-full p-2.5 rounded-xl text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-3 transition-colors cursor-pointer border-t border-slate-50"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Upload size={15} />
+                  </div>
+                  <div>
+                    <div className="text-slate-800">Nhập từ file CSV</div>
+                    <div className="text-[10px] text-slate-400 font-normal">Tải danh sách hàng loạt</div>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1447,17 +1515,16 @@ export const PatientList: React.FC<PatientListProps> = ({
       {/* CSV Import Modal */}
       {isCsvImportModalOpen && (
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-[95vw] 2xl:max-w-7xl w-full shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
-            <div className="flex justify-between items-center mb-6 border-b border-slate-50 pb-4">
-              <div>
-                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                  <Upload size={24} className="text-primary animate-pulse" /> Nhập danh sách bệnh nhân từ CSV
-                </h3>
-                <p className="text-xs text-slate-400 font-bold mt-1">Chọn hoặc kéo thả file CSV chứa thông tin bệnh nhân để nhập tự động.</p>
-              </div>
+          <div className={`bg-white rounded-3xl p-6 sm:p-8 w-full shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh] ${
+            csvPatients.length === 0 ? 'max-w-xl' : 'max-w-[95vw] 2xl:max-w-7xl'
+          }`}>
+            <div className="flex justify-between items-center mb-5 border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                <Upload size={22} className="text-primary" /> Nhập danh sách bệnh nhân từ CSV
+              </h3>
               <button 
                 onClick={() => { setIsCsvImportModalOpen(false); setCsvPatients([]); }}
-                className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all"
+                className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
               >
                 <X size={20} />
               </button>
@@ -1466,23 +1533,22 @@ export const PatientList: React.FC<PatientListProps> = ({
             <div className="flex-1 overflow-auto min-h-0 space-y-6 scrollbar-thin pr-1">
               {csvPatients.length === 0 ? (
                 <div 
-                  className={`border-4 border-dashed rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4 transition-all ${
-                    dragActive ? 'border-primary bg-primary/5 scale-[0.99]' : 'border-slate-100 hover:border-slate-200'
+                  className={`border-2 border-dashed rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-4 transition-all ${
+                    dragActive ? 'border-primary bg-primary/5 scale-[0.99]' : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
                   }`}
                   onDragEnter={handleDrag}
                   onDragOver={handleDrag}
                   onDragLeave={handleDrag}
                   onDrop={handleDrop}
                 >
-                  <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center shadow-inner">
-                    <Download size={28} className="rotate-180 text-primary/80" />
+                  <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shadow-inner">
+                    <Upload size={24} />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-black text-slate-700 uppercase tracking-wide">Kéo thả file CSV vào đây</p>
-                    <p className="text-xs text-slate-400 font-bold">Hoặc click để chọn file từ máy tính</p>
-                  </div>
-                  <label className="cursor-pointer bg-primary text-white font-black text-[10px] tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all uppercase">
-                    Chọn file
+                  
+                  <p className="text-sm font-bold text-slate-700">Kéo thả file CSV vào đây</p>
+
+                  <label className="cursor-pointer bg-primary text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-primary/20 hover:bg-primary/90 transition-all">
+                    Chọn file từ máy tính
                     <input 
                       type="file" 
                       accept=".csv" 
@@ -1491,13 +1557,13 @@ export const PatientList: React.FC<PatientListProps> = ({
                     />
                   </label>
                   
-                  <div className="border-t border-slate-100 w-full pt-6 mt-4 flex flex-col items-center gap-2">
-                    <p className="text-[11px] text-slate-400 font-bold">Thứ tự các cột: Ngày vào viện, Giờ vào viện, Họ tên, Giới tính, Năm sinh, Số giường, Loại giường, Mức hưởng BHYT, Ghi chú</p>
+                  <div className="border-t border-slate-100 w-full pt-4 mt-2 flex flex-col items-center">
                     <button 
+                      type="button"
                       onClick={downloadSampleCSV}
-                      className="inline-flex items-center gap-1.5 text-xs text-primary font-black hover:underline mt-1"
+                      className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:underline py-1 px-3 rounded-lg hover:bg-primary/5 transition-colors cursor-pointer"
                     >
-                      <Download size={14} /> TẢI FILE CSV MẪU
+                      <Download size={14} /> Tải file CSV mẫu
                     </button>
                   </div>
                 </div>

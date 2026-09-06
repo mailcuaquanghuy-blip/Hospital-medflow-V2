@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Patient, Department, PatientStatus, BedType, InsuranceLevel } from '../types';
 import { Button } from './Button';
-import { DateTimePicker } from './DateTimePicker';
+import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
 import { X, User, Calendar, Bed, Building2, Save, Users, Clock, Info, LogOut, Shield, StickyNote } from 'lucide-react';
 import { generatePatientCode, calculateAge } from '../utils/timeUtils';
@@ -205,13 +205,12 @@ export const PatientModal: React.FC<PatientModalProps> = ({
                     </div>
                      <div className="space-y-1">
                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12}/> Ngày vào viện</label>
-                         <input 
-                            type="date"
+                         <DateInput 
                             className="w-full p-3 border-2 border-slate-100 rounded-xl font-bold text-slate-800 focus:border-primary outline-none transition-colors"
                             value={formData.admissionDate?.split('T')[0] || ''}
-                            onChange={e => {
+                            onChange={val => {
                                 const time = formData.admissionDate?.split('T')[1] || '08:00';
-                                setFormData({...formData, admissionDate: `${e.target.value}T${time}`});
+                                setFormData({...formData, admissionDate: `${val}T${time}`});
                             }}
                          />
                     </div>
@@ -264,13 +263,12 @@ export const PatientModal: React.FC<PatientModalProps> = ({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12}/> Ngày ra viện</label>
-                                <input 
-                                    type="date"
+                                <DateInput 
                                     className="w-full p-3 border-2 border-white rounded-xl font-bold text-rose-700 focus:border-rose-300 outline-none transition-colors shadow-sm"
                                     value={formData.dischargeDate?.split('T')[0] || ''}
-                                    onChange={e => {
+                                    onChange={val => {
                                         const time = formData.dischargeDate?.split('T')[1] || '08:00';
-                                        setFormData({...formData, dischargeDate: `${e.target.value}T${time}`});
+                                        setFormData({...formData, dischargeDate: `${val}T${time}`});
                                     }}
                                 />
                             </div>

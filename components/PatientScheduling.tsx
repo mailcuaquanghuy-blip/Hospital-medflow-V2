@@ -1809,51 +1809,86 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                     <div className="hidden xl:block flex-1" />
                 )}
 
-                {/* Nhóm nút thao tác bên phải */}
+                {/* Nhóm nút thao tác bên phải dạng icon gọn gàng */}
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    {isSupportDept && (
-                      <Button onClick={() => onBookAppointment(selectedPatient.id)} disabled={isReferralFinished} className={isReferralFinished ? "" : "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200"}>
-                        {isReferralFinished ? <Lock size={18} /> : <Plus size={18} />}
-                        {isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}
-                      </Button>
-                    )}
-                    <Button variant="secondary" onClick={() => setIsCopyModalOpen(true)} className="bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100 shadow-2xs" disabled={isReferralFinished}>
-                        <Copy size={18} /> Sao chép lịch trình
-                    </Button>
+                    {/* Nút Sao chép lịch trình dạng icon */}
+                    <button 
+                      type="button" 
+                      onClick={() => setIsCopyModalOpen(true)} 
+                      disabled={isReferralFinished}
+                      className="flex items-center justify-center w-9 h-9 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 border border-indigo-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                      title="Sao chép lịch trình sang ngày khác"
+                    >
+                        <Copy size={16} />
+                    </button>
 
-                    
-                    <Button variant="secondary" onClick={() => setIsSaveTemplateModalOpen(true)} className="bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100 shadow-2xs" disabled={isReferralFinished || patientAppointments.length === 0}>
-                        <Save size={18} /> Lưu thành mẫu
-                    </Button>
+                    {/* Nút Lưu thành mẫu dạng icon */}
+                    <button 
+                      type="button" 
+                      onClick={() => setIsSaveTemplateModalOpen(true)} 
+                      disabled={isReferralFinished || patientAppointments.length === 0}
+                      className="flex items-center justify-center w-9 h-9 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 border border-emerald-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                      title="Lưu lịch trình hiện tại thành mẫu"
+                    >
+                        <Save size={16} />
+                    </button>
 
-                    {!isSupportDept && (
-                      <div className="flex shadow-2xs rounded-xl overflow-hidden">
-                        <Button onClick={() => onBookAppointment(selectedPatient.id)} className="rounded-r-none border-r border-white/20">
-                            <Plus size={18} /> Thêm chỉ định
-                        </Button>
-                        <Button onClick={() => setIsLoadTemplateModalOpen(true)} className="rounded-l-none px-2" title="Tải mẫu lịch trình">
-                            <ChevronDown size={18} />
-                        </Button>
+                    {/* Nút Thêm chỉ định / Tải mẫu dạng icon */}
+                    {isSupportDept ? (
+                      <button 
+                        type="button"
+                        onClick={() => onBookAppointment(selectedPatient.id)} 
+                        disabled={isReferralFinished} 
+                        className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none shrink-0 ${
+                          isReferralFinished ? "bg-slate-100 text-slate-400 border border-slate-200" : "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200"
+                        }`}
+                        title={isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}
+                      >
+                        {isReferralFinished ? <Lock size={16} /> : <Plus size={16} />}
+                      </button>
+                    ) : (
+                      <div className="flex items-center shadow-2xs rounded-xl overflow-hidden border border-primary/20 shrink-0">
+                        <button 
+                          type="button"
+                          onClick={() => onBookAppointment(selectedPatient.id)} 
+                          disabled={isReferralFinished}
+                          className="flex items-center justify-center w-9 h-9 bg-primary hover:bg-primary/90 text-white transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                          title="Thêm chỉ định điều trị mới"
+                        >
+                            <Plus size={16} />
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setIsLoadTemplateModalOpen(true)} 
+                          disabled={isReferralFinished}
+                          className="flex items-center justify-center w-7 h-9 bg-primary hover:bg-primary/90 text-white/90 hover:text-white border-l border-white/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none" 
+                          title="Tải từ mẫu lịch trình có sẵn"
+                        >
+                            <ChevronDown size={14} />
+                        </button>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200/80 px-2 py-1 rounded-xl border border-slate-200 text-slate-700 h-9 shrink-0 select-none transition-all shadow-2xs">
+                    {/* Bộ điều khiển thu phóng thời gian */}
+                    <div className="flex items-center bg-slate-100/90 hover:bg-slate-200/80 px-1 py-0.5 rounded-xl border border-slate-200/90 text-slate-700 h-9 shrink-0 select-none transition-all shadow-2xs">
                         <button 
+                          type="button"
                           onClick={() => setPixelsPerMinute(prev => Math.max(3.0, prev - 0.5))}
-                          className="p-1 hover:bg-white rounded-lg transition-colors text-slate-600 cursor-pointer flex items-center justify-center"
+                          className="w-7 h-7 flex items-center justify-center hover:bg-white rounded-lg transition-colors text-slate-600 active:scale-95 cursor-pointer"
                           title="Thu hẹp khung thời gian (Zoom out)"
                           id="zoom-out-btn"
                         >
-                          <ZoomOut size={15} />
+                          <ZoomOut size={14} />
                         </button>
-                        <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-widest px-1.5 whitespace-nowrap">Thời gian {Math.round(pixelsPerMinute * 16.67)}%</span>
+                        <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider px-1.5 whitespace-nowrap">{Math.round(pixelsPerMinute * 16.67)}%</span>
                         <button 
+                          type="button"
                           onClick={() => setPixelsPerMinute(prev => Math.min(12.0, prev + 0.5))}
-                          className="p-1 hover:bg-white rounded-lg transition-colors text-slate-600 cursor-pointer flex items-center justify-center"
+                          className="w-7 h-7 flex items-center justify-center hover:bg-white rounded-lg transition-colors text-slate-600 active:scale-95 cursor-pointer"
                           title="Kéo rộng khung thời gian (Zoom in)"
                           id="zoom-in-btn"
                         >
-                          <ZoomIn size={15} />
+                          <ZoomIn size={14} />
                         </button>
                     </div>
                 </div>

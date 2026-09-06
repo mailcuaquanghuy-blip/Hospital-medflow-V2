@@ -1,5 +1,9 @@
 /* Custom styles for Hospital medflow */
 
+html, body {
+  font-family: 'Be Vietnam Pro', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 /* Clean, modern scrollbars for a premium feel and easy navigation */
 ::-webkit-scrollbar {
   width: 8px;
