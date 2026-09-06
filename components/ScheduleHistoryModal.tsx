@@ -29,11 +29,16 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
   onUndoChange
 }) => {
   const [dateFilterMode, setDateFilterMode] = useState<'CURRENT' | 'ALL'>('CURRENT');
+  const [showAllItems, setShowAllItems] = useState(false);
 
   if (!isOpen) return null;
 
   const currentDateDeviations = deviations.filter(d => d.date === currentDate);
   const displayedDeviations = dateFilterMode === 'CURRENT' ? currentDateDeviations : deviations;
+  const isOver1000 = deviations.length >= 1000;
+
+  const RENDER_LIMIT = 150;
+  const renderedList = showAllItems ? displayedDeviations : displayedDeviations.slice(0, RENDER_LIMIT);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
@@ -121,6 +126,31 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4">
+          {isOver1000 && onSaveSnapshot && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500 text-white rounded-xl font-black text-xs">
+                  ⚡ 1000+
+                </div>
+                <div>
+                  <p className="text-xs font-black text-amber-900">
+                    Phát hiện {deviations.length} biến động trên toàn hệ thống!
+                  </p>
+                  <p className="text-[11px] font-bold text-amber-700 mt-0.5">
+                    Hãy bấm chốt để làm sạch nhật ký và tăng tốc tải dữ liệu.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onSaveSnapshot}
+                disabled={isSavingSnapshot}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm"
+              >
+                {isSavingSnapshot ? "Đang tự động chốt..." : "Chốt mốc ngay"}
+              </button>
+            </div>
+          )}
+
           {displayedDeviations.length === 0 ? (
             <div className="text-center py-12 px-4 space-y-4">
               <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-500">
@@ -145,11 +175,18 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs font-black text-slate-400 uppercase tracking-widest px-1">
-                <span>Lịch trình bị biến động ({displayedDeviations.length})</span>
+                <span>
+                  Lịch trình bị biến động ({displayedDeviations.length})
+                  {displayedDeviations.length > RENDER_LIMIT && !showAllItems && (
+                    <span className="normal-case font-extrabold text-amber-600 ml-2">
+                      (Đang hiển thị {RENDER_LIMIT} mục đầu tiên)
+                    </span>
+                  )}
+                </span>
                 <span>Hành động khôi phục</span>
               </div>
               <div className="divide-y divide-slate-100 border border-slate-200/60 rounded-3xl overflow-hidden bg-slate-50/20 shadow-sm">
-                {displayedDeviations.map((dev) => {
+                {renderedList.map((dev) => {
                   let badgeBg = "bg-amber-50 text-amber-700 border-amber-200";
                   let badgeText = "✎ Chỉnh sửa";
                   if (dev.type === 'NEW') {
@@ -200,6 +237,17 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
                   );
                 })}
               </div>
+
+              {displayedDeviations.length > RENDER_LIMIT && !showAllItems && (
+                <div className="pt-2 text-center">
+                  <button
+                    onClick={() => setShowAllItems(true)}
+                    className="px-4 py-2 text-xs font-black text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all"
+                  >
+                    Xem tất cả {displayedDeviations.length} biến động
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

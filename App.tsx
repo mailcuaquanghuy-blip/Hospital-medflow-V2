@@ -4,7 +4,7 @@ import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, 
 import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN, MOCK_TEMPLATES } from './constants';
 
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
-import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments } from './utils/scheduleHistoryUtils';
+import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments, clearAllSessionBaselines } from './utils/scheduleHistoryUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
 import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, resetSupabaseDatabase } from './utils/supabaseService';
 import { supabase } from './supabaseClient';
@@ -783,7 +783,7 @@ const App: React.FC = () => {
       uniqueDates.add(dateStr);
       deptAppts.forEach(a => uniqueDates.add(a.date));
 
-      for (const d of Array.from(uniqueDates)) {
+      const savePromises = Array.from(uniqueDates).map(async (d) => {
         const dateAppts = deptAppts.filter(a => a.date === d);
         const snapshotId = `${deptId}_${d}`;
         await setDoc(doc(db, 'scheduleSnapshots', snapshotId), {
@@ -796,7 +796,10 @@ const App: React.FC = () => {
         });
         setSessionBaseline(deptId, d, dateAppts);
         clearDeletedSessionAppointments(deptId, d);
-      }
+      });
+
+      await Promise.all(savePromises);
+      clearAllSessionBaselines(deptId);
       alert('Đã lưu phiên bản chốt tất cả các ngày thành công! Tất cả nhật ký chỉnh sửa đã được làm sạch.');
     } catch (err) {
       console.error('Error saving schedule snapshot:', err);

@@ -76,6 +76,22 @@ export const getBaselineAppointments = (
   };
 };
 
+export const clearAllSessionBaselines = (deptId: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && (key.startsWith(`medflow_baseline_${deptId}_`) || key.startsWith(`medflow_deleted_${deptId}_`))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => sessionStorage.removeItem(k));
+  } catch (e) {
+    console.warn('Error clearing session baselines:', e);
+  }
+};
+
 export const getAllBaselineAppointments = (
   deptId: string,
   currentAppointments: Appointment[],
@@ -90,38 +106,40 @@ export const getAllBaselineAppointments = (
   let isExplicit = false;
   let latestSnapshot: ScheduleSnapshot | undefined;
 
-  // 1. Lấy tất cả các snapshot đã chốt trong CSDL cho các ngày
-  if (deptSnapshots.length > 0) {
-    isExplicit = true;
-    deptSnapshots.forEach(s => {
+  const currentDeptAppts = currentAppointments.filter(a => a.deptId === deptId);
+  const activeDatesSet = new Set<string>();
+  
+  // Collect active dates: present in current appointments
+  currentDeptAppts.forEach(a => activeDatesSet.add(a.date));
+
+  // Collect active dates from session modifications
+  if (typeof window !== 'undefined') {
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.startsWith(`medflow_baseline_${deptId}_`) || key.startsWith(`medflow_deleted_${deptId}_`))) {
+          const dStr = key.replace(`medflow_baseline_${deptId}_`, '').replace(`medflow_deleted_${deptId}_`, '');
+          if (dStr) activeDatesSet.add(dStr);
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 1. Get baseline snapshots ONLY for active dates
+  deptSnapshots.forEach(s => {
+    if (activeDatesSet.has(s.date)) {
+      isExplicit = true;
       if (Array.isArray(s.appointments)) {
         s.appointments.forEach(a => baselineApptsMap.set(a.id, a));
       }
       if (!latestSnapshot || (s.createdAt && s.createdAt > (latestSnapshot.createdAt || ''))) {
         latestSnapshot = s;
       }
-    });
-  }
+    }
+  });
 
-  // 2. Thu thập danh sách tất cả các ngày có trong lịch và session storage
-  const currentDeptAppts = currentAppointments.filter(a => a.deptId === deptId);
-  const datesSet = new Set<string>();
-  currentDeptAppts.forEach(a => datesSet.add(a.date));
-  deptSnapshots.forEach(s => datesSet.add(s.date));
-
-  if (typeof window !== 'undefined') {
-    try {
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && key.startsWith(`medflow_baseline_${deptId}_`)) {
-          const dStr = key.replace(`medflow_baseline_${deptId}_`, '');
-          if (dStr) datesSet.add(dStr);
-        }
-      }
-    } catch (e) {}
-  }
-
-  datesSet.forEach(dStr => {
+  // 2. For active dates without explicit snapshots, check session baseline
+  activeDatesSet.forEach(dStr => {
     const hasExplicit = deptSnapshots.some(s => s.date === dStr);
     if (!hasExplicit && typeof window !== 'undefined') {
       const sessionKey = `medflow_baseline_${deptId}_${dStr}`;
