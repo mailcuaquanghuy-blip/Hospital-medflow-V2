@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { History, X, CheckCircle2, RotateCcw, Check, Sparkles, ShieldCheck, Calendar, Globe } from 'lucide-react';
+import { History, X, CheckCircle2, RotateCcw, Check, Sparkles, ShieldCheck, Calendar } from 'lucide-react';
 import { Department, Appointment, ScheduleSnapshot } from '../types';
 import { DeviationItem, formatDateVi } from '../utils/scheduleHistoryUtils';
 
@@ -12,6 +12,7 @@ interface ScheduleHistoryModalProps {
   isExplicitSnapshot: boolean;
   snapshotInfo?: ScheduleSnapshot;
   onSaveSnapshot?: () => Promise<void> | void;
+  onSaveAllSnapshots?: () => Promise<void> | void;
   isSavingSnapshot?: boolean;
   onUndoChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => Promise<void> | void;
 }
@@ -28,17 +29,15 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
   isSavingSnapshot = false,
   onUndoChange
 }) => {
-  const [dateFilterMode, setDateFilterMode] = useState<'CURRENT' | 'ALL'>('CURRENT');
   const [showAllItems, setShowAllItems] = useState(false);
 
   if (!isOpen) return null;
 
+  // Filter strictly to the current working date
   const currentDateDeviations = deviations.filter(d => d.date === currentDate);
-  const displayedDeviations = dateFilterMode === 'CURRENT' ? currentDateDeviations : deviations;
-  const isOver1000 = deviations.length >= 1000;
 
   const RENDER_LIMIT = 150;
-  const renderedList = showAllItems ? displayedDeviations : displayedDeviations.slice(0, RENDER_LIMIT);
+  const renderedList = showAllItems ? currentDateDeviations : currentDateDeviations.slice(0, RENDER_LIMIT);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
@@ -81,86 +80,27 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
           </button>
         </div>
 
-        {/* Filter Bar */}
-        <div className="px-6 pt-4 pb-2 bg-slate-50/30 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 rounded-2xl border border-slate-200">
-            <button
-              onClick={() => setDateFilterMode('CURRENT')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                dateFilterMode === 'CURRENT'
-                  ? 'bg-white text-emerald-700 shadow-xs border border-slate-200/60 font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Calendar size={14} className={dateFilterMode === 'CURRENT' ? 'text-emerald-600' : 'text-slate-400'} />
-              <span>Ngày hiện tại ({formatDateVi(currentDate)})</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                dateFilterMode === 'CURRENT' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-300 text-slate-700'
-              }`}>
-                {currentDateDeviations.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setDateFilterMode('ALL')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                dateFilterMode === 'ALL'
-                  ? 'bg-white text-emerald-700 shadow-xs border border-slate-200/60 font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Globe size={14} className={dateFilterMode === 'ALL' ? 'text-emerald-600' : 'text-slate-400'} />
-              <span>Tất cả các ngày</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                dateFilterMode === 'ALL' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-300 text-slate-700'
-              }`}>
-                {deviations.length}
-              </span>
-            </button>
+        {/* Info Sub-Header */}
+        <div className="px-6 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs font-extrabold text-slate-700">
+            <Calendar size={14} className="text-emerald-600" />
+            <span>Ngày làm việc: <span className="text-emerald-700">{formatDateVi(currentDate)}</span></span>
           </div>
-
-          <div className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
-            {dateFilterMode === 'CURRENT' ? `Lọc ngày ${formatDateVi(currentDate)}` : 'Hiển thị tất cả ngày'}
-          </div>
+          <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800">
+            {currentDateDeviations.length} biến động
+          </span>
         </div>
 
         {/* Content */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4">
-          {isOver1000 && onSaveSnapshot && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500 text-white rounded-xl font-black text-xs">
-                  ⚡ 1000+
-                </div>
-                <div>
-                  <p className="text-xs font-black text-amber-900">
-                    Phát hiện {deviations.length} biến động trên toàn hệ thống!
-                  </p>
-                  <p className="text-[11px] font-bold text-amber-700 mt-0.5">
-                    Hãy bấm chốt để làm sạch nhật ký và tăng tốc tải dữ liệu.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={onSaveSnapshot}
-                disabled={isSavingSnapshot}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm"
-              >
-                {isSavingSnapshot ? "Đang tự động chốt..." : "Chốt mốc ngay"}
-              </button>
-            </div>
-          )}
-
-          {displayedDeviations.length === 0 ? (
+          {currentDateDeviations.length === 0 ? (
             <div className="text-center py-12 px-4 space-y-4">
               <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-500">
                 <CheckCircle2 size={32} />
               </div>
               <div>
                 <h4 className="text-base font-extrabold text-slate-800">
-                  {dateFilterMode === 'CURRENT' 
-                    ? `Không có biến động nào trong ngày ${formatDateVi(currentDate)}!`
-                    : 'Không có biến động nào ở tất cả các ngày!'}
+                  Không có biến động nào trong ngày {formatDateVi(currentDate)}!
                 </h4>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
                   {isExplicitSnapshot 
@@ -176,8 +116,8 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs font-black text-slate-400 uppercase tracking-widest px-1">
                 <span>
-                  Lịch trình bị biến động ({displayedDeviations.length})
-                  {displayedDeviations.length > RENDER_LIMIT && !showAllItems && (
+                  Lịch trình bị biến động ({currentDateDeviations.length})
+                  {currentDateDeviations.length > RENDER_LIMIT && !showAllItems && (
                     <span className="normal-case font-extrabold text-amber-600 ml-2">
                       (Đang hiển thị {RENDER_LIMIT} mục đầu tiên)
                     </span>
@@ -197,8 +137,6 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
                     badgeText = "✗ Đã xóa";
                   }
 
-                  const isCurrentDay = dev.date === currentDate;
-
                   return (
                     <div key={dev.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                       <div className="space-y-1.5 flex-1 pr-4">
@@ -207,12 +145,8 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
                           <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeBg}`}>
                             {badgeText}
                           </span>
-                          <span className={`text-[10px] font-black tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 ${
-                            isCurrentDay 
-                              ? 'bg-emerald-100/90 text-emerald-800 border-emerald-300' 
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}>
-                            <Calendar size={11} /> Ngày: {formatDateVi(dev.date)} {isCurrentDay ? '(Hiện tại)' : ''}
+                          <span className="text-[10px] font-black tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 bg-emerald-100/90 text-emerald-800 border-emerald-300">
+                            <Calendar size={11} /> Ngày: {formatDateVi(dev.date)}
                           </span>
                         </div>
                         <div className="text-xs font-semibold text-slate-500">
@@ -238,13 +172,13 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
                 })}
               </div>
 
-              {displayedDeviations.length > RENDER_LIMIT && !showAllItems && (
+              {currentDateDeviations.length > RENDER_LIMIT && !showAllItems && (
                 <div className="pt-2 text-center">
                   <button
                     onClick={() => setShowAllItems(true)}
                     className="px-4 py-2 text-xs font-black text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all"
                   >
-                    Xem tất cả {displayedDeviations.length} biến động
+                    Xem tất cả {currentDateDeviations.length} biến động
                   </button>
                 </div>
               )}
@@ -255,35 +189,31 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
         {/* Footer */}
         <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between flex-wrap gap-3">
           <div className="text-xs font-bold uppercase tracking-wide">
-            {displayedDeviations.length > 0 ? (
+            {currentDateDeviations.length > 0 ? (
               <span className="text-amber-600 font-bold">
-                {dateFilterMode === 'CURRENT'
-                  ? `Có ${currentDateDeviations.length} lịch trình biến động ở ngày hiện tại (Tổng ${deviations.length} ở tất cả ngày)`
-                  : `Có ${deviations.length} lịch trình biến động trên toàn bộ các ngày`}
+                Có {currentDateDeviations.length} lịch trình biến động ở ngày hiện tại ({formatDateVi(currentDate)})
               </span>
             ) : (
               <span className="text-slate-400">
-                {dateFilterMode === 'CURRENT'
-                  ? `Ngày hiện tại ${formatDateVi(currentDate)} khớp hoàn toàn với bản chốt`
-                  : 'Tất cả các ngày khớp hoàn toàn với phiên bản chốt'}
+                Ngày hiện tại ({formatDateVi(currentDate)}) khớp hoàn toàn với bản chốt
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {onSaveSnapshot && (
               <button
                 onClick={onSaveSnapshot}
                 disabled={isSavingSnapshot}
-                className="flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-sky-200 disabled:opacity-50"
-                title="Lưu lại toàn bộ lịch trình hiện tại của tất cả các ngày làm mốc chốt chuẩn mới"
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-sky-200 disabled:opacity-50"
+                title={`Lưu mốc chốt cho ngày hiện tại (${formatDateVi(currentDate)})`}
               >
                 <Check size={15} />
-                <span>{isSavingSnapshot ? "Đang lưu..." : "Lưu chốt tất cả các ngày"}</span>
+                <span>{isSavingSnapshot ? "Đang lưu..." : `Chốt ngày ${formatDateVi(currentDate)}`}</span>
               </button>
             )}
             <button
               onClick={onClose}
-              className="px-6 py-2.5 bg-slate-800 text-white hover:bg-slate-900 active:scale-95 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
+              className="px-5 py-2.5 bg-slate-800 text-white hover:bg-slate-900 active:scale-95 rounded-2xl text-xs font-black uppercase tracking-widest transition-all"
             >
               Đóng
             </button>

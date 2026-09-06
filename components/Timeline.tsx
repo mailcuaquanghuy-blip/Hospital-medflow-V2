@@ -212,6 +212,7 @@ interface TimelineProps {
   };
   scheduleSnapshots?: ScheduleSnapshot[];
   onSaveScheduleSnapshot?: (deptId: string, date: string) => void;
+  onSaveAllScheduleSnapshots?: (deptId: string) => void;
   onUndoAppointmentChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => void;
 }
 
@@ -232,6 +233,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   initialFilters,
   scheduleSnapshots = [],
   onSaveScheduleSnapshot,
+  onSaveAllScheduleSnapshots,
   onUndoAppointmentChange,
 }) => {
   const pixelsPerMinute = 1.8;
@@ -307,12 +309,12 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   const baselineInfo = useMemo(() => {
     if (!currentDept) return { baselineAppts: [], isExplicitSnapshot: false, snapshotInfo: undefined };
-    return getAllBaselineAppointments(currentDept.id, appointments, scheduleSnapshots);
-  }, [currentDept, appointments, scheduleSnapshots]);
+    return getBaselineAppointments(currentDept.id, date, appointments, scheduleSnapshots);
+  }, [currentDept, date, appointments, scheduleSnapshots]);
 
   const deviations: DeviationItem[] = useMemo(() => {
     if (!currentDept) return [];
-    const deptAppts = appointments.filter(a => a.deptId === currentDept.id);
+    const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
     return calculateDeviations(deptAppts, baselineInfo.baselineAppts, patients, procedures, staff, currentDept.id, date);
   }, [appointments, baselineInfo, currentDept, date, patients, procedures, staff]);
 
@@ -1840,6 +1842,14 @@ export const Timeline: React.FC<TimelineProps> = ({
               await onSaveScheduleSnapshot(currentDept.id, date);
               const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === date);
               setSessionBaseline(currentDept.id, date, deptAppts);
+            } finally {
+              setIsSavingSnapshot(false);
+            }
+          } : undefined}
+          onSaveAllSnapshots={onSaveAllScheduleSnapshots ? async () => {
+            setIsSavingSnapshot(true);
+            try {
+              await onSaveAllScheduleSnapshots(currentDept.id);
             } finally {
               setIsSavingSnapshot(false);
             }
