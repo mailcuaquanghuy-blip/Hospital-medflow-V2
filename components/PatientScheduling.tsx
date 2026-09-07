@@ -323,32 +323,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const clinicalDepartments = DEPARTMENTS.filter(d => d.type === DepartmentType.CLINICAL);
   
   const visiblePatients = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
     const list = patients.filter(p => {
-      // Khi người dùng tìm kiếm theo tên, mã BN, giường, phòng, không lọc bỏ bệnh nhân đã ra viện
-      if (term) {
-        const matches = (p.name || '').toLowerCase().includes(term) ||
-                        (p.code || '').toLowerCase().includes(term) ||
-                        (p.bedNumber || '').toLowerCase().includes(term) ||
-                        (p.roomNumber && p.roomNumber.toLowerCase().includes(term));
-        if (!matches) return false;
-
-        if (currentDept.type === DepartmentType.CLINICAL) {
-          return p.admittedByDeptId === currentDept.id;
-        } else {
-          return p.admittedByDeptId === currentDept.id || (p.referrals?.some(r => {
-            const s = (r.specialty || '').toLowerCase().trim();
-            const dId = currentDept.id.toLowerCase().trim();
-            const dName = currentDept.name.toLowerCase().trim();
-            return s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
-                   (s.includes('phcn') && dId.includes('phcn')) ||
-                   (s.includes('cdha') && dId.includes('cdha')) ||
-                   (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
-                   (s.includes('duoc') && dId.includes('duoc'));
-          }) ?? false);
-        }
-      }
-
       // Bệnh nhân chưa vào viện vào thời điểm currentDate
       const admissionDateStr = getLocalDateString(p.admissionDate);
       if (currentDate < admissionDateStr) return false;
@@ -445,7 +420,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     });
 
     return list;
-  }, [patients, currentDept, currentDate, showDischarged, searchTerm]);
+  }, [patients, currentDept, currentDate, showDischarged]);
 
   const filteredPatients = visiblePatients.filter(p => {
     const term = searchTerm.trim().toLowerCase();
