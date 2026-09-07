@@ -15,17 +15,25 @@ import { db, doc, setDoc } from '../utils/dbService';
 
 const getLocalDateString = (isoStr: string | null | undefined): string => {
   if (!isoStr) return '';
-  if (!isoStr.includes('T')) {
-    return isoStr.split(' ')[0] || '';
+  const trimmed = isoStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(d);
+    } catch {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
   }
-  const d = new Date(isoStr);
-  if (isNaN(d.getTime())) {
-    return isoStr.split('T')[0] || '';
-  }
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return trimmed.split('T')[0] || trimmed.split(' ')[0] || '';
 };
 
 type SortField = 'NAME' | 'GENDER' | 'AGE' | 'DEPT' | 'BHYT' | 'ROOM' | 'BED' | 'BED_TYPE' | 'ADMISSION' | 'DISCHARGE';
@@ -498,7 +506,47 @@ export const PatientList: React.FC<PatientListProps> = ({
   }, [patients, activeDate, currentDept]);
 
   const filteredPatients = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
     return patients.filter(p => {
+      // Khi người dùng nhập từ khóa tìm kiếm (theo tên, mã BN, số giường, phòng),
+      // ưu tiên tìm kiếm xuyên suốt toàn khoa để người dùng luôn tìm thấy hồ sơ cần sửa/xem
+      if (term) {
+        const matchesSearch = (p.name || '').toLowerCase().includes(term) || 
+                              (p.code || '').toLowerCase().includes(term) ||
+                              (p.bedNumber || '').toLowerCase().includes(term) ||
+                              (p.roomNumber && p.roomNumber.toLowerCase().includes(term));
+        if (!matchesSearch) return false;
+
+        let belongsToDept = false;
+        if (currentDept.type === DepartmentType.CLINICAL) {
+          belongsToDept = p.admittedByDeptId === currentDept.id;
+        } else {
+          belongsToDept = p.admittedByDeptId === currentDept.id || (p.referrals?.some(r => {
+            const s = (r.specialty || '').toLowerCase().trim();
+            const dId = currentDept.id.toLowerCase().trim();
+            const dName = currentDept.name.toLowerCase().trim();
+            return s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
+                   (s.includes('phcn') && dId.includes('phcn')) ||
+                   (s.includes('cdha') && dId.includes('cdha')) ||
+                   (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
+                   (s.includes('duoc') && dId.includes('duoc'));
+          }) ?? false);
+        }
+        if (!belongsToDept) return false;
+
+        const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
+        if (!matchesBedType) return false;
+
+        const matchesInsurance = insuranceFilter === 'ALL' || (p.insuranceLevel || '100%') === insuranceFilter;
+        if (!matchesInsurance) return false;
+
+        const matchesDeptFilter = referringDeptFilter === 'ALL' || p.admittedByDeptId === referringDeptFilter;
+        if (!matchesDeptFilter) return false;
+
+        return true;
+      }
+
       // 1. Bệnh nhân chưa vào viện vào thời điểm activeDate
       const admissionDateStr = getLocalDateString(p.admissionDate);
       if (activeDate < admissionDateStr) return false;
@@ -594,7 +642,6 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       if (!isVisible) return false;
 
-      const term = searchTerm.trim().toLowerCase();
       const matchesSearch = !term || (p.name || '').toLowerCase().includes(term) || (p.code || '').toLowerCase().includes(term);
       if (!matchesSearch) return false;
 

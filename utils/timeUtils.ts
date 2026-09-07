@@ -57,10 +57,19 @@ export const getLocalDateString = (isoStr: string | null | undefined): string =>
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
   const d = new Date(trimmed);
   if (!isNaN(d.getTime())) {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(d);
+    } catch {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
   }
   return trimmed.split('T')[0] || trimmed.split(' ')[0] || '';
 };
@@ -71,7 +80,19 @@ export const getLocalTimeMinutes = (isoStr: string | null | undefined): number |
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
   const d = new Date(trimmed);
   if (!isNaN(d.getTime())) {
-    return d.getHours() * 60 + d.getMinutes();
+    try {
+      const timeParts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(d).split(':');
+      const h = parseInt(timeParts[0], 10);
+      const m = parseInt(timeParts[1], 10);
+      if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+    } catch {
+      return d.getHours() * 60 + d.getMinutes();
+    }
   }
   const timePart = trimmed.includes('T') ? trimmed.split('T')[1] : (trimmed.includes(' ') ? trimmed.split(' ')[1] : '');
   if (timePart) {
