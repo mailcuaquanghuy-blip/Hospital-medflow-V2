@@ -409,6 +409,50 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     return list;
   }, [patients, currentDept, currentDate, showDischarged]);
 
+  const allDynamicConflicts = useMemo(() => {
+    const conflicts = new Map<string, ConflictDetail[]>();
+    appointments.forEach(a => {
+      if (a.date === currentDate) {
+        const res = checkConflict(
+          a.startTime,
+          a.endTime,
+          a.date,
+          a.staffId,
+          a.patientId,
+          appointments,
+          staff,
+          procedures,
+          attendanceRecords,
+          patients,
+          a.procedureId,
+          a.id,
+          a.assistant1Id,
+          a.assistant2Id,
+          a
+        );
+        if (res.conflictDetails.length > 0) {
+          conflicts.set(a.id, res.conflictDetails);
+        }
+      }
+    });
+    return conflicts;
+  }, [appointments, currentDate, staff, procedures, attendanceRecords, patients]);
+
+  const patientIdsWithIssues = useMemo(() => {
+    const issuePatients = new Set<string>();
+    appointments.forEach(a => {
+      if (a.date === currentDate) {
+        const hasConflict = allDynamicConflicts.has(a.id) && allDynamicConflicts.get(a.id)!.some(c => c.level === 1);
+        const hasWarning = allDynamicConflicts.has(a.id) && allDynamicConflicts.get(a.id)!.some(c => c.level === 2);
+
+        if (hasConflict || hasWarning) {
+          issuePatients.add(a.patientId);
+        }
+      }
+    });
+    return issuePatients;
+  }, [appointments, currentDate, allDynamicConflicts]);
+
   const filteredPatients = visiblePatients.filter(p => {
     const term = searchTerm.trim().toLowerCase();
     const matchesSearch = !term || 
@@ -426,10 +470,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     const matchesStaff = staffFilter === 'ALL' || patientAppts.some(a => a.staffId === staffFilter || a.assistant1Id === staffFilter || a.assistant2Id === staffFilter);
     const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
     
-    const hasConflictAppt = patientAppts.some(a => {
-        const conflicts = checkConflict(a.startTime, a.endTime, a.date, a.staffId, a.patientId, appointments, staff, procedures, attendanceRecords, patients, a.procedureId, a.id, a.assistant1Id, a.assistant2Id, a);
-        return conflicts.hasConflict && conflicts.conflictDetails.some(c => c.level === 1);
-    });
+    const hasConflictAppt = patientIdsWithIssues.has(p.id);
     const matchesConflict = !showConflictedOnly || hasConflictAppt;
     
     // Fix: Discharged patients should be visible if showDischarged is true, even if they are "scheduled"
@@ -474,52 +515,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     }
     return 0;
   });
-
-  const allDynamicConflicts = useMemo(() => {
-    const conflicts = new Map<string, ConflictDetail[]>();
-    appointments.forEach(a => {
-      if (a.date === currentDate) {
-        const res = checkConflict(
-          a.startTime,
-          a.endTime,
-          a.date,
-          a.staffId,
-          a.patientId,
-          appointments,
-          staff,
-          procedures,
-          attendanceRecords,
-          patients,
-          a.procedureId,
-          a.id,
-          a.assistant1Id,
-          a.assistant2Id,
-          a
-        );
-        if (res.conflictDetails.length > 0) {
-          conflicts.set(a.id, res.conflictDetails);
-        }
-      }
-    });
-    return conflicts;
-  }, [appointments, currentDate, staff, procedures, attendanceRecords, patients]);
-
-  const patientIdsWithIssues = useMemo(() => {
-    const issuePatients = new Set<string>();
-    appointments.forEach(a => {
-      if (a.date === currentDate) {
-        const startMin = timeStringToMinutes(a.startTime);
-        const endMin = timeStringToMinutes(a.endTime);
-        const hasConflict = allDynamicConflicts.has(a.id) && allDynamicConflicts.get(a.id)!.some(c => c.level === 1);
-        const hasWarning = allDynamicConflicts.has(a.id) && allDynamicConflicts.get(a.id)!.some(c => c.level === 2);
-
-        if (hasConflict || hasWarning) {
-          issuePatients.add(a.patientId);
-        }
-      }
-    });
-    return issuePatients;
-  }, [appointments, currentDate, staff, allDynamicConflicts]);
 
   const noProcedureCount = useMemo(() => {
     return visiblePatients.filter(p => !appointments.some(a => a.patientId === p.id && a.date === currentDate)).length;
