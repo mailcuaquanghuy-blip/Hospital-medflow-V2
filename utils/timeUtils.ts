@@ -835,7 +835,7 @@ export const findAvailableSlot = (
               const level1Conflict = res.conflictDetails.find(c => c.level === 1);
               if (level1Conflict) firstConflictReason = level1Conflict.message;
           }
-          currentMin += 1;
+          currentMin += 5;
       }
     }
 
@@ -929,7 +929,7 @@ export const getAvailableTimeBlocks = (
                     currentBlockEnd = null;
                 }
             }
-            currentMin += 1;
+            currentMin += 5;
         }
 
         if (currentBlockStart && currentBlockEnd) {

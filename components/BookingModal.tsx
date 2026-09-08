@@ -374,35 +374,82 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return currentProc?.allowSameAssistant || false;
   }, [formData.allowSameAssistant, currentProc, formData.selectedDurationOptionId]);
 
+  const assistant1StatusMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    if (!formData.startTime || !formData.date || !formData.procedureId) return map;
+    const basePayload = { ...formData, allowSameAssistant: allowSameAsst };
+    for (const s of eligibleAssistants) {
+      const asst2ToCheck = allowSameAsst ? s.id : formData.assistant2Id;
+      const res = checkConflict(
+        formData.startTime!, 
+        formData.endTime!, 
+        formData.date!, 
+        formData.staffId || 'temp', 
+        formData.patientId, 
+        appointments, 
+        staff, 
+        procedures, 
+        attendanceRecords, 
+        patients, 
+        formData.procedureId, 
+        formData.id, 
+        s.id, 
+        asst2ToCheck, 
+        basePayload
+      );
+      map.set(s.id, !res.hasConflict);
+    }
+    return map;
+  }, [eligibleAssistants, formData.staffId, formData.assistant2Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients, formData.patientId, formData.id]);
+
   const sortedAssistants1 = useMemo(() => {
     const list = eligibleAssistants.filter(s => s.id !== formData.staffId && (allowSameAsst || s.id !== formData.assistant2Id));
     if (!formData.startTime || !formData.date) return list;
     
     return [...list].sort((a, b) => {
-      const aAsst2 = allowSameAsst ? a.id : formData.assistant2Id;
-      const bAsst2 = allowSameAsst ? b.id : formData.assistant2Id;
-      const aConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, a.id, aAsst2, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
-      const bConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, b.id, bAsst2, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
-      
-      if (!aConflict && bConflict) return -1;
-      if (aConflict && !bConflict) return 1;
-      return 0;
+      const aOk = assistant1StatusMap.get(a.id) ? 1 : 0;
+      const bOk = assistant1StatusMap.get(b.id) ? 1 : 0;
+      return bOk - aOk;
     });
-  }, [eligibleAssistants, formData.staffId, formData.assistant2Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients, formData]);
+  }, [eligibleAssistants, formData.staffId, formData.assistant2Id, formData.startTime, formData.date, allowSameAsst, assistant1StatusMap]);
+
+  const assistant2StatusMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    if (!formData.startTime || !formData.date || !formData.procedureId) return map;
+    const basePayload = { ...formData, allowSameAssistant: allowSameAsst };
+    for (const s of eligibleAssistants) {
+      const res = checkConflict(
+        formData.startTime!, 
+        formData.endTime!, 
+        formData.date!, 
+        formData.staffId || 'temp', 
+        formData.patientId, 
+        appointments, 
+        staff, 
+        procedures, 
+        attendanceRecords, 
+        patients, 
+        formData.procedureId, 
+        formData.id, 
+        formData.assistant1Id, 
+        s.id, 
+        basePayload
+      );
+      map.set(s.id, !res.hasConflict);
+    }
+    return map;
+  }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients, formData.patientId, formData.id]);
 
   const sortedAssistants2 = useMemo(() => {
     const list = eligibleAssistants.filter(s => s.id !== formData.staffId && (allowSameAsst || s.id !== formData.assistant1Id));
     if (!formData.startTime || !formData.date) return list;
 
     return [...list].sort((a, b) => {
-      const aConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, a.id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
-      const bConflict = checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, b.id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
-      
-      if (!aConflict && bConflict) return -1;
-      if (aConflict && !bConflict) return 1;
-      return 0;
+      const aOk = assistant2StatusMap.get(a.id) ? 1 : 0;
+      const bOk = assistant2StatusMap.get(b.id) ? 1 : 0;
+      return bOk - aOk;
     });
-  }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients, formData]);
+  }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.date, allowSameAsst, assistant2StatusMap]);
 
   const availableTimeData = useMemo(() => {
     if (!formData.date || !currentProc || !formData.staffId) return { blocks: [], reason: null };
@@ -1533,8 +1580,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 >
                                   <option value="">-- Chọn người phụ 1 --</option>
                                   {sortedAssistants1.map(s => {
-                                    const asst2ToCheck = allowSameAsst ? s.id : formData.assistant2Id;
-                                    const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, s.id, asst2ToCheck, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
+                                    const hasNoConflict = assistant1StatusMap.get(s.id);
                                     let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}
@@ -1564,7 +1610,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 >
                                   <option value="">{allowSameAsst ? '-- Tự động đồng bộ Người phụ 1 --' : '-- Chọn người phụ 2 --'}</option>
                                   {sortedAssistants2.map(s => {
-                                    const hasNoConflict = formData.startTime && formData.date && !checkConflict(formData.startTime!, formData.endTime!, formData.date!, formData.staffId || 'temp', formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.procedureId, formData.id, formData.assistant1Id, s.id, { ...formData, allowSameAssistant: allowSameAsst }).hasConflict;
+                                    const hasNoConflict = assistant2StatusMap.get(s.id);
                                     let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}
@@ -1694,30 +1740,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                     key={idx} 
                                     type="button" 
                                     onClick={() => {
-                                      // Find a machine that is free in this specific block
-                                      const res = checkConflict(
-                                        block.start, 
-                                        end, 
-                                        formData.date!, 
-                                        formData.staffId!, 
-                                        formData.patientId, 
-                                        appointments, 
-                                        staff, 
-                                        procedures, 
-                                        attendanceRecords, 
-                                        patients, 
-                                        formData.procedureId, 
-                                        formData.id, 
-                                        formData.assistant1Id, 
-                                        formData.assistant2Id, 
-                                        { ...formData, startTime: block.start, endTime: end, assignedMachineId: undefined }
-                                      );
-                                      
                                       setFormData(prev => ({ 
                                         ...prev, 
                                         startTime: block.start, 
-                                        endTime: end, 
-                                        assignedMachineId: res.assignedMachineId || prev.assignedMachineId 
+                                        endTime: end 
                                       }));
                                       setHasManuallySelectedTime(true);
                                     }} 

@@ -265,7 +265,8 @@ export const calculateDeviations = (
   procedures: Procedure[],
   staff: Staff[],
   deptId?: string,
-  date?: string
+  date?: string,
+  isExplicitSnapshot: boolean = false
 ): DeviationItem[] => {
   const baselineMap = new Map<string, Appointment>();
   baselineAppts.forEach(a => baselineMap.set(a.id, a));
@@ -367,29 +368,32 @@ export const calculateDeviations = (
     }
   });
 
-  // 3. Kiểm tra các lịch trình xóa thêm trong phiên
-  const targetDeptId = deptId || currentDeptAppts[0]?.deptId || baselineAppts[0]?.deptId;
-  if (targetDeptId) {
-    const deletedSession = date ? getDeletedSessionAppointments(targetDeptId, date) : getAllDeletedSessionAppointments(targetDeptId);
-    deletedSession.forEach(delAppt => {
-      if ((!date || delAppt.date === date) && !currentMap.has(delAppt.id) && !list.some(item => item.id === delAppt.id)) {
-        const patient = patients.find(p => p.id === delAppt.patientId);
-        const patientName = patient?.name || 'Bệnh nhân không rõ';
-        const proc = procedures.find(p => p.id === delAppt.procedureId);
-        const procedureName = proc?.name || 'Lịch trình không rõ';
+  // 3. Kiểm tra các lịch trình xóa thêm trong phiên (chỉ áp dụng khi không có bản chốt chuẩn explicit snapshot)
+  // Khi đã có bản chốt chuẩn (explicit snapshot), baselineAppts là nguồn chuẩn xác duy nhất
+  if (!isExplicitSnapshot) {
+    const targetDeptId = deptId || currentDeptAppts[0]?.deptId || baselineAppts[0]?.deptId;
+    if (targetDeptId) {
+      const deletedSession = date ? getDeletedSessionAppointments(targetDeptId, date) : getAllDeletedSessionAppointments(targetDeptId);
+      deletedSession.forEach(delAppt => {
+        if ((!date || delAppt.date === date) && !currentMap.has(delAppt.id) && !list.some(item => item.id === delAppt.id)) {
+          const patient = patients.find(p => p.id === delAppt.patientId);
+          const patientName = patient?.name || 'Bệnh nhân không rõ';
+          const proc = procedures.find(p => p.id === delAppt.procedureId);
+          const procedureName = proc?.name || 'Lịch trình không rõ';
 
-        list.push({
-          id: delAppt.id,
-          patientId: delAppt.patientId,
-          patientName,
-          procedureName,
-          type: 'DELETED',
-          changeDetails: `Đã xóa lịch trình ngày ${formatDateVi(delAppt.date)} (${delAppt.startTime} - BS: ${staff.find(s => s.id === delAppt.staffId)?.name || 'Không rõ'})`,
-          originalAppt: delAppt,
-          date: delAppt.date
-        });
-      }
-    });
+          list.push({
+            id: delAppt.id,
+            patientId: delAppt.patientId,
+            patientName,
+            procedureName,
+            type: 'DELETED',
+            changeDetails: `Đã xóa lịch trình ngày ${formatDateVi(delAppt.date)} (${delAppt.startTime} - BS: ${staff.find(s => s.id === delAppt.staffId)?.name || 'Không rõ'})`,
+            originalAppt: delAppt,
+            date: delAppt.date
+          });
+        }
+      });
+    }
   }
 
   return list;

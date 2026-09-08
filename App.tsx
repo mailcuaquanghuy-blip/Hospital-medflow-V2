@@ -113,7 +113,7 @@ const App: React.FC = () => {
   const [scheduleSnapshots, setScheduleSnapshots] = useState<ScheduleSnapshot[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('medflow_schedule_snapshots');
+        const saved = localStorage.getItem('medflow_schedule_snapshots') || localStorage.getItem('medflow_local_schedule_snapshots');
         if (saved) return JSON.parse(saved);
       } catch (e) {}
     }
@@ -268,14 +268,25 @@ const App: React.FC = () => {
         case 'scheduleSnapshots':
         case 'schedule_snapshots':
           setScheduleSnapshots(prev => {
-            if (action === 'delete') return prev.filter(item => item.id !== docId);
-            const idx = prev.findIndex(item => item.id === docId);
-            if (idx > -1) {
-              const copy = [...prev];
-              copy[idx] = { ...copy[idx], ...data };
-              return copy;
+            let updated: ScheduleSnapshot[];
+            if (action === 'delete') {
+              updated = prev.filter(item => item.id !== docId);
+            } else {
+              const idx = prev.findIndex(item => item.id === docId);
+              if (idx > -1) {
+                const copy = [...prev];
+                copy[idx] = { ...copy[idx], ...data };
+                updated = copy;
+              } else {
+                updated = [...prev, data];
+              }
             }
-            return [...prev, data];
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+              } catch (e) {}
+            }
+            return updated;
           });
           break;
         default:
@@ -380,11 +391,18 @@ const App: React.FC = () => {
             fetchSupabaseTable<MachineShift>('machine_shifts'),
             fetchSupabaseTable<AppointmentTemplate>('templates'),
             fetchSupabaseTable<UserAccount>('users'),
-            fetchSupabaseTable<ScheduleSnapshot>('schedule_snapshots').then(res => res || fetchSupabaseTable<ScheduleSnapshot>('scheduleSnapshots')),
+            fetchSupabaseTable<ScheduleSnapshot>('schedule_snapshots').then(res => (res && res.length > 0) ? res : fetchSupabaseTable<ScheduleSnapshot>('scheduleSnapshots')),
             fetchSupabaseTable<Backup>('backups')
           ]);
           if (pats) setPatients(pats);
-          if (appts) setAppointments(appts);
+          if (appts) {
+            setAppointments(prev => {
+              if (!prev || prev.length === 0) return appts;
+              const serverIds = new Set(appts.map(a => a.id));
+              const localOnly = prev.filter(local => !serverIds.has(local.id));
+              return [...appts, ...localOnly];
+            });
+          }
           if (stf) setStaff(stf);
           if (procs) setProcedures(procs);
           if (att) setAttendanceRecords(att);
@@ -397,7 +415,32 @@ const App: React.FC = () => {
             setTemplates(sanitizedTpls);
           }
           if (usrs && usrs.length > 0) setUsers(usrs);
-          if (snapshots) setScheduleSnapshots(snapshots);
+          if (snapshots && snapshots.length > 0) {
+            setScheduleSnapshots(prev => {
+              const serverMap = new Map(snapshots.map(s => [s.id, s]));
+              const localOnly = prev.filter(local => !serverMap.has(local.id));
+              const merged = [...snapshots, ...localOnly];
+              if (typeof window !== 'undefined') {
+                try {
+                  localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(merged));
+                } catch (e) {}
+              }
+              return merged;
+            });
+          } else {
+            // Restore from localStorage if server snapshots were empty
+            if (typeof window !== 'undefined') {
+              try {
+                const local = localStorage.getItem('medflow_schedule_snapshots') || localStorage.getItem('medflow_local_schedule_snapshots');
+                if (local) {
+                  const parsed = JSON.parse(local);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    setScheduleSnapshots(parsed);
+                  }
+                }
+              } catch (e) {}
+            }
+          }
           if (bkps) setBackups(bkps);
 
           setLoadedCollections({
@@ -698,9 +741,6 @@ const App: React.FC = () => {
     });
 
     try {
-      if (isSupabaseConfigured()) {
-        await saveSupabaseItem('appointments', id, baseAppt as Appointment);
-      }
       if (db) {
         await setDoc(doc(db, "appointments", id), baseAppt as Appointment);
       }
@@ -801,54 +841,8 @@ const App: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const autoSaveScheduleSnapshotForDate = (deptId: string, dateStr: string) => {
-    if (!deptId || !dateStr) return;
-    try {
-      const deptAppts = appointments.filter(a => a.deptId === deptId && a.date === dateStr);
-      const snapshotId = `${deptId}_${dateStr}`;
-      const snapObj: ScheduleSnapshot = {
-        id: snapshotId,
-        deptId,
-        date: dateStr,
-        createdAt: new Date().toISOString(),
-        createdBy: currentUser?.fullName || 'Tự động lưu khi chuyển ngày',
-        appointments: deptAppts
-      };
-
-      setScheduleSnapshots(prev => {
-        const filtered = prev.filter(s => !(s.deptId === deptId && s.date === dateStr));
-        const updated = [...filtered, snapObj];
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
-          } catch (e) {}
-        }
-        return updated;
-      });
-
-      setSessionBaseline(deptId, dateStr, deptAppts);
-      clearDeletedSessionAppointments(deptId, dateStr);
-
-      if (db) {
-        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(err => {
-          console.warn('Error auto saving schedule snapshot to Firestore:', err);
-        });
-      }
-      if (isSupabaseConfigured()) {
-        saveSupabaseItem('schedule_snapshots', snapshotId, snapObj).catch(err => {
-          console.warn('Error auto saving schedule snapshot to Supabase:', err);
-        });
-      }
-    } catch (err) {
-      console.error('Error auto-saving schedule snapshot on date change:', err);
-    }
-  };
-
   const handleDateChange = (newDate: string) => {
     if (!newDate || newDate === activeDate) return;
-    if (currentDept && activeDate) {
-      autoSaveScheduleSnapshotForDate(currentDept.id, activeDate);
-    }
     setActiveDate(newDate);
   };
 
@@ -862,7 +856,7 @@ const App: React.FC = () => {
         date: dateStr,
         createdAt: new Date().toISOString(),
         createdBy: currentUser?.fullName || 'Hệ thống',
-        appointments: deptAppts
+        appointments: JSON.parse(JSON.stringify(deptAppts))
       };
 
       if (db) {
@@ -881,6 +875,7 @@ const App: React.FC = () => {
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
           } catch (e) {}
         }
         return updated;
@@ -926,7 +921,7 @@ const App: React.FC = () => {
           date: d,
           createdAt: new Date().toISOString(),
           createdBy: currentUser?.fullName || 'Hệ thống',
-          appointments: dateAppts
+          appointments: JSON.parse(JSON.stringify(dateAppts))
         };
         newSnapshots.push(snapObj);
 
@@ -949,6 +944,7 @@ const App: React.FC = () => {
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
           } catch (e) {}
         }
         return updated;
@@ -964,16 +960,6 @@ const App: React.FC = () => {
       }
     }
   };
-
-  useEffect(() => {
-    if (loadedCollections.appointments && loadedCollections.scheduleSnapshots && currentDept) {
-      const lockKey = `medflow_all_dates_init_locked_${currentDept.id}_v3`;
-      if (!sessionStorage.getItem(lockKey)) {
-        sessionStorage.setItem(lockKey, 'true');
-        handleSaveAllScheduleSnapshots(currentDept.id, true);
-      }
-    }
-  }, [loadedCollections.appointments, loadedCollections.scheduleSnapshots, currentDept]);
 
   const handleUndoAppointmentChange = async (
     apptId: string,
@@ -1028,9 +1014,6 @@ const App: React.FC = () => {
     setAppointments(prev => prev.map(a => a.id === updatedAppt.id ? (finalAppt as Appointment) : a));
 
     try {
-      if (isSupabaseConfigured()) {
-        await saveSupabaseItem('appointments', updatedAppt.id, finalAppt as Appointment);
-      }
       if (db) {
         await setDoc(doc(db, "appointments", updatedAppt.id), finalAppt as Appointment);
       }
@@ -1058,13 +1041,10 @@ const App: React.FC = () => {
     setAppointments(prev => prev.filter(a => a.id !== apptId));
 
     try {
-      if (isSupabaseConfigured()) {
-        await deleteSupabaseItem('appointments', apptId);
-      }
       if (db) {
         await deleteDoc(doc(db, "appointments", apptId));
       }
-    } catch (error) {
+    } catch (error) { 
       console.error("Error deleting appointment:", error);
     }
   };

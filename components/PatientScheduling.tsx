@@ -213,7 +213,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
   const deviations: DeviationItem[] = useMemo(() => {
     const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === currentDate);
-    return calculateDeviations(deptAppts, baselineInfo.baselineAppts, patients, procedures, staff, currentDept.id, currentDate);
+    return calculateDeviations(deptAppts, baselineInfo.baselineAppts, patients, procedures, staff, currentDept.id, currentDate, baselineInfo.isExplicitSnapshot);
   }, [appointments, baselineInfo, currentDept.id, currentDate, patients, procedures, staff]);
 
   const [isSaveTemplateModalOpen, setIsSaveTemplateModalOpen] = useState(false);
