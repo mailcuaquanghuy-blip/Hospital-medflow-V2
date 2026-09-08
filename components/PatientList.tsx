@@ -509,44 +509,6 @@ export const PatientList: React.FC<PatientListProps> = ({
     const term = searchTerm.trim().toLowerCase();
 
     return patients.filter(p => {
-      // Khi người dùng nhập từ khóa tìm kiếm (theo tên, mã BN, số giường, phòng),
-      // ưu tiên tìm kiếm xuyên suốt toàn khoa để người dùng luôn tìm thấy hồ sơ cần sửa/xem
-      if (term) {
-        const matchesSearch = (p.name || '').toLowerCase().includes(term) || 
-                              (p.code || '').toLowerCase().includes(term) ||
-                              (p.bedNumber || '').toLowerCase().includes(term) ||
-                              (p.roomNumber && p.roomNumber.toLowerCase().includes(term));
-        if (!matchesSearch) return false;
-
-        let belongsToDept = false;
-        if (currentDept.type === DepartmentType.CLINICAL) {
-          belongsToDept = p.admittedByDeptId === currentDept.id;
-        } else {
-          belongsToDept = p.admittedByDeptId === currentDept.id || (p.referrals?.some(r => {
-            const s = (r.specialty || '').toLowerCase().trim();
-            const dId = currentDept.id.toLowerCase().trim();
-            const dName = currentDept.name.toLowerCase().trim();
-            return s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
-                   (s.includes('phcn') && dId.includes('phcn')) ||
-                   (s.includes('cdha') && dId.includes('cdha')) ||
-                   (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
-                   (s.includes('duoc') && dId.includes('duoc'));
-          }) ?? false);
-        }
-        if (!belongsToDept) return false;
-
-        const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
-        if (!matchesBedType) return false;
-
-        const matchesInsurance = insuranceFilter === 'ALL' || (p.insuranceLevel || '100%') === insuranceFilter;
-        if (!matchesInsurance) return false;
-
-        const matchesDeptFilter = referringDeptFilter === 'ALL' || p.admittedByDeptId === referringDeptFilter;
-        if (!matchesDeptFilter) return false;
-
-        return true;
-      }
-
       // 1. Bệnh nhân chưa vào viện vào thời điểm activeDate
       const admissionDateStr = getLocalDateString(p.admissionDate);
       if (activeDate < admissionDateStr) return false;
@@ -642,7 +604,11 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       if (!isVisible) return false;
 
-      const matchesSearch = !term || (p.name || '').toLowerCase().includes(term) || (p.code || '').toLowerCase().includes(term);
+      const matchesSearch = !term || 
+                            (p.name || '').toLowerCase().includes(term) || 
+                            (p.code || '').toLowerCase().includes(term) ||
+                            (p.bedNumber || '').toLowerCase().includes(term) ||
+                            (p.roomNumber && p.roomNumber.toLowerCase().includes(term));
       if (!matchesSearch) return false;
 
       const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
