@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Patient, Appointment, Procedure, Staff, AppointmentStatus, PatientStatus, Department, DepartmentType, UserAccount, UserRole, AttendanceRecord, ConflictDetail, AppointmentTemplate, TemplateProcedure, AttendanceStatus, MachineShift, ScheduleSnapshot } from '../types';
 import { Button } from './Button';
-import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut } from 'lucide-react';
+import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut, BookmarkCheck, Loader2 } from 'lucide-react';
 
 import { calculateAge, timeStringToMinutes, minutesToPixels, minutesToTimeString, addMinutesToTime, isInsideOfficeHours, checkConflict, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
 import { CopyRangeModal } from './CopyRangeModal';
@@ -1456,6 +1456,22 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
               </span>
             )}
           </button>
+
+          {/* Vách ngăn */}
+          {onSaveScheduleSnapshot && <div className="w-px h-5 bg-amber-200/80 mx-0.5" />}
+
+          {/* Nút Lưu phiên bản (Chốt) */}
+          {onSaveScheduleSnapshot && (
+            <button 
+              type="button"
+              onClick={handleSaveSnapshot} 
+              disabled={isSavingVersion}
+              className="relative flex items-center justify-center w-9 h-9 rounded-xl text-sky-700 hover:bg-sky-100/90 transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50"
+              title="Lưu lại phiên bản chốt hiện tại làm mốc so sánh biến động"
+            >
+              {isSavingVersion ? <Loader2 size={16} className="animate-spin text-sky-600" /> : <BookmarkCheck size={16} className="text-sky-600" />}
+            </button>
+          )}
         </div>
       </div>
 

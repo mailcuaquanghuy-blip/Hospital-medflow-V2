@@ -110,7 +110,15 @@ const App: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [backups, setBackups] = useState<Backup[]>([]);
-  const [scheduleSnapshots, setScheduleSnapshots] = useState<ScheduleSnapshot[]>([]);
+  const [scheduleSnapshots, setScheduleSnapshots] = useState<ScheduleSnapshot[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('medflow_schedule_snapshots');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [];
+  });
   const [undoData, setUndoData] = useState<Appointment[] | null>(null);
   
   // Ref to throttle rapid database reloads (preventing lag & state overwrites during focus events)
@@ -809,7 +817,13 @@ const App: React.FC = () => {
 
       setScheduleSnapshots(prev => {
         const filtered = prev.filter(s => !(s.deptId === deptId && s.date === dateStr));
-        return [...filtered, snapObj];
+        const updated = [...filtered, snapObj];
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+          } catch (e) {}
+        }
+        return updated;
       });
 
       setSessionBaseline(deptId, dateStr, deptAppts);
@@ -863,7 +877,13 @@ const App: React.FC = () => {
 
       setScheduleSnapshots(prev => {
         const filtered = prev.filter(s => !(s.deptId === deptId && s.date === dateStr));
-        return [...filtered, snapObj];
+        const updated = [...filtered, snapObj];
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+          } catch (e) {}
+        }
+        return updated;
       });
 
       alert(`Đã lưu chốt mốc phiên bản ngày ${formatDateVi(dateStr)} thành công!`);
@@ -873,7 +893,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveAllScheduleSnapshots = async (deptId: string) => {
+  const handleSaveAllScheduleSnapshots = async (deptId: string, silent: boolean = false) => {
     try {
       const deptAppts = appointments.filter(a => a.deptId === deptId);
       const uniqueDates = new Set<string>();
@@ -925,13 +945,23 @@ const App: React.FC = () => {
 
       setScheduleSnapshots(prev => {
         const filtered = prev.filter(s => s.deptId !== deptId || !uniqueDates.has(s.date));
-        return [...filtered, ...newSnapshots];
+        const updated = [...filtered, ...newSnapshots];
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+          } catch (e) {}
+        }
+        return updated;
       });
 
-      alert('Đã chốt phiên bản hiện có ở tất cả các ngày thành công!');
+      if (!silent) {
+        alert('Đã chốt phiên bản hiện có ở tất cả các ngày thành công!');
+      }
     } catch (err) {
       console.error('Error saving all schedule snapshots:', err);
-      alert('Không thể chốt phiên bản tất cả các ngày. Vui lòng thử lại.');
+      if (!silent) {
+        alert('Không thể chốt phiên bản tất cả các ngày. Vui lòng thử lại.');
+      }
     }
   };
 
@@ -940,7 +970,7 @@ const App: React.FC = () => {
       const lockKey = `medflow_all_dates_init_locked_${currentDept.id}_v3`;
       if (!sessionStorage.getItem(lockKey)) {
         sessionStorage.setItem(lockKey, 'true');
-        handleSaveAllScheduleSnapshots(currentDept.id);
+        handleSaveAllScheduleSnapshots(currentDept.id, true);
       }
     }
   }, [loadedCollections.appointments, loadedCollections.scheduleSnapshots, currentDept]);

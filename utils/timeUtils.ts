@@ -539,15 +539,47 @@ export const checkConflict = (
         const currentPatientEnd = endMin + currentRest;
         const apptPatientEnd = apptEnd + apptRest;
 
-        if (Math.max(startMin, apptStart) < Math.min(currentPatientEnd, apptPatientEnd)) {
-          if (Math.max(startMin, apptStart) < Math.min(endMin, apptEnd)) {
-            conflictDetails.push({ message: `Bệnh nhân đang có lịch trình "${apptProc?.name}" (${appt.startTime}-${appt.endTime}).`, level: 1 });
-          } else if (apptRest > 0 && startMin >= apptEnd && startMin < apptPatientEnd) {
-            conflictDetails.push({ message: `Bệnh nhân đang trong thời gian nghỉ của lịch trình "${apptProc?.name}".`, level: 1 });
-          } else if (currentRest > 0 && apptStart >= endMin && apptStart < currentPatientEnd) {
-            conflictDetails.push({ message: `Thời gian nghỉ của lịch trình này trùng với lịch trình "${apptProc?.name}".`, level: 1 });
+        // Quy tắc: 2 thủ thuật trên cùng bệnh nhân không được trùng hoặc gối đầu tại cùng một phút
+        // Ví dụ: Thủy châm từ 14h00 - 14h25 thì thủ thuật tiếp theo chỉ có thể bắt đầu từ 14h26 (không được bắt đầu lúc 14h25)
+        if (Math.max(startMin, apptStart) <= Math.min(currentPatientEnd, apptPatientEnd)) {
+          if (Math.max(startMin, apptStart) <= Math.min(endMin, apptEnd)) {
+            if (startMin === apptEnd) {
+              const nextAllowedMin = apptPatientEnd + 1;
+              conflictDetails.push({ 
+                message: `Bệnh nhân vừa kết thúc "${apptProc?.name}" lúc ${appt.endTime}. Lịch trình tiếp theo chỉ có thể bắt đầu từ ${minutesToTimeString(nextAllowedMin)} (cần cách ít nhất 1 phút, không được gối cùng phút kết thúc).`, 
+                level: 1 
+              });
+            } else if (endMin === apptStart) {
+              conflictDetails.push({ 
+                message: `Lịch trình kết thúc lúc ${newEnd}, trùng phút bắt đầu của "${apptProc?.name}" (${appt.startTime}). Cần cách nhau ít nhất 1 phút.`, 
+                level: 1 
+              });
+            } else {
+              conflictDetails.push({ 
+                message: `Bệnh nhân đang có lịch trình "${apptProc?.name}" (${appt.startTime}-${appt.endTime}).`, 
+                level: 1 
+              });
+            }
+          } else if (apptRest > 0 && startMin >= apptEnd && startMin <= apptPatientEnd) {
+            conflictDetails.push({ 
+              message: `Bệnh nhân đang trong thời gian nghỉ của lịch trình "${apptProc?.name}" (đến ${minutesToTimeString(apptPatientEnd)}). Lịch tiếp theo bắt đầu từ ${minutesToTimeString(apptPatientEnd + 1)}.`, 
+              level: 1 
+            });
+          } else if (currentRest > 0 && apptStart >= endMin && apptStart <= currentPatientEnd) {
+            conflictDetails.push({ 
+              message: `Thời gian nghỉ của lịch trình này (đến ${minutesToTimeString(currentPatientEnd)}) trùng với lịch trình "${apptProc?.name}".`, 
+              level: 1 
+            });
           } else if (apptRest > 0 || currentRest > 0) {
-            conflictDetails.push({ message: `Xung đột thời gian nghỉ với lịch trình "${apptProc?.name}".`, level: 1 });
+            conflictDetails.push({ 
+              message: `Xung đột thời gian nghỉ với lịch trình "${apptProc?.name}".`, 
+              level: 1 
+            });
+          } else {
+            conflictDetails.push({ 
+              message: `Bệnh nhân có lịch trình "${apptProc?.name}" (${appt.startTime}-${appt.endTime}). Lịch tiếp theo phải bắt đầu từ ${minutesToTimeString(apptPatientEnd + 1)}.`, 
+              level: 1 
+            });
           }
         }
       }
