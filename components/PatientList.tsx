@@ -75,8 +75,33 @@ export const PatientList: React.FC<PatientListProps> = ({
   onCancelFinishReferral,
   onCancelReferral,
 }) => {
+  const getFirstDayOfMonth = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[0]}-${parts[1]}-01`;
+    }
+    return dateStr;
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'TREATING' | 'DISCHARGED'>('TREATING');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'TREATING' | 'DISCHARGED' | 'SEARCH'>('TREATING');
+  const [searchFromDate, setSearchFromDate] = useState<string>(() => getFirstDayOfMonth(activeDate));
+  const [searchToDate, setSearchToDate] = useState<string>(activeDate);
+  const [searchDateType, setSearchDateType] = useState<'ADMISSION' | 'DISCHARGE'>('ADMISSION');
+  const [appliedSearchFromDate, setAppliedSearchFromDate] = useState<string>('');
+  const [appliedSearchToDate, setAppliedSearchToDate] = useState<string>('');
+  const [appliedSearchDateType, setAppliedSearchDateType] = useState<'ADMISSION' | 'DISCHARGE'>('ADMISSION');
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
+
+  useEffect(() => {
+    const startOfMonth = getFirstDayOfMonth(activeDate);
+    setSearchFromDate(startOfMonth);
+    setSearchToDate(activeDate);
+    setAppliedSearchFromDate('');
+    setAppliedSearchToDate('');
+    setHasSearched(false);
+  }, [activeDate]);
   const [bedTypeFilter, setBedTypeFilter] = useState<string>('ALL');
   const [insuranceFilter, setInsuranceFilter] = useState<string>('ALL');
   const [openHeaderFilter, setOpenHeaderFilter] = useState<'BHYT' | 'BED_TYPE' | null>(null);
@@ -509,6 +534,57 @@ export const PatientList: React.FC<PatientListProps> = ({
     const term = searchTerm.trim().toLowerCase();
 
     return patients.filter(p => {
+      if (filterStatus === 'SEARCH') {
+        if (!hasSearched) return false;
+
+        let belongsToDept = false;
+        if (currentDept.type === DepartmentType.CLINICAL) {
+          belongsToDept = p.admittedByDeptId === currentDept.id;
+        } else {
+          belongsToDept = p.admittedByDeptId === currentDept.id || (p.referrals?.some(r => {
+            const s = (r.specialty || '').toLowerCase().trim();
+            const dId = currentDept.id.toLowerCase().trim();
+            const dName = currentDept.name.toLowerCase().trim();
+            return s === dId || s === dName || dName.includes(s) || s.includes(dName) ||
+                   (s.includes('phcn') && dId.includes('phcn')) ||
+                   (s.includes('cdha') && dId.includes('cdha')) ||
+                   (s.includes('xetnghiem') && dId.includes('xetnghiem')) ||
+                   (s.includes('duoc') && dId.includes('duoc')) ||
+                   (dId === 'dept_phcn' && s === 'dept_phcn') ||
+                   (dId === 'dept_cdha' && s === 'dept_cdha') ||
+                   (dId === 'dept_xetnghiem' && s === 'dept_xetnghiem');
+          }) ?? false);
+        }
+        if (!belongsToDept) return false;
+
+        if (appliedSearchDateType === 'ADMISSION') {
+          const admDate = getLocalDateString(p.admissionDate);
+          if (admDate < appliedSearchFromDate || admDate > appliedSearchToDate) return false;
+        } else {
+          if (p.status !== 'DISCHARGED') return false;
+          const disDate = getLocalDateString(p.dischargeDate);
+          if (!disDate || disDate < appliedSearchFromDate || disDate > appliedSearchToDate) return false;
+        }
+
+        const matchesSearch = !term || 
+                              (p.name || '').toLowerCase().includes(term) || 
+                              (p.code || '').toLowerCase().includes(term) ||
+                              (p.bedNumber || '').toLowerCase().includes(term) ||
+                              (p.roomNumber && p.roomNumber.toLowerCase().includes(term));
+        if (!matchesSearch) return false;
+
+        const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
+        if (!matchesBedType) return false;
+
+        const matchesInsurance = insuranceFilter === 'ALL' || (p.insuranceLevel || '100%') === insuranceFilter;
+        if (!matchesInsurance) return false;
+
+        const matchesDeptFilter = referringDeptFilter === 'ALL' || p.admittedByDeptId === referringDeptFilter;
+        if (!matchesDeptFilter) return false;
+
+        return true;
+      }
+
       // 1. Bệnh nhân chưa vào viện vào thời điểm activeDate
       const admissionDateStr = getLocalDateString(p.admissionDate);
       if (activeDate < admissionDateStr) return false;
@@ -679,7 +755,7 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       return direction === 'ASC' ? cmp : -cmp;
     });
-  }, [patients, activeDate, filterStatus, searchTerm, bedTypeFilter, insuranceFilter, referringDeptFilter, currentDept, sortConfig]);
+  }, [patients, activeDate, filterStatus, searchTerm, bedTypeFilter, insuranceFilter, referringDeptFilter, currentDept, sortConfig, hasSearched, appliedSearchFromDate, appliedSearchToDate, appliedSearchDateType]);
 
   const handleConfirmDischarge = async () => {
     if (dischargingPatient) {
@@ -1050,6 +1126,14 @@ export const PatientList: React.FC<PatientListProps> = ({
               >
                 Ra viện <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${filterStatus === 'DISCHARGED' ? 'bg-rose-100 text-rose-700' : 'bg-slate-300 text-slate-700'}`}>{counts.discharged}</span>
               </button>
+              <button 
+                onClick={() => setFilterStatus('SEARCH')} 
+                className={`px-3.5 py-1.5 rounded-lg text-[11px] font-black transition-all uppercase tracking-wider flex items-center gap-1.5 ${filterStatus === 'SEARCH' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
+                title="Tìm kiếm bệnh nhân từ ngày - đến ngày"
+              >
+                <Search size={13} />
+                <span>Tìm kiếm</span>
+              </button>
            </div>
            
            {isSupportDept && (
@@ -1134,6 +1218,67 @@ export const PatientList: React.FC<PatientListProps> = ({
           </div>
         )}
       </div>
+
+      {filterStatus === 'SEARCH' && (
+        <div className="p-5 border-b border-slate-200 bg-sky-50/40 flex flex-wrap items-end gap-4 animate-in fade-in duration-200">
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <span className="text-[10px] font-black text-sky-800 uppercase tracking-wider">Từ ngày</span>
+            <DateInput 
+              value={searchFromDate}
+              onChange={(val) => setSearchFromDate(val)}
+              className="text-xs font-bold text-slate-700 w-[140px]"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <span className="text-[10px] font-black text-sky-800 uppercase tracking-wider">Đến ngày</span>
+            <DateInput 
+              value={searchToDate}
+              onChange={(val) => setSearchToDate(val)}
+              className="text-xs font-bold text-slate-700 w-[140px]"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <span className="text-[10px] font-black text-sky-800 uppercase tracking-wider">Tìm kiếm theo</span>
+            <select 
+              value={searchDateType}
+              onChange={(e) => setSearchDateType(e.target.value as 'ADMISSION' | 'DISCHARGE')}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-100 transition-all text-slate-700 cursor-pointer min-w-[160px] shadow-sm h-[34px]"
+            >
+              <option value="ADMISSION">Ngày vào viện</option>
+              <option value="DISCHARGE">Ngày ra viện</option>
+            </select>
+          </div>
+          <button
+            onClick={() => {
+              setAppliedSearchFromDate(searchFromDate);
+              setAppliedSearchToDate(searchToDate);
+              setAppliedSearchDateType(searchDateType);
+              setHasSearched(true);
+            }}
+            className="flex items-center gap-1.5 px-5 py-2 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-sky-100 cursor-pointer h-[34px]"
+          >
+            <Search size={14} />
+            <span>Tìm kiếm</span>
+          </button>
+
+          {hasSearched && (
+            <button
+              onClick={() => {
+                setSearchFromDate(getFirstDayOfMonth(activeDate));
+                setSearchToDate(activeDate);
+                setSearchDateType('ADMISSION');
+                setAppliedSearchFromDate('');
+                setAppliedSearchToDate('');
+                setAppliedSearchDateType('ADMISSION');
+                setHasSearched(false);
+              }}
+              className="text-slate-500 hover:text-slate-800 text-xs font-bold underline cursor-pointer h-[34px] flex items-center"
+            >
+              Đặt lại
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 overflow-auto scrollbar-thin">
         <table className="w-full text-sm text-left border-collapse">
@@ -1872,7 +2017,11 @@ export const PatientList: React.FC<PatientListProps> = ({
         {filteredPatients.length === 0 && (
           <div className="p-20 text-center flex flex-col items-center gap-4 text-slate-300">
              <Search size={48} className="opacity-10" />
-             <p className="font-black text-xs uppercase tracking-widest">Không tìm thấy bệnh nhân nào</p>
+             <p className="font-black text-xs uppercase tracking-widest">
+               {filterStatus === 'SEARCH' && !hasSearched 
+                 ? 'Vui lòng chọn khoảng ngày và bấm nút Tìm kiếm' 
+                 : 'Không tìm thấy bệnh nhân nào'}
+             </p>
           </div>
         )}
       </div>
