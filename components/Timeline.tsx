@@ -212,7 +212,6 @@ interface TimelineProps {
   };
   scheduleSnapshots?: ScheduleSnapshot[];
   onSaveScheduleSnapshot?: (deptId: string, date: string) => void;
-  onSaveAllScheduleSnapshots?: (deptId: string) => void;
   onUndoAppointmentChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => void;
 }
 
@@ -233,7 +232,6 @@ export const Timeline: React.FC<TimelineProps> = ({
   initialFilters,
   scheduleSnapshots = [],
   onSaveScheduleSnapshot,
-  onSaveAllScheduleSnapshots,
   onUndoAppointmentChange,
 }) => {
   const pixelsPerMinute = 1.8;

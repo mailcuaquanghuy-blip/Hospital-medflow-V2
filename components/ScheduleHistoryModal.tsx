@@ -201,9 +201,12 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
           <div className="flex items-center gap-2.5 flex-wrap">
             {onSaveSnapshot && (
               <button
-                onClick={onSaveSnapshot}
+                onClick={async () => {
+                  await onSaveSnapshot();
+                  onClose();
+                }}
                 disabled={isSavingSnapshot}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-sky-200 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-sky-200 disabled:opacity-50 cursor-pointer"
                 title={`Lưu mốc chốt cho ngày hiện tại (${formatDateVi(currentDate)})`}
               >
                 <Check size={15} />

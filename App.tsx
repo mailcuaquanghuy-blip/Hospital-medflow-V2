@@ -6,7 +6,7 @@ import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN,
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
 import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments, clearAllSessionBaselines, formatDateVi } from './utils/scheduleHistoryUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
-import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, resetSupabaseDatabase } from './utils/supabaseService';
+import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase, saveScheduleSnapshotToSupabase } from './utils/supabaseService';
 import { supabase } from './supabaseClient';
 import { Timeline } from './components/Timeline';
 import { DailyReport } from './components/DailyReport';
@@ -391,7 +391,7 @@ const App: React.FC = () => {
             fetchSupabaseTable<MachineShift>('machine_shifts'),
             fetchSupabaseTable<AppointmentTemplate>('templates'),
             fetchSupabaseTable<UserAccount>('users'),
-            fetchSupabaseTable<ScheduleSnapshot>('schedule_snapshots').then(res => (res && res.length > 0) ? res : fetchSupabaseTable<ScheduleSnapshot>('scheduleSnapshots')),
+            fetchScheduleSnapshotsFromSupabase(),
             fetchSupabaseTable<Backup>('backups')
           ]);
           if (pats) setPatients(pats);
@@ -408,10 +408,12 @@ const App: React.FC = () => {
           if (att) setAttendanceRecords(att);
           if (shifts) setMachineShifts(shifts);
           if (tpls) {
-            const sanitizedTpls = tpls.map(t => ({
-              ...t,
-              procedures: t.procedures || []
-            }));
+            const sanitizedTpls = tpls
+              .filter(t => !t.id?.startsWith('snap_'))
+              .map(t => ({
+                ...t,
+                procedures: t.procedures || []
+              }));
             setTemplates(sanitizedTpls);
           }
           if (usrs && usrs.length > 0) setUsers(usrs);
@@ -870,16 +872,9 @@ const App: React.FC = () => {
         return updated;
       });
 
-      if (db) {
-        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(err => {
-          console.warn('Error auto saving snapshot to Firestore:', err);
-        });
-      }
-      if (isSupabaseConfigured()) {
-        saveSupabaseItem('schedule_snapshots', snapshotId, snapObj).catch(err => {
-          console.warn('Error auto saving snapshot to Supabase:', err);
-        });
-      }
+      saveScheduleSnapshotToSupabase(snapObj).catch(err => {
+        console.warn('Error auto saving snapshot to Supabase:', err);
+      });
     } catch (err) {
       console.warn('Error in autoFinalizeScheduleSnapshotForDate:', err);
     }
@@ -907,12 +902,7 @@ const App: React.FC = () => {
         appointments: JSON.parse(JSON.stringify(deptAppts))
       };
 
-      if (db) {
-        await setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj);
-      }
-      if (isSupabaseConfigured()) {
-        await saveSupabaseItem('schedule_snapshots', snapshotId, snapObj);
-      }
+      await saveScheduleSnapshotToSupabase(snapObj);
 
       setSessionBaseline(deptId, dateStr, deptAppts);
       clearDeletedSessionAppointments(deptId, dateStr);
@@ -933,79 +923,6 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Error saving schedule snapshot:', err);
       alert('Không thể lưu phiên bản chốt. Vui lòng thử lại.');
-    }
-  };
-
-  const handleSaveAllScheduleSnapshots = async (deptId: string, silent: boolean = false) => {
-    try {
-      const deptAppts = appointments.filter(a => a.deptId === deptId);
-      const uniqueDates = new Set<string>();
-      if (activeDate) uniqueDates.add(activeDate);
-      deptAppts.forEach(a => uniqueDates.add(a.date));
-
-      const deptSnapshots = scheduleSnapshots.filter(s => s.deptId === deptId);
-      deptSnapshots.forEach(s => uniqueDates.add(s.date));
-
-      if (typeof window !== 'undefined') {
-        try {
-          for (let i = 0; i < sessionStorage.length; i++) {
-            const key = sessionStorage.key(i);
-            if (key && (key.startsWith(`medflow_baseline_${deptId}_`) || key.startsWith(`medflow_deleted_${deptId}_`))) {
-              const dStr = key.replace(`medflow_baseline_${deptId}_`, '').replace(`medflow_deleted_${deptId}_`, '');
-              if (dStr) uniqueDates.add(dStr);
-            }
-          }
-        } catch (e) {}
-      }
-
-      const newSnapshots: ScheduleSnapshot[] = [];
-
-      const savePromises = Array.from(uniqueDates).map(async (d) => {
-        const dateAppts = deptAppts.filter(a => a.date === d);
-        const snapshotId = `${deptId}_${d}`;
-        const snapObj: ScheduleSnapshot = {
-          id: snapshotId,
-          deptId,
-          date: d,
-          createdAt: new Date().toISOString(),
-          createdBy: currentUser?.fullName || 'Hệ thống',
-          appointments: JSON.parse(JSON.stringify(dateAppts))
-        };
-        newSnapshots.push(snapObj);
-
-        if (db) {
-          await setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj);
-        }
-        if (isSupabaseConfigured()) {
-          await saveSupabaseItem('schedule_snapshots', snapshotId, snapObj);
-        }
-        setSessionBaseline(deptId, d, dateAppts);
-        clearDeletedSessionAppointments(deptId, d);
-      });
-
-      await Promise.all(savePromises);
-      clearAllSessionBaselines(deptId);
-
-      setScheduleSnapshots(prev => {
-        const filtered = prev.filter(s => s.deptId !== deptId || !uniqueDates.has(s.date));
-        const updated = [...filtered, ...newSnapshots];
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
-            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
-          } catch (e) {}
-        }
-        return updated;
-      });
-
-      if (!silent) {
-        alert('Đã chốt phiên bản hiện có ở tất cả các ngày thành công!');
-      }
-    } catch (err) {
-      console.error('Error saving all schedule snapshots:', err);
-      if (!silent) {
-        alert('Không thể chốt phiên bản tất cả các ngày. Vui lòng thử lại.');
-      }
     }
   };
 
@@ -1301,13 +1218,6 @@ const App: React.FC = () => {
 
           setSessionBaseline(targetDeptId, targetDate, targetDayAppts);
           clearDeletedSessionAppointments(targetDeptId, targetDate);
-
-          if (db) {
-            setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(e => console.warn(e));
-          }
-          if (isSupabaseConfigured()) {
-            saveSupabaseItem('schedule_snapshots', snapshotId, snapObj).catch(e => console.warn(e));
-          }
         });
 
         if (newSnapshotsToSave.length > 0) {
@@ -1323,6 +1233,9 @@ const App: React.FC = () => {
             }
             return updated;
           });
+
+          // Lưu vĩnh viễn mốc chốt của các ngày được sao chép lên Supabase
+          await Promise.all(newSnapshotsToSave.map(s => saveScheduleSnapshotToSupabase(s)));
         }
       }
 
@@ -1508,7 +1421,7 @@ const App: React.FC = () => {
         setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(e => console.warn(e));
       }
       if (isSupabaseConfigured()) {
-        saveSupabaseItem('schedule_snapshots', snapshotId, snapObj).catch(e => console.warn(e));
+        saveScheduleSnapshotToSupabase(snapObj).catch(e => console.warn(e));
       }
 
       alert(`Đã load thành công ${newAppointments.length} chỉ định từ ngày ${options.sourceDate}.`);
@@ -2529,7 +2442,6 @@ const App: React.FC = () => {
             onVerifyAction={onVerifyAction}
             scheduleSnapshots={scheduleSnapshots}
             onSaveScheduleSnapshot={handleSaveScheduleSnapshot}
-            onSaveAllScheduleSnapshots={handleSaveAllScheduleSnapshots}
             onUndoAppointmentChange={handleUndoAppointmentChange}
             onUpdateAppointments={handleUpdateAppointmentsSafely}
             onUpdateTemplates={setTemplates}
@@ -2555,7 +2467,6 @@ const App: React.FC = () => {
              initialFilters={timelineFilters}
              scheduleSnapshots={scheduleSnapshots}
              onSaveScheduleSnapshot={handleSaveScheduleSnapshot}
-             onSaveAllScheduleSnapshots={handleSaveAllScheduleSnapshots}
              onUndoAppointmentChange={handleUndoAppointmentChange}
            />
          )}

@@ -64,7 +64,6 @@ interface PatientSchedulingProps {
   onVerifyAction?: (patientId: string, action: () => void, description?: string) => void;
   scheduleSnapshots?: ScheduleSnapshot[];
   onSaveScheduleSnapshot?: (deptId: string, date: string) => void;
-  onSaveAllScheduleSnapshots?: (deptId: string) => void;
   onUndoAppointmentChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => void;
   onUpdateAppointments?: React.Dispatch<React.SetStateAction<Appointment[]>>;
   onUpdateTemplates?: React.Dispatch<React.SetStateAction<AppointmentTemplate[]>>;
@@ -102,7 +101,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   onVerifyAction,
   scheduleSnapshots = [],
   onSaveScheduleSnapshot,
-  onSaveAllScheduleSnapshots,
   onUndoAppointmentChange,
   onUpdateAppointments,
   onUpdateTemplates,
@@ -188,17 +186,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       await onSaveScheduleSnapshot(currentDept.id, currentDate);
       const deptAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === currentDate);
       setSessionBaseline(currentDept.id, currentDate, deptAppts);
-      setFilterModifiedOnly(false);
-    } finally {
-      setIsSavingVersion(false);
-    }
-  };
-
-  const handleSaveAllSnapshots = async () => {
-    if (!currentDept || !onSaveAllScheduleSnapshots) return;
-    setIsSavingVersion(true);
-    try {
-      await onSaveAllScheduleSnapshots(currentDept.id);
       setFilterModifiedOnly(false);
     } finally {
       setIsSavingVersion(false);

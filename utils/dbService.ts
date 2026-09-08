@@ -1,4 +1,14 @@
-import { isSupabaseConfigured, saveSupabaseItem, saveSupabaseBatch, deleteSupabaseItem, deleteSupabaseBatch, fetchSupabaseTable } from './supabaseService';
+import { 
+  isSupabaseConfigured, 
+  saveSupabaseItem, 
+  saveSupabaseBatch, 
+  deleteSupabaseItem, 
+  deleteSupabaseBatch, 
+  fetchSupabaseTable,
+  saveScheduleSnapshotToSupabase,
+  deleteScheduleSnapshotFromSupabase,
+  fetchScheduleSnapshotsFromSupabase
+} from './supabaseService';
 import { supabase } from '../supabaseClient';
 
 export const db: any = { name: 'medflow_db', initialized: true };
@@ -52,7 +62,18 @@ export const where = (field: string, op: string, value: any) => {
 };
 
 export const getDoc = async (docRef: any) => {
-  const { tableName, docId } = getRefDetails(docRef);
+  const { collectionName, tableName, docId } = getRefDetails(docRef);
+  if (collectionName === 'scheduleSnapshots' || tableName === 'schedule_snapshots') {
+    try {
+      const rawId = docId.replace(/^snap_/, '');
+      const { data: row } = await supabase.from('templates').select('data').eq('id', `snap_${rawId}`).maybeSingle();
+      const exists = !!row;
+      const data = row?.data && typeof row.data === 'object' ? { ...row.data, id: rawId } : row?.data;
+      return { exists: () => exists, data: () => data, id: rawId };
+    } catch (err) {
+      return { exists: () => false, data: () => null, id: docId };
+    }
+  }
   try {
     const { data: row } = await supabase.from(tableName).select('data').eq('id', docId).maybeSingle();
     const exists = !!row;
@@ -73,9 +94,20 @@ export const getDoc = async (docRef: any) => {
 
 export const getDocs = async (collRef: any) => {
   const collName = collRef?.id || collRef?.collectionName || (typeof collRef === 'string' ? collRef : '');
+  if (collName === 'scheduleSnapshots' || collName === 'schedule_snapshots') {
+    try {
+      const snaps = await fetchScheduleSnapshotsFromSupabase();
+      const docs = (snaps || []).map(item => ({
+        id: item.id,
+        data: () => item
+      }));
+      return { docs, empty: docs.length === 0, size: docs.length };
+    } catch (err) {
+      return { docs: [], empty: true, size: 0 };
+    }
+  }
   let tableName = collName;
   if (collName === 'machineShifts') tableName = 'machine_shifts';
-  if (collName === 'scheduleSnapshots') tableName = 'schedule_snapshots';
   
   try {
     const items = await fetchSupabaseTable<any>(tableName);
@@ -163,7 +195,11 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
 
   // Background persistence to Supabase
   try {
-    await saveSupabaseItem(tableName, docId, cleanData);
+    if (collectionName === 'scheduleSnapshots' || tableName === 'schedule_snapshots') {
+      await saveScheduleSnapshotToSupabase({ ...cleanData, id: docId });
+    } else {
+      await saveSupabaseItem(tableName, docId, cleanData);
+    }
   } catch (err) {
     console.warn(`[Supabase setDoc] Note: Error saving ${tableName}/${docId}:`, err);
   }
@@ -181,6 +217,10 @@ export const updateDoc = async (docRef: any, data: any) => {
   // Background async merge with remote Supabase database
   (async () => {
     try {
+      if (collectionName === 'scheduleSnapshots' || tableName === 'schedule_snapshots') {
+        await saveScheduleSnapshotToSupabase({ ...cleanData, id: docId });
+        return;
+      }
       let mergedData = { ...cleanData };
       const { data: existingRow, error: fetchErr } = await supabase
         .from(tableName)
@@ -206,7 +246,11 @@ export const deleteDoc = async (docRef: any) => {
   dispatchDbChange(collectionName, docId, null, 'delete');
 
   try {
-    await deleteSupabaseItem(tableName, docId);
+    if (collectionName === 'scheduleSnapshots' || tableName === 'schedule_snapshots') {
+      await deleteScheduleSnapshotFromSupabase(docId);
+    } else {
+      await deleteSupabaseItem(tableName, docId);
+    }
   } catch (err) {
     console.warn(`[Supabase deleteDoc] Error deleting ${tableName}/${docId}:`, err);
   }
@@ -251,11 +295,19 @@ export const writeBatch = (firestoreDb: any) => {
         const promises: Promise<any>[] = [];
 
         for (const [tableName, items] of Object.entries(itemsToUpsertByTable)) {
-          promises.push(saveSupabaseBatch(tableName, items));
+          if (tableName === 'schedule_snapshots' || tableName === 'scheduleSnapshots') {
+            items.forEach(it => promises.push(saveScheduleSnapshotToSupabase({ ...it.data, id: it.id })));
+          } else {
+            promises.push(saveSupabaseBatch(tableName, items));
+          }
         }
 
         for (const [tableName, ids] of Object.entries(idsToDeleteByTable)) {
-          promises.push(deleteSupabaseBatch(tableName, ids));
+          if (tableName === 'schedule_snapshots' || tableName === 'scheduleSnapshots') {
+            ids.forEach(id => promises.push(deleteScheduleSnapshotFromSupabase(id)));
+          } else {
+            promises.push(deleteSupabaseBatch(tableName, ids));
+          }
         }
 
         await Promise.all(promises);
