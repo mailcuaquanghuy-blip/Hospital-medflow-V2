@@ -2758,7 +2758,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         isExplicitSnapshot={baselineInfo.isExplicitSnapshot}
         snapshotInfo={baselineInfo.snapshotInfo}
         onSaveSnapshot={onSaveScheduleSnapshot ? handleSaveSnapshot : undefined}
-        onSaveAllSnapshots={onSaveAllScheduleSnapshots ? handleSaveAllSnapshots : undefined}
         isSavingSnapshot={isSavingVersion}
         onUndoChange={onUndoAppointmentChange}
       />

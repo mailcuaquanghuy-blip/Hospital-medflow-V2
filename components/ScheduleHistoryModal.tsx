@@ -12,7 +12,6 @@ interface ScheduleHistoryModalProps {
   isExplicitSnapshot: boolean;
   snapshotInfo?: ScheduleSnapshot;
   onSaveSnapshot?: () => Promise<void> | void;
-  onSaveAllSnapshots?: () => Promise<void> | void;
   isSavingSnapshot?: boolean;
   onUndoChange?: (apptId: string, type: 'NEW' | 'MODIFIED' | 'DELETED', originalAppt?: Appointment) => Promise<void> | void;
 }
@@ -26,7 +25,6 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
   isExplicitSnapshot,
   snapshotInfo,
   onSaveSnapshot,
-  onSaveAllSnapshots,
   isSavingSnapshot = false,
   onUndoChange
 }) => {
@@ -210,17 +208,6 @@ export const ScheduleHistoryModal: React.FC<ScheduleHistoryModalProps> = ({
               >
                 <Check size={15} />
                 <span>{isSavingSnapshot ? "Đang lưu..." : `Chốt ngày ${formatDateVi(currentDate)}`}</span>
-              </button>
-            )}
-            {onSaveAllSnapshots && (
-              <button
-                onClick={onSaveAllSnapshots}
-                disabled={isSavingSnapshot}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-indigo-200 disabled:opacity-50"
-                title="Lưu mốc chốt cho tất cả các ngày trong khoa"
-              >
-                <ShieldCheck size={15} />
-                <span>{isSavingSnapshot ? "Đang lưu..." : "Chốt tất cả các ngày"}</span>
               </button>
             )}
             <button

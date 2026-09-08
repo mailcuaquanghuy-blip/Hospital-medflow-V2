@@ -31,7 +31,11 @@ export const getBaselineAppointments = (
   isExplicitSnapshot: boolean;
   snapshotInfo?: ScheduleSnapshot;
 } => {
-  // 1. Kiểm tra phiên bản chốt mẫu chính thức từ cơ sở dữ liệu
+  if (!deptId || !date) {
+    return { baselineAppts: [], isExplicitSnapshot: false };
+  }
+
+  // 1. Kiểm tra phiên bản chốt mẫu chính thức từ cơ sở dữ liệu / state
   const explicit = (scheduleSnapshots || []).find(s => s.deptId === deptId && s.date === date);
   if (explicit && Array.isArray(explicit.appointments)) {
     return {
@@ -41,6 +45,8 @@ export const getBaselineAppointments = (
     };
   }
 
+  const currentDeptDateAppts = currentAppointments.filter(a => a.deptId === deptId && a.date === date);
+
   // 2. Kiểm tra mốc phiên làm việc đã lưu trong sessionStorage
   const sessionKey = `medflow_baseline_${deptId}_${date}`;
   if (typeof window !== 'undefined') {
@@ -49,10 +55,15 @@ export const getBaselineAppointments = (
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return {
-            baselineAppts: parsed,
-            isExplicitSnapshot: false
-          };
+          // Nếu parsed rỗng nhưng thực tế currentDeptDateAppts đang có lịch trình,
+          // thì giá trị rỗng trước đó là do render ban đầu trước khi dữ liệu kịp tải.
+          // Ta loại bỏ giá trị rỗng lỗi này và cập nhật lại mốc phiên chuẩn.
+          if (parsed.length > 0 || currentDeptDateAppts.length === 0) {
+            return {
+              baselineAppts: parsed,
+              isExplicitSnapshot: false
+            };
+          }
         }
       }
     } catch (e) {
@@ -60,18 +71,25 @@ export const getBaselineAppointments = (
     }
   }
 
-  // 3. Nếu chưa có mốc nào, tự động lấy danh sách lịch hiện tại làm mốc phiên ban đầu
-  const initialDeptAppts = currentAppointments.filter(a => a.deptId === deptId && a.date === date);
-  if (typeof window !== 'undefined') {
-    try {
-      sessionStorage.setItem(sessionKey, JSON.stringify(initialDeptAppts));
-    } catch (e) {
-      console.warn('Error saving session baseline:', e);
+  // 3. Nếu chưa có mốc nào:
+  // Nếu appointments đã tải dữ liệu xong (hoặc có dữ liệu trong hệ thống), thiết lập mốc ban đầu
+  if (currentAppointments.length > 0) {
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(sessionKey, JSON.stringify(currentDeptDateAppts));
+      } catch (e) {
+        console.warn('Error saving session baseline:', e);
+      }
     }
+    return {
+      baselineAppts: currentDeptDateAppts,
+      isExplicitSnapshot: false
+    };
   }
 
+  // Nếu dữ liệu appointments chưa kịp tải (mảng rỗng), không lưu mốc rỗng tạm thời vào sessionStorage
   return {
-    baselineAppts: initialDeptAppts,
+    baselineAppts: [],
     isExplicitSnapshot: false
   };
 };

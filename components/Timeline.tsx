@@ -1870,14 +1870,6 @@ export const Timeline: React.FC<TimelineProps> = ({
               setIsSavingSnapshot(false);
             }
           } : undefined}
-          onSaveAllSnapshots={onSaveAllScheduleSnapshots ? async () => {
-            setIsSavingSnapshot(true);
-            try {
-              await onSaveAllScheduleSnapshots(currentDept.id);
-            } finally {
-              setIsSavingSnapshot(false);
-            }
-          } : undefined}
           isSavingSnapshot={isSavingSnapshot}
           onUndoChange={onUndoAppointmentChange}
         />

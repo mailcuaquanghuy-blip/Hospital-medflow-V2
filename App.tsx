@@ -841,8 +841,56 @@ const App: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
+  const autoFinalizeScheduleSnapshotForDate = (deptId: string, dateStr: string) => {
+    if (!deptId || !dateStr) return;
+    try {
+      const deptAppts = appointments.filter(a => a.deptId === deptId && a.date === dateStr);
+      const snapshotId = `${deptId}_${dateStr}`;
+      const snapObj: ScheduleSnapshot = {
+        id: snapshotId,
+        deptId,
+        date: dateStr,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser?.fullName || 'Tự động lưu khi chuyển ngày',
+        appointments: JSON.parse(JSON.stringify(deptAppts))
+      };
+
+      setSessionBaseline(deptId, dateStr, deptAppts);
+      clearDeletedSessionAppointments(deptId, dateStr);
+
+      setScheduleSnapshots(prev => {
+        const filtered = prev.filter(s => !(s.deptId === deptId && s.date === dateStr));
+        const updated = [...filtered, snapObj];
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
+          } catch (e) {}
+        }
+        return updated;
+      });
+
+      if (db) {
+        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(err => {
+          console.warn('Error auto saving snapshot to Firestore:', err);
+        });
+      }
+      if (isSupabaseConfigured()) {
+        saveSupabaseItem('schedule_snapshots', snapshotId, snapObj).catch(err => {
+          console.warn('Error auto saving snapshot to Supabase:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('Error in autoFinalizeScheduleSnapshotForDate:', err);
+    }
+  };
+
   const handleDateChange = (newDate: string) => {
     if (!newDate || newDate === activeDate) return;
+    // Tự động chốt/lưu lịch sử chỉnh sửa của ngày hiện tại trước khi chuyển sang ngày mới
+    if (currentDept && activeDate) {
+      autoFinalizeScheduleSnapshotForDate(currentDept.id, activeDate);
+    }
     setActiveDate(newDate);
   };
 
@@ -1235,6 +1283,49 @@ const App: React.FC = () => {
         return [...filtered, ...newAppts];
       });
 
+      // Tự động chốt mốc lịch trình cho các ngày đích để không ghi nhận sao chép thành biến động / lịch sử chỉnh sửa
+      if (targetDeptId) {
+        const newSnapshotsToSave: ScheduleSnapshot[] = [];
+        actualTargetDates.forEach(targetDate => {
+          const targetDayAppts = currentApptsState.filter(a => a.date === targetDate && a.deptId === targetDeptId);
+          const snapshotId = `${targetDeptId}_${targetDate}`;
+          const snapObj: ScheduleSnapshot = {
+            id: snapshotId,
+            deptId: targetDeptId,
+            date: targetDate,
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser?.fullName || 'Sao chép lịch trình',
+            appointments: JSON.parse(JSON.stringify(targetDayAppts))
+          };
+          newSnapshotsToSave.push(snapObj);
+
+          setSessionBaseline(targetDeptId, targetDate, targetDayAppts);
+          clearDeletedSessionAppointments(targetDeptId, targetDate);
+
+          if (db) {
+            setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(e => console.warn(e));
+          }
+          if (isSupabaseConfigured()) {
+            saveSupabaseItem('schedule_snapshots', snapshotId, snapObj).catch(e => console.warn(e));
+          }
+        });
+
+        if (newSnapshotsToSave.length > 0) {
+          setScheduleSnapshots(prev => {
+            const updatedDates = new Set(actualTargetDates);
+            const filtered = prev.filter(s => !(s.deptId === targetDeptId && updatedDates.has(s.date)));
+            const updated = [...filtered, ...newSnapshotsToSave];
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+                localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
+              } catch (e) {}
+            }
+            return updated;
+          });
+        }
+      }
+
       try {
         const apptPromises = newAppts.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
         await Promise.all(apptPromises);
@@ -1388,6 +1479,37 @@ const App: React.FC = () => {
           : prev;
         return [...filtered, ...newAppointments];
       });
+
+      // Tự động chốt mốc lịch trình activeDate để không ghi nhận tải ngày mẫu thành biến động
+      const finalApptsOnActiveDate = (options.overwrite ? newAppointments : [...appointments.filter(a => !(a.date === activeDate && a.deptId === currentDept.id)), ...newAppointments]).filter(a => a.date === activeDate && a.deptId === currentDept.id);
+      const snapshotId = `${currentDept.id}_${activeDate}`;
+      const snapObj: ScheduleSnapshot = {
+        id: snapshotId,
+        deptId: currentDept.id,
+        date: activeDate,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser?.fullName || 'Tải ngày mẫu',
+        appointments: JSON.parse(JSON.stringify(finalApptsOnActiveDate))
+      };
+      setSessionBaseline(currentDept.id, activeDate, finalApptsOnActiveDate);
+      clearDeletedSessionAppointments(currentDept.id, activeDate);
+      setScheduleSnapshots(prev => {
+        const filtered = prev.filter(s => !(s.deptId === currentDept.id && s.date === activeDate));
+        const updated = [...filtered, snapObj];
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
+          } catch (e) {}
+        }
+        return updated;
+      });
+      if (db) {
+        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(e => console.warn(e));
+      }
+      if (isSupabaseConfigured()) {
+        saveSupabaseItem('schedule_snapshots', snapshotId, snapObj).catch(e => console.warn(e));
+      }
 
       alert(`Đã load thành công ${newAppointments.length} chỉ định từ ngày ${options.sourceDate}.`);
     } catch (e) {
