@@ -789,7 +789,7 @@ export const findAvailableSlot = (
         if (opt) {
           duration = opt.durationMinutes;
         }
-      } else if (newApptData.startTime && newApptData.endTime) {
+      } else if (newApptData.id && newApptData.startTime && newApptData.endTime) {
         duration = timeStringToMinutes(newApptData.endTime) - timeStringToMinutes(newApptData.startTime);
       }
     }
@@ -868,7 +868,7 @@ export const getAvailableTimeBlocks = (
         if (opt) {
           duration = opt.durationMinutes;
         }
-      } else if (newApptData.startTime && newApptData.endTime) {
+      } else if (newApptData.id && newApptData.startTime && newApptData.endTime) {
         duration = timeStringToMinutes(newApptData.endTime) - timeStringToMinutes(newApptData.startTime);
       }
     }

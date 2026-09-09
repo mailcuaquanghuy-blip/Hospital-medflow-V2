@@ -30,6 +30,45 @@ interface BookingModalProps {
   onDelete?: (apptId: string) => void;
 }
 
+const getDiscreteStartTimes = (
+  blocks: { start: string; end: string }[],
+  duration: number
+): string[] => {
+  const list: string[] = [];
+  const seen = new Set<string>();
+
+  for (const block of blocks) {
+    const startMin = timeStringToMinutes(block.start);
+    const endMin = timeStringToMinutes(block.end);
+    const maxStartMin = endMin - duration;
+    if (maxStartMin < startMin) continue;
+
+    // 1. Always add the exact start of the block
+    const exactStartStr = minutesToTimeString(startMin);
+    if (!seen.has(exactStartStr)) {
+      list.push(exactStartStr);
+      seen.add(exactStartStr);
+    }
+
+    // 2. Add round standard intervals (every 15 minutes) inside the block
+    let nextRoundMin = Math.ceil(startMin / 15) * 15;
+    if (nextRoundMin === startMin) {
+      nextRoundMin += 15;
+    }
+
+    while (nextRoundMin <= maxStartMin) {
+      const timeStr = minutesToTimeString(nextRoundMin);
+      if (!seen.has(timeStr)) {
+        list.push(timeStr);
+        seen.add(timeStr);
+      }
+      nextRoundMin += 15;
+    }
+  }
+
+  return list.sort((a, b) => timeStringToMinutes(a) - timeStringToMinutes(b));
+};
+
 export const BookingModal: React.FC<BookingModalProps> = ({
   isOpen,
   onClose,
@@ -504,6 +543,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const availableTimeBlocks = availableTimeData.blocks;
   const unavailableReason = availableTimeData.reason;
+
+  const discreteStartTimes = useMemo(() => {
+    let duration = currentProc?.durationMinutes || 25;
+    if (formData.selectedDurationOptionId && currentProc?.durationOptions) {
+      const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
+      if (opt) duration = opt.durationMinutes;
+    }
+    return getDiscreteStartTimes(availableTimeBlocks, duration);
+  }, [availableTimeBlocks, currentProc, formData.selectedDurationOptionId]);
 
   const selectedMachineActiveSlots = useMemo(() => {
     if (!formData.assignedMachineId || !formData.date || !currentProc || (currentProc.machineCapacity || 1) <= 1) return [];
@@ -1670,7 +1718,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           >
                             <Info size={14} /> Chọn nhân sự để xem gợi ý...
                           </motion.p>
-                        ) : (isMachineShiftRequired ? availableShifts : availableTimeBlocks).length > 0 ? (
+                        ) : (isMachineShiftRequired ? availableShifts : discreteStartTimes).length > 0 ? (
                           <motion.div
                             key="avail-times"
                             initial={{ opacity: 0, y: 5 }}
@@ -1726,14 +1774,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 );
                               })
                             ) : (
-                              availableTimeBlocks.slice(0, 8).map((block, idx) => {
+                              discreteStartTimes.slice(0, 12).map((time, idx) => {
                                 let currentDuration = currentProc?.durationMinutes || 25;
                                 if (formData.selectedDurationOptionId && currentProc?.durationOptions) {
                                   const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
                                   if (opt) currentDuration = opt.durationMinutes;
                                 }
-                                const end = addMinutesToTime(block.start, currentDuration);
-                                const isSelected = formData.startTime === block.start;
+                                const end = addMinutesToTime(time, currentDuration);
+                                const isSelected = formData.startTime === time;
 
                                 return (
                                   <button 
@@ -1742,7 +1790,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                     onClick={() => {
                                       setFormData(prev => ({ 
                                         ...prev, 
-                                        startTime: block.start, 
+                                        startTime: time, 
                                         endTime: end 
                                       }));
                                       setHasManuallySelectedTime(true);
@@ -1753,7 +1801,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                         : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600'
                                     }`}
                                   >
-                                    {block.start}
+                                    {time}
                                   </button>
                                 );
                               })
