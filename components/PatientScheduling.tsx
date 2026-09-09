@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Patient, Appointment, Procedure, Staff, AppointmentStatus, PatientStatus, Department, DepartmentType, UserAccount, UserRole, AttendanceRecord, ConflictDetail, AppointmentTemplate, TemplateProcedure, AttendanceStatus, MachineShift, ScheduleSnapshot } from '../types';
 import { Button } from './Button';
-import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut, BookmarkCheck, Loader2 } from 'lucide-react';
+import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut, BookmarkCheck, Loader2, StickyNote, Edit3 } from 'lucide-react';
 
 import { calculateAge, timeStringToMinutes, minutesToPixels, minutesToTimeString, addMinutesToTime, isInsideOfficeHours, checkConflict, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
 import { CopyRangeModal } from './CopyRangeModal';
@@ -68,6 +68,7 @@ interface PatientSchedulingProps {
   onUpdateAppointments?: React.Dispatch<React.SetStateAction<Appointment[]>>;
   onUpdateTemplates?: React.Dispatch<React.SetStateAction<AppointmentTemplate[]>>;
   onUpdateStatus?: (patient: Patient, status: PatientStatus, dischargeDate?: string) => Promise<boolean>;
+  onUpdatePatient?: (patient: Patient) => Promise<void> | void;
 }
 
 const PIXELS_PER_MINUTE = 5.0; 
@@ -104,7 +105,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   onUndoAppointmentChange,
   onUpdateAppointments,
   onUpdateTemplates,
-  onUpdateStatus
+  onUpdateStatus,
+  onUpdatePatient
 }) => {
   const [activeTab, setActiveTab] = useState<'SCHEDULING' | 'TEMPLATES'>('SCHEDULING');
   const [pixelsPerMinute, setPixelsPerMinute] = useState(6.5);
@@ -546,6 +548,64 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
   const patientAppointments = selectedPatient ? getPatientAppointmentsForDate(selectedPatient.id) : [];
+
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
+  const handleOpenNoteModal = () => {
+    if (!selectedPatient) return;
+    setNoteInput(selectedPatient.note || '');
+    setIsNoteModalOpen(true);
+  };
+
+  const handleSaveNote = async () => {
+    if (!selectedPatient) return;
+    try {
+      setIsSavingNote(true);
+      const cleanNote = noteInput.trim() ? noteInput.trim() : null;
+      const updatedPatient: Patient = {
+        ...selectedPatient,
+        note: cleanNote
+      };
+
+      if (onUpdatePatient) {
+        await onUpdatePatient(updatedPatient);
+      } else if (db) {
+        const clean = JSON.parse(JSON.stringify(updatedPatient, (k, v) => v === undefined ? null : v));
+        await setDoc(doc(db, "patients", updatedPatient.id), clean);
+      }
+      setIsNoteModalOpen(false);
+    } catch (err) {
+      console.error("Failed to save patient note:", err);
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    if (!selectedPatient || !selectedPatient.note) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa ghi chú của bệnh nhân này?")) return;
+    try {
+      setIsSavingNote(true);
+      const updatedPatient: Patient = {
+        ...selectedPatient,
+        note: null
+      };
+
+      if (onUpdatePatient) {
+        await onUpdatePatient(updatedPatient);
+      } else if (db) {
+        const clean = JSON.parse(JSON.stringify(updatedPatient, (k, v) => v === undefined ? null : v));
+        await setDoc(doc(db, "patients", updatedPatient.id), clean);
+      }
+      setIsNoteModalOpen(false);
+    } catch (err) {
+      console.error("Failed to delete patient note:", err);
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
 
   const patientTimeRange = useMemo(() => {
     return { start: START_HOUR, end: END_HOUR };
@@ -1900,21 +1960,77 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                     <CheckCircle2 size={13} className="shrink-0 text-emerald-500" /> Đã xong chuyên khoa
                                 </span>
                             )}
+
+                            {/* Nút Thêm / Sửa Ghi chú */}
+                            <button
+                              type="button"
+                              onClick={handleOpenNoteModal}
+                              className={`text-xs font-bold px-2.5 py-1 rounded-xl shadow-2xs whitespace-nowrap border flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                                selectedPatient.note 
+                                  ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-300' 
+                                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
+                              }`}
+                              title={selectedPatient.note ? "Chỉnh sửa ghi chú bệnh nhân" : "Thêm ghi chú cho bệnh nhân"}
+                            >
+                              {selectedPatient.note ? (
+                                <>
+                                  <StickyNote size={13} className="text-amber-600" />
+                                  <span>Sửa ghi chú</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={13} className="text-slate-600" />
+                                  <span>Thêm ghi chú</span>
+                                </>
+                              )}
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 {/* Ghi chú bệnh nhân ở giữa nếu có */}
                 {selectedPatient.note ? (
-                    <div className="flex-1 min-w-[240px] max-w-md bg-amber-50/90 border border-amber-200/90 rounded-2xl p-2.5 shadow-2xs flex items-start gap-2.5">
-                        <div className="p-1 rounded-lg bg-amber-100/90 text-amber-800 shrink-0 mt-0.5">
-                            <Info size={14} className="text-amber-700" />
+                    <div 
+                      onClick={handleOpenNoteModal}
+                      className="flex-1 min-w-[240px] max-w-xl bg-amber-50/90 hover:bg-amber-100/90 border border-amber-200/90 rounded-2xl p-2.5 shadow-2xs flex items-center justify-between gap-3 cursor-pointer group transition-all"
+                      title="Nhấp để xem chi tiết hoặc chỉnh sửa ghi chú"
+                    >
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <div className="p-1.5 rounded-xl bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+                                <StickyNote size={14} className="text-amber-700" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">Ghi chú bệnh nhân:</span>
+                                </div>
+                                <p className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2 break-words" title={selectedPatient.note}>
+                                    {selectedPatient.note}
+                                </p>
+                            </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block mb-0.5">Ghi chú bệnh nhân:</span>
-                            <p className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2" title={selectedPatient.note}>
-                                {selectedPatient.note}
-                            </p>
+                        <div className="flex items-center gap-1 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenNoteModal();
+                                }}
+                                className="p-1.5 text-amber-700 hover:text-amber-900 hover:bg-amber-200/60 rounded-lg transition-colors cursor-pointer"
+                                title="Chỉnh sửa ghi chú"
+                            >
+                                <Edit3 size={13} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteNote();
+                                }}
+                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                                title="Xóa ghi chú"
+                            >
+                                <Trash2 size={13} />
+                            </button>
                         </div>
                     </div>
                 ) : (
@@ -2743,6 +2859,98 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         isSavingSnapshot={isSavingVersion}
         onUndoChange={onUndoAppointmentChange}
       />
+
+      {/* Patient Note Modal */}
+      {isNoteModalOpen && selectedPatient && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+                  <StickyNote size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 tracking-tight">
+                    Ghi chú bệnh nhân
+                  </h3>
+                  <p className="text-xs font-bold text-slate-500">
+                    Bệnh nhân: <span className="text-slate-800">{selectedPatient.name}</span> ({selectedPatient.gender} • {calculateAge(selectedPatient.dob)} tuổi)
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsNoteModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="py-5 space-y-3">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <FileText size={13} /> Nội dung ghi chú
+              </label>
+              <textarea
+                autoFocus
+                rows={4}
+                value={noteInput}
+                onChange={e => setNoteInput(e.target.value)}
+                placeholder="Nhập ghi chú đặc biệt về bệnh nhân, lưu ý điều trị hoặc chỉ định..."
+                className="w-full p-3.5 border-2 border-slate-200 rounded-2xl font-medium text-sm text-slate-800 focus:border-amber-400 focus:ring-4 focus:ring-amber-100 outline-none transition-all resize-none shadow-2xs"
+              />
+              <p className="text-[11px] text-slate-400 font-medium">
+                Ghi chú này sẽ được lưu trực tiếp vào hồ sơ của bệnh nhân và hiển thị trên thanh tiêu đề lịch trình.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-3">
+              {selectedPatient.note ? (
+                <button
+                  type="button"
+                  disabled={isSavingNote}
+                  onClick={handleDeleteNote}
+                  className="px-4 py-2.5 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
+                  <span>Xóa ghi chú</span>
+                </button>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center gap-2">
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  disabled={isSavingNote}
+                  onClick={() => setIsNoteModalOpen(false)}
+                  className="rounded-xl px-4 py-2.5 text-xs font-bold"
+                >
+                  HỦY
+                </Button>
+                <Button 
+                  type="button"
+                  disabled={isSavingNote}
+                  onClick={handleSaveNote}
+                  className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-5 py-2.5 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-600/20 cursor-pointer"
+                >
+                  {isSavingNote ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>ĐANG LƯU...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} />
+                      <span>LƯU GHI CHÚ</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Discharge Confirmation Modal */}
       {dischargingPatient && (

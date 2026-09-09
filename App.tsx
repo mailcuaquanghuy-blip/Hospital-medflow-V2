@@ -2446,6 +2446,7 @@ const App: React.FC = () => {
             onUpdateAppointments={handleUpdateAppointmentsSafely}
             onUpdateTemplates={setTemplates}
             onUpdateStatus={handleUpdateStatus}
+            onUpdatePatient={handleSavePatient}
           />
          )}
 
