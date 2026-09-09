@@ -43,14 +43,24 @@ const getDiscreteStartTimes = (
     const maxStartMin = endMin - duration;
     if (maxStartMin < startMin) continue;
 
-    // 1. Always add the exact start of the block
+    // 1. Always add the exact start of the block (e.g. 10:47)
     const exactStartStr = minutesToTimeString(startMin);
     if (!seen.has(exactStartStr)) {
       list.push(exactStartStr);
       seen.add(exactStartStr);
     }
 
-    // 2. Add round standard intervals (every 15 minutes) inside the block
+    // 2. Add the nearest round 5-minute interval inside the block (e.g. 10:50)
+    const round5Min = Math.ceil(startMin / 5) * 5;
+    if (round5Min <= maxStartMin) {
+      const round5Str = minutesToTimeString(round5Min);
+      if (!seen.has(round5Str)) {
+        list.push(round5Str);
+        seen.add(round5Str);
+      }
+    }
+
+    // 3. Add round standard intervals (every 15 minutes) inside the block (e.g. 11:00)
     let nextRoundMin = Math.ceil(startMin / 15) * 15;
     if (nextRoundMin === startMin) {
       nextRoundMin += 15;
