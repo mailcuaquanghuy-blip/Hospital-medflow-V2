@@ -196,6 +196,45 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
   const [filterModifiedOnly, setFilterModifiedOnly] = useState<boolean>(false);
 
+  const isAnyFilterActive = useMemo(() => {
+    return !!(
+      searchTerm !== '' ||
+      referringDeptFilter !== 'ALL' ||
+      procedureFilter !== 'ALL' ||
+      showNoProcedureOnly !== false ||
+      staffFilter !== 'ALL' ||
+      bedTypeFilter !== 'ALL' ||
+      showConflictedOnly !== false ||
+      filterAdmissionDate !== '' ||
+      showDischarged !== 'ALL' ||
+      filterModifiedOnly !== false
+    );
+  }, [
+    searchTerm,
+    referringDeptFilter,
+    procedureFilter,
+    showNoProcedureOnly,
+    staffFilter,
+    bedTypeFilter,
+    showConflictedOnly,
+    filterAdmissionDate,
+    showDischarged,
+    filterModifiedOnly
+  ]);
+
+  const handleClearAllFilters = () => {
+    setSearchTerm('');
+    setReferringDeptFilter('ALL');
+    setProcedureFilter('ALL');
+    setShowNoProcedureOnly(false);
+    setStaffFilter('ALL');
+    setBedTypeFilter('ALL');
+    setShowConflictedOnly(false);
+    setFilterAdmissionDate('');
+    setShowDischarged('ALL');
+    setFilterModifiedOnly(false);
+  };
+
   const baselineInfo = useMemo(() => {
     return getBaselineAppointments(currentDept.id, currentDate, appointments, scheduleSnapshots);
   }, [currentDept.id, currentDate, appointments, scheduleSnapshots]);
@@ -1523,10 +1562,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
             <div className="p-4 border-b border-slate-100 bg-slate-50 space-y-3 shrink-0">
                <div className="flex items-center justify-between px-1">
                    <h3 className="font-black text-slate-800 text-[13.5px] uppercase tracking-widest flex items-center gap-2">
-                      <User size={17} className="text-primary" /> Danh sách bệnh nhân ({filteredPatients.length})
+                      <User size={17} className="text-primary animate-pulse" /> Danh sách bệnh nhân ({filteredPatients.length})
                    </h3>
                    <div className="flex gap-1">
-
+                      {isAnyFilterActive && (
+                        <button
+                          type="button"
+                          onClick={handleClearAllFilters}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 active:scale-95 shadow-2xs border border-rose-200/40 cursor-pointer"
+                          title="Xóa tất cả các điều kiện lọc hiện tại"
+                        >
+                          <X size={11} strokeWidth={3} />
+                          Bỏ lọc nhanh
+                        </button>
+                      )}
                    </div>
                </div>
             
@@ -1536,11 +1585,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                     <div className="relative flex-1 group">
                       <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={17} />
                       <input 
-                        className="w-full pl-10 pr-3 py-2.5 bg-transparent outline-none text-[14.5px] font-bold text-slate-700 placeholder:text-slate-400" 
+                        className="w-full pl-10 pr-8 py-2.5 bg-transparent outline-none text-[14px] font-bold text-slate-700 placeholder:text-slate-400" 
                         placeholder="Tìm tên, phòng, mã..." 
                         value={searchTerm} 
                         onChange={e => setSearchTerm(e.target.value)} 
                       />
+                      {searchTerm && (
+                        <button 
+                          onClick={() => setSearchTerm('')} 
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 p-1 rounded-lg hover:bg-slate-100 transition-all shrink-0 cursor-pointer"
+                          title="Xóa tìm kiếm"
+                        >
+                          <X size={14} strokeWidth={2.5} />
+                        </button>
+                      )}
                     </div>
                     
 
@@ -1600,43 +1658,47 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                     </div>
                   </div>
 
-                  {/* Quick Filters: Admission Date & Bed Type */}
-                  <div className="grid grid-cols-2 gap-2 mt-1.5">
-                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm focus-within:border-primary/40 transition-all">
-                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider shrink-0">Ngày vào:</span>
-                      <div className="flex-1 min-w-0">
-                        <DateInput 
-                          className="w-full bg-transparent text-[13.5px] font-bold text-slate-700 outline-none p-0 border-none focus:ring-0 focus:outline-none"
-                          value={filterAdmissionDate}
-                          onChange={val => setFilterAdmissionDate(val)}
-                        />
+                  {/* Quick Filters: Admission Date & Bed Type with stacked clean layout */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Ngày vào</span>
+                      <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm focus-within:border-primary/40 transition-all h-[38px] relative">
+                        <div className="flex-1 min-w-0">
+                          <DateInput 
+                            className="w-full bg-transparent text-[13px] font-bold text-slate-700 outline-none p-0 border-none focus:ring-0 focus:outline-none"
+                            value={filterAdmissionDate}
+                            onChange={val => setFilterAdmissionDate(val)}
+                          />
+                        </div>
+                        {filterAdmissionDate && (
+                          <button 
+                            onClick={() => setFilterAdmissionDate('')} 
+                            className="text-slate-400 hover:text-rose-500 transition-colors shrink-0 p-1 rounded-md hover:bg-slate-50 absolute right-1.5 top-1/2 -translate-y-1/2 bg-white cursor-pointer"
+                            title="Xóa lọc ngày vào"
+                          >
+                            <X size={13} strokeWidth={2.5} />
+                          </button>
+                        )}
                       </div>
-                      {filterAdmissionDate && (
-                        <button 
-                          onClick={() => setFilterAdmissionDate('')} 
-                          className="text-slate-400 hover:text-rose-500 transition-colors shrink-0"
-                          title="Xóa lọc ngày vào"
-                        >
-                          <X size={14} strokeWidth={2.5} />
-                        </button>
-                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm focus-within:border-primary/40 transition-all relative">
-                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider shrink-0">Giường:</span>
-                      <div className="relative flex-1 min-w-0 flex items-center">
-                        <select 
-                          className="w-full bg-transparent text-[13.5px] font-bold text-slate-700 outline-none p-0 pr-4 border-none cursor-pointer appearance-none"
-                          value={bedTypeFilter}
-                          onChange={e => setBedTypeFilter(e.target.value)}
-                        >
-                          <option value="ALL">Tất cả loại giường</option>
-                          <option value="Nội trú">Nội trú</option>
-                          <option value="Nội trú ban ngày">NT ban ngày</option>
-                          <option value="Ngoại trú">Ngoại trú</option>
-                          <option value="Khác">Khác</option>
-                        </select>
-                        <ChevronDown size={13} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Giường</span>
+                      <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm focus-within:border-primary/40 transition-all relative h-[38px]">
+                        <div className="relative flex-1 min-w-0 flex items-center">
+                          <select 
+                            className="w-full bg-transparent text-[13px] font-bold text-slate-700 outline-none p-0 pr-5 border-none cursor-pointer appearance-none"
+                            value={bedTypeFilter}
+                            onChange={e => setBedTypeFilter(e.target.value)}
+                          >
+                            <option value="ALL">Tất cả giường</option>
+                            <option value="Nội trú">Nội trú</option>
+                            <option value="Nội trú ban ngày">NT ban ngày</option>
+                            <option value="Ngoại trú">Ngoại trú</option>
+                            <option value="Khác">Khác</option>
+                          </select>
+                          <ChevronDown size={13} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
                       </div>
                     </div>
                   </div>
