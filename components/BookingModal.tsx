@@ -1972,42 +1972,42 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       
                       <div className="space-y-6">
                         <div className="flex items-center gap-4">
-                          <div className="w-16 shrink-0 space-y-1">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">CHÍNH:</span>
+                          <div className="w-[84px] shrink-0 space-y-1">
+                            <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">CHÍNH:</span>
                             {formData.startTime && (
-                              <p className="text-[9px] font-black text-primary uppercase whitespace-nowrap bg-primary/5 px-1.5 py-0.5 rounded leading-none">
+                              <p className="text-[10.5px] font-bold text-primary uppercase whitespace-nowrap bg-primary/10 px-1.5 py-0.5 rounded leading-none text-center">
                                 {addMinutesToTime(formData.startTime, formData.mainBusyStart ?? currentProc.mainBusyStart ?? 0)} - {addMinutesToTime(formData.startTime, formData.mainBusyEnd ?? currentProc.mainBusyEnd ?? currentProc.busyMinutes ?? currentProc.durationMinutes)}
                               </p>
                             )}
                           </div>
                           <div className="flex-1 flex gap-4">
                             <div className="flex-1 space-y-1.5">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
                               <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.mainBusyStart ?? currentProc.mainBusyStart ?? 0} onChange={e => setFormData({...formData, mainBusyStart: Number(e.target.value)})} />
                             </div>
                             <div className="flex-1 space-y-1.5">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
                               <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="30" value={formData.mainBusyEnd ?? currentProc.mainBusyEnd ?? currentProc.busyMinutes ?? currentProc.durationMinutes} onChange={e => setFormData({...formData, mainBusyEnd: Number(e.target.value)})} />
                             </div>
                           </div>
                         </div>
                         {((currentProc.asst1BusyEnd !== undefined && currentProc.asst1BusyEnd > 0) || (currentProc.assistant1BusyMinutes !== undefined && currentProc.assistant1BusyMinutes > 0)) && (
                           <div className="flex items-center gap-4">
-                            <div className="w-16 shrink-0 space-y-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">PHỤ 1:</span>
+                            <div className="w-[84px] shrink-0 space-y-1">
+                              <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">PHỤ 1:</span>
                               {formData.startTime && (
-                                <p className="text-[9px] font-black text-indigo-500 uppercase whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded leading-none">
+                                <p className="text-[10.5px] font-bold text-indigo-600 uppercase whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded leading-none text-center">
                                   {addMinutesToTime(formData.startTime, formData.asst1BusyStart ?? currentProc.asst1BusyStart ?? 0)} - {addMinutesToTime(formData.startTime, formData.asst1BusyEnd ?? currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0)}
                                 </p>
                               )}
                             </div>
                             <div className="flex-1 flex gap-4">
                               <div className="flex-1 space-y-1.5">
-                                <p className="text-[9px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
                                 <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst1BusyStart ?? currentProc.asst1BusyStart ?? 0} onChange={e => setFormData({...formData, asst1BusyStart: Number(e.target.value)})} />
                               </div>
                               <div className="flex-1 space-y-1.5">
-                                <p className="text-[9px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
                                 <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst1BusyEnd ?? currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0} onChange={e => setFormData({...formData, asst1BusyEnd: Number(e.target.value)})} />
                               </div>
                             </div>
@@ -2015,21 +2015,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         )}
                         {((currentProc.asst2BusyEnd !== undefined && currentProc.asst2BusyEnd > 0) || (currentProc.assistant2BusyMinutes !== undefined && currentProc.assistant2BusyMinutes > 0)) && (
                           <div className="flex items-center gap-4">
-                            <div className="w-16 shrink-0 space-y-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">PHỤ 2:</span>
+                            <div className="w-[84px] shrink-0 space-y-1">
+                              <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">PHỤ 2:</span>
                               {formData.startTime && (
-                                <p className="text-[9px] font-black text-rose-500 uppercase whitespace-nowrap bg-rose-50 px-1.5 py-0.5 rounded leading-none">
+                                <p className="text-[10.5px] font-bold text-rose-600 uppercase whitespace-nowrap bg-rose-50 px-1.5 py-0.5 rounded leading-none text-center">
                                   {addMinutesToTime(formData.startTime, formData.asst2BusyStart ?? currentProc.asst2BusyStart ?? 0)} - {addMinutesToTime(formData.startTime, formData.asst2BusyEnd ?? currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0)}
                                 </p>
                               )}
                             </div>
                             <div className="flex-1 flex gap-4">
                               <div className="flex-1 space-y-1.5">
-                                <p className="text-[9px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
                                 <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst2BusyStart ?? currentProc.asst2BusyStart ?? 0} onChange={e => setFormData({...formData, asst2BusyStart: Number(e.target.value)})} />
                               </div>
                               <div className="flex-1 space-y-1.5">
-                                <p className="text-[9px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
                                 <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst2BusyEnd ?? currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0} onChange={e => setFormData({...formData, asst2BusyEnd: Number(e.target.value)})} />
                               </div>
                             </div>
