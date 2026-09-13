@@ -1705,7 +1705,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+    <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="flex-1 overflow-auto relative scrollbar-thin scrollbar-thumb-slate-300">
         <div className="min-w-max pb-10">
           <div className="flex border-b border-slate-200 sticky top-0 bg-slate-50 z-40 h-12 shadow-sm">

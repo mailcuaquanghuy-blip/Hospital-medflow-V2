@@ -145,7 +145,51 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const [procedureFilter, setProcedureFilter] = useState<string>(() => sessionStorage.getItem(`medflow_sched_proc_${deptKey}`) || 'ALL');
   const [showNoProcedureOnly, setShowNoProcedureOnly] = useState<boolean>(() => sessionStorage.getItem(`medflow_sched_noProc_${deptKey}`) === 'true');
   const [staffFilter, setStaffFilter] = useState<string>(() => sessionStorage.getItem(`medflow_sched_staff_${deptKey}`) || 'ALL');
-  const [bedTypeFilter, setBedTypeFilter] = useState<string>(() => sessionStorage.getItem(`medflow_sched_bedType_${deptKey}`) || 'ALL');
+  const [bedTypeFilters, setBedTypeFilters] = useState<string[]>(() => {
+    try {
+      const saved = sessionStorage.getItem(`medflow_sched_bedTypes_${deptKey}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isBedDropdownOpen, setIsBedDropdownOpen] = useState(false);
+  const bedDropdownRef = useRef<HTMLDivElement>(null);
+
+  const getBedLabel = () => {
+    if (bedTypeFilters.length === 0) return 'Tất cả giường';
+    if (bedTypeFilters.length === 4) return 'Tất cả giường';
+    
+    const labelMap: Record<string, string> = {
+      'Nội trú': 'Nội trú',
+      'Nội trú ban ngày': 'NT ban ngày',
+      'Ngoại trú': 'Ngoại trú',
+      'Khác': 'Khác'
+    };
+    
+    return bedTypeFilters.map(b => labelMap[b] || b).join(', ');
+  };
+
+  const handleToggleBedType = (type: string) => {
+    if (bedTypeFilters.includes(type)) {
+      setBedTypeFilters(bedTypeFilters.filter(t => t !== type));
+    } else {
+      setBedTypeFilters([...bedTypeFilters, type]);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (bedDropdownRef.current && !bedDropdownRef.current.contains(event.target as Node)) {
+        setIsBedDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const [showConflictedOnly, setShowConflictedOnly] = useState<boolean>(() => sessionStorage.getItem(`medflow_sched_conflict_${deptKey}`) === 'true');
   const [filterAdmissionDate, setFilterAdmissionDate] = useState<string>(() => sessionStorage.getItem(`medflow_sched_admDate_${deptKey}`) || '');
   const [showDischarged, setShowDischarged] = useState<string>(() => sessionStorage.getItem(`medflow_sched_discharged_${deptKey}`) || 'ALL');
@@ -160,7 +204,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     sessionStorage.setItem(`medflow_sched_proc_${deptKey}`, procedureFilter);
     sessionStorage.setItem(`medflow_sched_noProc_${deptKey}`, String(showNoProcedureOnly));
     sessionStorage.setItem(`medflow_sched_staff_${deptKey}`, staffFilter);
-    sessionStorage.setItem(`medflow_sched_bedType_${deptKey}`, bedTypeFilter);
+    sessionStorage.setItem(`medflow_sched_bedTypes_${deptKey}`, JSON.stringify(bedTypeFilters));
     sessionStorage.setItem(`medflow_sched_conflict_${deptKey}`, String(showConflictedOnly));
     sessionStorage.setItem(`medflow_sched_admDate_${deptKey}`, filterAdmissionDate);
     sessionStorage.setItem(`medflow_sched_discharged_${deptKey}`, showDischarged);
@@ -169,7 +213,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     }
   }, [
     deptKey, searchTerm, referringDeptFilter, procedureFilter, showNoProcedureOnly,
-    staffFilter, bedTypeFilter, showConflictedOnly, filterAdmissionDate, showDischarged, selectedPatientId
+    staffFilter, bedTypeFilters, showConflictedOnly, filterAdmissionDate, showDischarged, selectedPatientId
   ]);
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
   const [isBatchLoadModalOpen, setIsBatchLoadModalOpen] = useState(false);
@@ -203,7 +247,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       procedureFilter !== 'ALL' ||
       showNoProcedureOnly !== false ||
       staffFilter !== 'ALL' ||
-      bedTypeFilter !== 'ALL' ||
+      bedTypeFilters.length > 0 ||
       showConflictedOnly !== false ||
       filterAdmissionDate !== '' ||
       showDischarged !== 'ALL' ||
@@ -215,7 +259,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     procedureFilter,
     showNoProcedureOnly,
     staffFilter,
-    bedTypeFilter,
+    bedTypeFilters,
     showConflictedOnly,
     filterAdmissionDate,
     showDischarged,
@@ -228,7 +272,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     setProcedureFilter('ALL');
     setShowNoProcedureOnly(false);
     setStaffFilter('ALL');
-    setBedTypeFilter('ALL');
+    setBedTypeFilters([]);
     setShowConflictedOnly(false);
     setFilterAdmissionDate('');
     setShowDischarged('ALL');
@@ -509,7 +553,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     const matchesProcedure = procedureFilter === 'ALL' || patientAppts.some(a => a.procedureId === procedureFilter);
     const matchesNoProcedure = !showNoProcedureOnly || patientAppts.length === 0;
     const matchesStaff = staffFilter === 'ALL' || patientAppts.some(a => a.staffId === staffFilter || a.assistant1Id === staffFilter || a.assistant2Id === staffFilter);
-    const matchesBedType = bedTypeFilter === 'ALL' || (p.bedType || 'Nội trú') === bedTypeFilter;
+    const matchesBedType = bedTypeFilters.length === 0 || bedTypeFilters.includes(p.bedType || 'Nội trú');
     
     const hasConflictAppt = patientIdsWithIssues.has(p.id);
     const matchesConflict = !showConflictedOnly || hasConflictAppt;
@@ -1426,7 +1470,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   return (
-    <div className="flex flex-col flex-1 h-full min-h-0 gap-4">
+    <div className="flex flex-col flex-1 h-full min-h-0 gap-2.5">
       <div className="flex items-center justify-between gap-2.5 shrink-0 w-full flex-wrap">
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Nhóm 3 nút chuyển thành dạng icon gọn gàng */}
@@ -1494,7 +1538,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                 setReferringDeptFilter('ALL');
                 setProcedureFilter('ALL');
                 setStaffFilter('ALL');
-                setBedTypeFilter('ALL');
+                setBedTypeFilters([]);
                 setShowConflictedOnly(false);
                 setShowNoProcedureOnly(false);
                 setFilterAdmissionDate('');
@@ -1557,8 +1601,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       </div>
 
       {activeTab === 'SCHEDULING' && (
-        <div className="flex flex-1 gap-6 overflow-hidden">
-          <div className="w-[420px] flex flex-col bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
+        <div className="flex flex-1 gap-3 overflow-hidden">
+          <div className="w-[410px] flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
             <div className="p-4 border-b border-slate-100 bg-slate-50 space-y-3 shrink-0">
                <div className="flex items-center justify-between px-1">
                    <h3 className="font-black text-slate-800 text-[13.5px] uppercase tracking-widest flex items-center gap-2">
@@ -1682,23 +1726,60 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1" ref={bedDropdownRef}>
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Giường</span>
-                      <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm focus-within:border-primary/40 transition-all relative h-[38px]">
-                        <div className="relative flex-1 min-w-0 flex items-center">
-                          <select 
-                            className="w-full bg-transparent text-[13px] font-bold text-slate-700 outline-none p-0 pr-5 border-none cursor-pointer appearance-none"
-                            value={bedTypeFilter}
-                            onChange={e => setBedTypeFilter(e.target.value)}
-                          >
-                            <option value="ALL">Tất cả giường</option>
-                            <option value="Nội trú">Nội trú</option>
-                            <option value="Nội trú ban ngày">NT ban ngày</option>
-                            <option value="Ngoại trú">Ngoại trú</option>
-                            <option value="Khác">Khác</option>
-                          </select>
-                          <ChevronDown size={13} className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                        </div>
+                      <div className="relative h-[38px]">
+                        <button
+                          type="button"
+                          onClick={() => setIsBedDropdownOpen(!isBedDropdownOpen)}
+                          className="w-full h-full flex items-center justify-between bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 focus:border-primary/40 focus:ring-1 focus:ring-primary/25 transition-all text-left cursor-pointer"
+                        >
+                          <span className="text-[13px] font-bold text-slate-700 truncate pr-4">
+                            {getBedLabel()}
+                          </span>
+                          <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 shrink-0 ${isBedDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isBedDropdownOpen && (
+                          <div className="absolute top-[calc(100%+4px)] left-0 w-[180px] bg-white rounded-xl shadow-xl border border-slate-100 p-2 z-[100] flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                            {[
+                              { value: 'Nội trú', label: 'Nội trú' },
+                              { value: 'Nội trú ban ngày', label: 'NT ban ngày' },
+                              { value: 'Ngoại trú', label: 'Ngoại trú' },
+                              { value: 'Khác', label: 'Khác' }
+                            ].map(option => {
+                              const isChecked = bedTypeFilters.includes(option.value);
+                              return (
+                                <label 
+                                  key={option.value}
+                                  className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+                                >
+                                  <input 
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => handleToggleBedType(option.value)}
+                                    className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer shrink-0"
+                                  />
+                                  <span className="text-xs font-bold text-slate-600 select-none">
+                                    {option.label}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                            
+                            {bedTypeFilters.length > 0 && (
+                              <div className="pt-1.5 mt-0.5 border-t border-slate-100 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => setBedTypeFilters([])}
+                                  className="text-[10px] font-black text-rose-500 uppercase tracking-wider px-2 py-1 hover:bg-rose-50 rounded-md transition-all cursor-pointer"
+                                >
+                                  Xóa chọn
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1924,7 +2005,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
+      <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
         {selectedPatient ? (
           <>
             <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/40 shrink-0">

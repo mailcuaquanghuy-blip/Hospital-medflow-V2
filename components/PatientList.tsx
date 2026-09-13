@@ -1101,8 +1101,8 @@ export const PatientList: React.FC<PatientListProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-4 bg-slate-50/50">
+    <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
         <div className="flex items-center gap-4">
            <div className="flex bg-slate-200 rounded-xl p-1 shrink-0">
               <button 

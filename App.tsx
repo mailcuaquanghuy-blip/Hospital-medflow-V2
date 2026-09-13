@@ -2360,55 +2360,87 @@ const App: React.FC = () => {
                   </div>
               </div>
           </div>
-          
+      </header>
+
+      {/* Body area with vertical icon sidebar on the left and content on the right */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {currentDept && (
+          <aside className="w-16 bg-white border-r border-slate-200 shadow-xs flex flex-col items-center py-4 gap-3 shrink-0 z-20 overflow-y-auto">
+            {[
+              { id: 'PATIENT_RECORDS', label: 'Hồ sơ Bệnh nhân', icon: <FileText size={20} /> },
+              { id: 'SCHEDULING', label: 'Sắp xếp lịch trình', icon: <CalendarPlus size={20} /> },
+              { id: 'GENERAL_TIMELINE', label: 'Timeline Khoa', icon: <Table2 size={20} /> },
+              { id: 'DAILY_REPORT', label: 'Báo cáo thống kê', icon: <PieChart size={20} /> },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <div key={tab.id} className="relative group">
+                  <button 
+                    disabled={isAnyModalOpen}
+                    onClick={() => {
+                      if (isAnyModalOpen) return;
+                      setActiveTab(tab.id as MainTab);
+                    }} 
+                    className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 relative cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                      isActive 
+                        ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30 scale-105 ring-2 ring-sky-400/20' 
+                        : 'text-slate-500 hover:text-sky-600 hover:bg-sky-50/80 bg-white border border-slate-200 hover:border-sky-200 shadow-2xs'
+                    }`}
+                    title={tab.label}
+                    aria-label={tab.label}
+                  >
+                    <span className={`transition-transform duration-300 ${isActive ? '' : 'group-hover:scale-110'}`}>{tab.icon}</span>
+                  </button>
+
+                  {/* Floating tooltip on hover */}
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-[11px] font-extrabold uppercase tracking-wider rounded-xl whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 translate-x-[-4px] group-hover:translate-x-0">
+                    {tab.label}
+                    <div className="absolute right-full top-1/2 -translate-y-1/2 -mr-1 border-4 border-transparent border-r-slate-900" />
+                  </div>
+                </div>
+              );
+            })}
+          </aside>
+        )}
+
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {currentDept && (
-            <div className="px-6 py-3 bg-slate-50/50 border-t border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3 overflow-x-auto scrollbar-none">
-              <div className="flex gap-3 items-center shrink-0">
-               {[
-                   { id: 'PATIENT_RECORDS', label: 'Hồ sơ Bệnh nhân', icon: <FileText size={16} /> },
-                   { id: 'SCHEDULING', label: 'Sắp xếp lịch trình', icon: <CalendarPlus size={16} /> },
-                   { id: 'GENERAL_TIMELINE', label: 'Timeline Khoa', icon: <Table2 size={16} /> },
-                   { id: 'DAILY_REPORT', label: 'Báo cáo thống kê', icon: <PieChart size={16} /> },
-               ].map((tab) => {
-                   const isActive = activeTab === tab.id;
-                   return (
-                     <button 
-                       key={tab.id} 
-                       disabled={isAnyModalOpen}
-                       onClick={() => {
-                         if (isAnyModalOpen) return;
-                         setActiveTab(tab.id as MainTab);
-                       }} 
-                       className={`group flex items-center gap-2.5 px-5.5 py-2.5 rounded-2xl text-[12px] font-extrabold uppercase tracking-widest transition-all duration-300 relative whitespace-nowrap overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed ${
-                         isActive 
-                           ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25 scale-[1.02]' 
-                           : 'text-slate-500 hover:text-slate-800 bg-white border border-slate-200 hover:border-slate-350 shadow-sm'
-                       }`}
-                     >
-                       <span className={`transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-sky-500'}`}>{tab.icon}</span>
-                       <span>{tab.label}</span>
-                     </button>
-                   );
-               })}
+            <div className="px-3 sm:px-4 py-1.5 bg-slate-50/70 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200/80 rounded-xl shadow-2xs">
+                  <span className="text-sky-600">
+                    {activeTab === 'PATIENT_RECORDS' && <FileText size={15} />}
+                    {activeTab === 'SCHEDULING' && <CalendarPlus size={15} />}
+                    {activeTab === 'GENERAL_TIMELINE' && <Table2 size={15} />}
+                    {activeTab === 'DAILY_REPORT' && <PieChart size={15} />}
+                    {activeTab === 'DEPT_MANAGER' && <Building2 size={15} />}
+                  </span>
+                  <span className="text-[12px] font-black uppercase tracking-wider text-slate-700">
+                    {activeTab === 'PATIENT_RECORDS' && 'Hồ sơ Bệnh nhân'}
+                    {activeTab === 'SCHEDULING' && 'Sắp xếp lịch trình'}
+                    {activeTab === 'GENERAL_TIMELINE' && 'Timeline Khoa'}
+                    {activeTab === 'DAILY_REPORT' && 'Báo cáo thống kê'}
+                    {activeTab === 'DEPT_MANAGER' && 'Quản lý Khoa'}
+                  </span>
+                </div>
               </div>
 
-              {/* Khung Làm việc ngày chuyển từ hàng trên xuống góc phải hàng thứ 2 */}
-              <div className="flex items-center gap-2 bg-slate-100/90 rounded-2xl p-1.5 border border-slate-200/90 shadow-2xs shrink-0 ml-auto">
-                  <span className="text-[11px] font-black text-slate-500 px-2.5 uppercase tracking-widest hidden sm:inline">Làm việc ngày:</span>
-                  <DateInput 
-                    value={activeDate} 
-                    onChange={(val) => { if (!isAnyModalOpen) handleDateChange(val); }} 
-                    showNavigation={true}
-                    showWeekday={true}
-                    size="lg"
-                    disabled={isAnyModalOpen}
-                  />
+              {/* Khung Làm việc ngày */}
+              <div className="flex items-center gap-2 bg-slate-100/90 rounded-2xl p-1 border border-slate-200/90 shadow-2xs shrink-0 ml-auto">
+                <span className="text-[11px] font-black text-slate-500 px-2 uppercase tracking-widest hidden sm:inline">Làm việc ngày:</span>
+                <DateInput 
+                  value={activeDate} 
+                  onChange={(val) => { if (!isAnyModalOpen) handleDateChange(val); }} 
+                  showNavigation={true}
+                  showWeekday={true}
+                  size="lg"
+                  disabled={isAnyModalOpen}
+                />
               </div>
             </div>
           )}
-      </header>
 
-      <main className="flex-1 p-6 overflow-hidden flex flex-col">
+          <main className="flex-1 p-1.5 sm:p-2.5 overflow-hidden flex flex-col">
          {activeTab === 'ACCOUNT_MANAGER' && <AccountManager users={users} onSaveUser={handleSaveUser} onDeleteUser={handleDeleteUser} />}
          {activeTab === 'ACCOUNT_BACKUP' && <BackupManager backups={backups} departments={DEPARTMENTS} currentUser={currentUser} onCreateBackup={handleCreateBackup} onRestoreBackup={handleRestoreBackup} onDeleteBackup={handleDeleteBackup} onImportData={handleImportData} />}
          
@@ -2512,6 +2544,8 @@ const App: React.FC = () => {
              </div>
          )}
       </main>
+        </div>
+      </div>
 
       <VerificationModal 
         isOpen={isVerificationModalOpen}
