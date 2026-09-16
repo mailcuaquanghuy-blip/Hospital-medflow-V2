@@ -1501,20 +1501,40 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const procedure = procedures.find(p => p.id === appt.procedureId);
                 const procedureDeptId = procedure?.deptId || appt.deptId;
                 const performingDept = DEPARTMENTS.find(d => d.id === procedureDeptId);
-                const startMin = timeStringToMinutes(appt.startTime);
-                const endMin = timeStringToMinutes(appt.endTime);
-                const duration = endMin - startMin;
-                const width = minutesToPixels(duration, pixelsPerMinute);
+
+                // Fix length errors: validate start and end times properly
+                const rawStartMin = timeStringToMinutes(appt.startTime);
+                const rawEndMin = timeStringToMinutes(appt.endTime);
+                const procDuration = procedure?.durationMinutes || 30;
+
+                let startMin = isNaN(rawStartMin) ? 0 : rawStartMin;
+                let endMin = rawEndMin;
+
+                // If endTime is missing, corrupted, or not strictly after start time, calculate based on procedure duration
+                if (isNaN(endMin) || endMin <= startMin) {
+                  endMin = startMin + procDuration;
+                }
+
+                const duration = Math.max(endMin - startMin, 5);
+                const exactWidth = minutesToPixels(duration, pixelsPerMinute);
                 const left = minutesToPixels(startMin, pixelsPerMinute);
                 const isOutside = !isInsideOfficeHours(startMin, endMin);
                 const hasConflict = appt.status === AppointmentStatus.CONFLICT;
-                const displayWidth = Math.max(width, 50);
+
+                // Format start and end time text strings cleanly (HH:MM)
+                const displayStartTime = appt.startTime || minutesToTimeString(startMin);
+                const displayEndTime = (appt.endTime && rawEndMin > startMin) ? appt.endTime : minutesToTimeString(endMin);
+
+                const procedureName = procedure?.name || 'Lịch trình đã xóa';
+                // Đảm bảo thẻ có độ dài tối thiểu đủ để hiển thị đầy đủ 100% tên thủ thuật (không bị cắt bớt thành dấu 3 chấm ...)
+                const minNameWidth = Math.max(Math.ceil(procedureName.length * 8.5) + 24, 90);
+                const cardWidth = Math.max(exactWidth, minNameWidth);
                 
                 const isBgHighlight = hasConflict || isOutside;
                 const stickyCellBg = isBgHighlight ? 'bg-[#fff5f5]' : 'bg-white';
                 const stickyCellHover = isBgHighlight ? 'group-hover:bg-rose-100/60' : 'group-hover:bg-slate-50';
                 
-                const marqueeContent = `(${procedure?.name || 'Lịch trình đã xóa'}) ${appt.startTime} - ${appt.endTime}, ${staffMember?.name}${appt.assistant1Id ? `, Phụ 1: ${staff.find(s => s.id === appt.assistant1Id)?.name}` : ''}${appt.assistant2Id ? `, Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}` : ''}${appt.assignedMachineId ? `, Máy: ${appt.assignedMachineId.replace(/-/g, '')}` : ''}`;
+                const marqueeContent = `(${procedureName}) ${displayStartTime} - ${displayEndTime}, ${staffMember?.name}${appt.assistant1Id ? `, Phụ 1: ${staff.find(s => s.id === appt.assistant1Id)?.name}` : ''}${appt.assistant2Id ? `, Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}` : ''}${appt.assignedMachineId ? `, Máy: ${appt.assignedMachineId.replace(/-/g, '')}` : ''}`;
 
                 return (
                   <tr key={appt.id} className={`hover:bg-slate-50 transition-all group min-h-[5rem] ${hasConflict || isOutside ? 'bg-rose-50/20' : ''}`}>
@@ -1608,7 +1628,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                         </div>
                     </td>
                     <td className={`p-3 text-center font-mono sticky left-[920px] ${stickyCellBg} ${stickyCellHover} z-20 text-sm font-semibold border-r border-slate-100 w-[110px] min-w-[110px] max-w-[110px]`}>
-                        {appt.startTime} - {appt.endTime}
+                        {displayStartTime} - {displayEndTime}
                     </td>
                     <td className={`p-3 text-center sticky left-[1030px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[110px] min-w-[110px] max-w-[110px] shadow-[2px_0_5px_rgba(0,0,0,0.05)]`}>
                        {appt.assignedMachineId ? (
@@ -1623,22 +1643,42 @@ export const Timeline: React.FC<TimelineProps> = ({
                         {procedure?.restMinutes ? (
                           <div 
                             className="absolute top-1/2 -translate-y-1/2 rounded-r-lg border-y-2 border-r-2 border-slate-200 bg-slate-200/50 flex items-center overflow-hidden z-0 pointer-events-none"
-                            style={{ left: left + displayWidth - 4, width: minutesToPixels(procedure.restMinutes, pixelsPerMinute) + 4, height: 40 }}
+                            style={{ left: left + cardWidth - 4, width: minutesToPixels(procedure.restMinutes, pixelsPerMinute) + 4, height: 38 }}
                           >
-                             <div className="px-2 pl-3 text-[9px] font-bold text-slate-500 whitespace-nowrap">Nghỉ {procedure.restMinutes}p</div>
+                             <div className="px-2 pl-12 text-[9px] font-bold text-slate-500 whitespace-nowrap">Nghỉ {procedure.restMinutes}p</div>
                           </div>
                         ) : null}
                         <div 
                           onClick={() => onAppointmentClick(appt)} 
-                          className={`absolute top-1/2 -translate-y-1/2 rounded-lg border shadow-sm flex flex-col justify-center px-2 cursor-pointer hover:z-30 hover:scale-[1.02] hover:shadow-md transition-all z-10 ${getBarColor(appt.procedureId, appt.status, isOutside, procedures.find(p => p.id === appt.procedureId)?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} 
-                          style={{ left, width: displayWidth, height: 44 }}
-                          title={`${appt.startTime} - ${appt.endTime}: ${procedure?.name || 'Lịch trình đã xóa'}`}
+                          className={`absolute top-1/2 -translate-y-1/2 rounded-lg border shadow-xs flex items-center justify-center px-2 cursor-pointer hover:z-30 hover:scale-[1.02] hover:shadow-md transition-all z-10 ${getBarColor(appt.procedureId, appt.status, isOutside, procedures.find(p => p.id === appt.procedureId)?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} 
+                          style={{ left, width: cardWidth, minWidth: 'max-content', height: 38 }}
+                          title={`${displayStartTime} - ${displayEndTime}: ${procedureName}`}
                         >
-                          <div className="font-black text-[9px] leading-tight truncate">
-                            {appt.startTime} - {appt.endTime}
+                          {/* Giờ bắt đầu cho ra bên ngoài và ở phía trước thẻ */}
+                          <div className="absolute right-[calc(100%+4px)] top-1/2 -translate-y-1/2 select-none z-20 flex items-center pointer-events-none">
+                            <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold whitespace-nowrap shadow-2xs border ${
+                              hasConflict || isOutside 
+                                ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                                : 'bg-white/95 text-slate-700 border-slate-200/90'
+                            }`}>
+                              {displayStartTime}
+                            </span>
                           </div>
-                          <div className="font-bold text-[9px] leading-tight truncate mt-0.5">
-                            {procedure?.name || 'Lịch trình đã xóa'}
+
+                          {/* Bên trong thẻ: HIỆN TOÀN BỘ TÊN THỦ THUẬT */}
+                          <span className="font-bold text-[10.5px] sm:text-[11px] leading-tight whitespace-nowrap text-center select-none px-1">
+                            {procedureName}
+                          </span>
+
+                          {/* Giờ kết thúc cho ra bên ngoài và ở phía sau thẻ */}
+                          <div className="absolute left-[calc(100%+4px)] top-1/2 -translate-y-1/2 select-none z-20 flex items-center pointer-events-none">
+                            <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold whitespace-nowrap shadow-2xs border ${
+                              hasConflict || isOutside 
+                                ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                                : 'bg-white/95 text-slate-700 border-slate-200/90'
+                            }`}>
+                              {displayEndTime}
+                            </span>
                           </div>
                         </div>
                       </div>
