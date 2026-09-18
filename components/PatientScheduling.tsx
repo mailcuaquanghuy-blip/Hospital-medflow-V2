@@ -2204,42 +2204,6 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                         <Save size={16} />
                     </button>
 
-                    {/* Nút Thêm chỉ định / Tải mẫu dạng icon */}
-                    {isSupportDept ? (
-                      <button 
-                        type="button"
-                        onClick={() => onBookAppointment(selectedPatient.id)} 
-                        disabled={isReferralFinished} 
-                        className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none shrink-0 ${
-                          isReferralFinished ? "bg-slate-100 text-slate-400 border border-slate-200" : "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200"
-                        }`}
-                        title={isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}
-                      >
-                        {isReferralFinished ? <Lock size={16} /> : <Plus size={16} />}
-                      </button>
-                    ) : (
-                      <div className="flex items-center shadow-2xs rounded-xl overflow-hidden border border-primary/20 shrink-0">
-                        <button 
-                          type="button"
-                          onClick={() => onBookAppointment(selectedPatient.id)} 
-                          disabled={isReferralFinished}
-                          className="flex items-center justify-center w-9 h-9 bg-primary hover:bg-primary/90 text-white transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-                          title="Thêm chỉ định điều trị mới"
-                        >
-                            <Plus size={16} />
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => setIsLoadTemplateModalOpen(true)} 
-                          disabled={isReferralFinished}
-                          className="flex items-center justify-center w-7 h-9 bg-primary hover:bg-primary/90 text-white/90 hover:text-white border-l border-white/20 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none" 
-                          title="Tải từ mẫu lịch trình có sẵn"
-                        >
-                            <ChevronDown size={14} />
-                        </button>
-                      </div>
-                    )}
-
                     {/* Bộ điều khiển thu phóng thời gian */}
                     <div className="flex items-center bg-slate-100/90 hover:bg-slate-200/80 px-1 py-0.5 rounded-xl border border-slate-200/90 text-slate-700 h-9 shrink-0 select-none transition-all shadow-2xs">
                         <button 
@@ -2396,6 +2360,54 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                             </div>
                         </div>
                     </div>
+
+                    {/* Nút Thêm chỉ định / Tải mẫu phóng to, cố định góc dưới bên phải khung timeline (đứng yên khi kéo/cuộn timeline) */}
+                    {selectedPatient && (
+                      <div className="absolute bottom-6 right-6 z-40 pointer-events-auto">
+                        {isSupportDept ? (
+                          <button 
+                            type="button"
+                            onClick={() => onBookAppointment(selectedPatient.id)} 
+                            disabled={isReferralFinished} 
+                            className={`flex items-center gap-2 px-5 h-12 rounded-2xl shadow-xl hover:shadow-2xl transition-all active:scale-95 cursor-pointer font-bold text-sm select-none disabled:opacity-50 disabled:pointer-events-none ${
+                              isReferralFinished 
+                                ? "bg-slate-200 text-slate-500 border border-slate-300 shadow-none" 
+                                : "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25 border border-amber-400"
+                            }`}
+                            title={isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}
+                          >
+                            {isReferralFinished ? <Lock size={18} /> : <Plus size={20} className="stroke-[2.5]" />}
+                            <span>{isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}</span>
+                          </button>
+                        ) : (
+                          <div className={`flex items-center rounded-2xl shadow-xl hover:shadow-2xl overflow-hidden border transition-all select-none ${
+                            isReferralFinished 
+                              ? "bg-slate-100 border-slate-200 opacity-60 shadow-none pointer-events-none" 
+                              : "bg-primary border-primary/40 shadow-primary/25 hover:shadow-primary/35"
+                          }`}>
+                            <button 
+                              type="button"
+                              onClick={() => onBookAppointment(selectedPatient.id)} 
+                              disabled={isReferralFinished}
+                              className="flex items-center gap-2 px-5 h-12 bg-primary hover:bg-primary/90 text-white font-bold text-sm tracking-wide transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                              title="Thêm chỉ định điều trị mới"
+                            >
+                                <Plus size={20} className="stroke-[2.5]" />
+                                <span>Thêm chỉ định</span>
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setIsLoadTemplateModalOpen(true)} 
+                              disabled={isReferralFinished}
+                              className="flex items-center justify-center w-11 h-12 bg-primary hover:bg-primary/90 text-white/90 hover:text-white border-l border-white/25 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none" 
+                              title="Tải từ mẫu lịch trình có sẵn"
+                            >
+                                <ChevronDown size={18} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                 </div>
 
                 {/* Templates & Synchronization Warnings Area */}
