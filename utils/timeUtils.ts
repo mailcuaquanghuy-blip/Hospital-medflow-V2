@@ -217,17 +217,11 @@ export const checkConflict = (
   if (patientId && patients.length > 0) {
     const currentPatient = getPatientFromCache(patients, patientId);
     if (currentPatient) {
-      // Check admission date & time
+      // Check admission date
       if (currentPatient.admissionDate) {
         const admissionDateStr = getLocalDateString(currentPatient.admissionDate);
         if (newDate < admissionDateStr) {
           conflictDetails.push({ message: `Bệnh nhân chưa vào viện vào ngày này (Vào viện: ${formatDate(admissionDateStr)}).`, level: 1 });
-        } else if (newDate === admissionDateStr) {
-          const admissionMin = getLocalTimeMinutes(currentPatient.admissionDate);
-          if (admissionMin !== null && startMin < admissionMin) {
-            const timeStr = minutesToTimeString(admissionMin);
-            conflictDetails.push({ message: `Lịch trình thực hiện lúc ${newStart} trước giờ bệnh nhân vào viện (${timeStr} ngày ${formatDate(admissionDateStr)}).`, level: 1 });
-          }
         }
       }
 

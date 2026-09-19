@@ -2310,40 +2310,27 @@ const App: React.FC = () => {
               </div>
               <div className="flex items-center gap-4">
                   {currentDept && (
-                    <>
-                      <button 
-                        disabled={isAnyModalOpen}
-                        onClick={() => {
-                          if (isAnyModalOpen) return;
-                          setActiveTab('DEPT_MANAGER');
-                        }}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'DEPT_MANAGER' ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                      >
-                        <Building2 size={16} />
-                        Quản lý Khoa
-                      </button>
-                      <button 
-                        disabled={isAnyModalOpen}
-                        onClick={() => {
-                          if (isAnyModalOpen) return;
-                          if (!currentDept) {
-                            alert('Lỗi: Bạn chưa chọn khoa làm việc.');
-                            return;
-                          }
-                          const hasPermission = currentUser.role === UserRole.ADMIN || currentUser.editableDeptIds?.includes(currentDept.id);
-                          if (!hasPermission) {
-                            alert(`Lỗi: Tài khoản của bạn không được phân quyền quản lý / sao lưu khôi phục tại khoa "${currentDept.name}".`);
-                            return;
-                          }
-                          setIsDeptBackupModalOpen(true);
-                        }}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Sao lưu / Khôi phục dữ liệu khoa"
-                      >
-                        <Database size={16} className="text-sky-500" />
-                        Sao lưu / Khôi phục
-                      </button>
-                    </>
+                    <button 
+                      disabled={isAnyModalOpen}
+                      onClick={() => {
+                        if (isAnyModalOpen) return;
+                        if (!currentDept) {
+                          alert('Lỗi: Bạn chưa chọn khoa làm việc.');
+                          return;
+                        }
+                        const hasPermission = currentUser.role === UserRole.ADMIN || currentUser.editableDeptIds?.includes(currentDept.id);
+                        if (!hasPermission) {
+                          alert(`Lỗi: Tài khoản của bạn không được phân quyền quản lý / sao lưu khôi phục tại khoa "${currentDept.name}".`);
+                          return;
+                        }
+                        setIsDeptBackupModalOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Sao lưu / Khôi phục dữ liệu khoa"
+                    >
+                      <Database size={16} className="text-sky-500" />
+                      Sao lưu / Khôi phục
+                    </button>
                   )}
                   <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
                     <div className="text-right hidden sm:block">
@@ -2365,41 +2352,73 @@ const App: React.FC = () => {
       {/* Body area with vertical icon sidebar on the left and content on the right */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         {currentDept && (
-          <aside className="w-16 bg-white border-r border-slate-200 shadow-xs flex flex-col items-center py-4 gap-3 shrink-0 z-20 overflow-y-auto">
-            {[
-              { id: 'PATIENT_RECORDS', label: 'Hồ sơ Bệnh nhân', icon: <FileText size={20} /> },
-              { id: 'SCHEDULING', label: 'Sắp xếp lịch trình', icon: <CalendarPlus size={20} /> },
-              { id: 'GENERAL_TIMELINE', label: 'Timeline Khoa', icon: <Table2 size={20} /> },
-              { id: 'DAILY_REPORT', label: 'Báo cáo thống kê', icon: <PieChart size={20} /> },
-            ].map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <div key={tab.id} className="relative group">
-                  <button 
-                    disabled={isAnyModalOpen}
-                    onClick={() => {
-                      if (isAnyModalOpen) return;
-                      setActiveTab(tab.id as MainTab);
-                    }} 
-                    className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 relative cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                      isActive 
-                        ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30 scale-105 ring-2 ring-sky-400/20' 
-                        : 'text-slate-500 hover:text-sky-600 hover:bg-sky-50/80 bg-white border border-slate-200 hover:border-sky-200 shadow-2xs'
-                    }`}
-                    title={tab.label}
-                    aria-label={tab.label}
-                  >
-                    <span className={`transition-transform duration-300 ${isActive ? '' : 'group-hover:scale-110'}`}>{tab.icon}</span>
-                  </button>
+          <aside className="w-16 bg-white border-r border-slate-200 shadow-xs flex flex-col items-center py-4 shrink-0 z-20 overflow-y-auto">
+            <div className="flex flex-col items-center gap-3 w-full">
+              {[
+                { id: 'PATIENT_RECORDS', label: 'Hồ sơ Bệnh nhân', icon: <FileText size={20} /> },
+                { id: 'SCHEDULING', label: 'Sắp xếp lịch trình', icon: <CalendarPlus size={20} /> },
+                { id: 'GENERAL_TIMELINE', label: 'Timeline Khoa', icon: <Table2 size={20} /> },
+                { id: 'DAILY_REPORT', label: 'Báo cáo thống kê', icon: <PieChart size={20} /> },
+              ].map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <div key={tab.id} className="relative group">
+                    <button 
+                      disabled={isAnyModalOpen}
+                      onClick={() => {
+                        if (isAnyModalOpen) return;
+                        setActiveTab(tab.id as MainTab);
+                      }} 
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 relative cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        isActive 
+                          ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30 scale-105 ring-2 ring-sky-400/20' 
+                          : 'text-slate-500 hover:text-sky-600 hover:bg-sky-50/80 bg-white border border-slate-200 hover:border-sky-200 shadow-2xs'
+                      }`}
+                      title={tab.label}
+                      aria-label={tab.label}
+                    >
+                      <span className={`transition-transform duration-300 ${isActive ? '' : 'group-hover:scale-110'}`}>{tab.icon}</span>
+                    </button>
 
-                  {/* Floating tooltip on hover */}
-                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-[11px] font-extrabold uppercase tracking-wider rounded-xl whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 translate-x-[-4px] group-hover:translate-x-0">
-                    {tab.label}
-                    <div className="absolute right-full top-1/2 -translate-y-1/2 -mr-1 border-4 border-transparent border-r-slate-900" />
+                    {/* Floating tooltip on hover */}
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-[11px] font-extrabold uppercase tracking-wider rounded-xl whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 translate-x-[-4px] group-hover:translate-x-0">
+                      {tab.label}
+                      <div className="absolute right-full top-1/2 -translate-y-1/2 -mr-1 border-4 border-transparent border-r-slate-900" />
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom action: Quản lý Khoa */}
+            <div className="mt-auto pt-3 flex flex-col items-center gap-3 w-full border-t border-slate-100">
+              <div className="relative group">
+                <button 
+                  disabled={isAnyModalOpen}
+                  onClick={() => {
+                    if (isAnyModalOpen) return;
+                    setActiveTab('DEPT_MANAGER');
+                  }} 
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-300 relative cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                    activeTab === 'DEPT_MANAGER' 
+                      ? 'bg-sky-500 text-white shadow-md shadow-sky-500/30 scale-105 ring-2 ring-sky-400/20' 
+                      : 'text-slate-500 hover:text-sky-600 hover:bg-sky-50/80 bg-white border border-slate-200 hover:border-sky-200 shadow-2xs'
+                  }`}
+                  title="Quản lý Khoa"
+                  aria-label="Quản lý Khoa"
+                >
+                  <span className={`transition-transform duration-300 ${activeTab === 'DEPT_MANAGER' ? '' : 'group-hover:scale-110'}`}>
+                    <Building2 size={20} />
+                  </span>
+                </button>
+
+                {/* Floating tooltip on hover */}
+                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-[11px] font-extrabold uppercase tracking-wider rounded-xl whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 translate-x-[-4px] group-hover:translate-x-0">
+                  Quản lý Khoa
+                  <div className="absolute right-full top-1/2 -translate-y-1/2 -mr-1 border-4 border-transparent border-r-slate-900" />
                 </div>
-              );
-            })}
+              </div>
+            </div>
           </aside>
         )}
 
