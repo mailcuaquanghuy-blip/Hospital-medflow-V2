@@ -166,6 +166,8 @@ export interface TemplateProcedure {
   asst2BusyEnd?: number;
   restMinutes?: number;
   allowSameAssistant?: boolean;
+  needsAssistant1?: boolean;
+  needsAssistant2?: boolean;
 }
 
 export interface AppointmentTemplate {
@@ -221,6 +223,8 @@ export interface Appointment {
   restMinutes?: number;
   selectedDurationOptionId?: string | null;
   allowSameAssistant?: boolean;
+  needsAssistant1?: boolean;
+  needsAssistant2?: boolean;
   isPriority?: boolean;
 }
 

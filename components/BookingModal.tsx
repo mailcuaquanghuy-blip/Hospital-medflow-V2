@@ -495,6 +495,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   }, [formData.date, currentProc, formData.staffId, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData.assignedMachineId]);
 
   const needsAssistant1 = useMemo(() => {
+    if (formData.needsAssistant1 !== undefined) return formData.needsAssistant1;
+    if (initialData?.needsAssistant1 !== undefined) return initialData.needsAssistant1;
     if (formData.assistant1Id) return true;
     if (initialData?.assistant1Id) return true;
     if (formData.asst1BusyEnd && formData.asst1BusyEnd > 0) return true;
@@ -508,9 +510,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
     const asst1End = selectedOpt ? (selectedOpt.asst1BusyEnd ?? 0) : (currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0);
     return asst1End > 0;
-  }, [currentProc, formData.selectedDurationOptionId, formData.assistant1Id, initialData?.assistant1Id, formData.asst1BusyEnd, initialData?.asst1BusyEnd]);
+  }, [currentProc, formData.selectedDurationOptionId, formData.assistant1Id, initialData?.assistant1Id, formData.asst1BusyEnd, initialData?.asst1BusyEnd, formData.needsAssistant1, initialData?.needsAssistant1]);
 
   const needsAssistant2 = useMemo(() => {
+    if (formData.needsAssistant2 !== undefined) return formData.needsAssistant2;
+    if (initialData?.needsAssistant2 !== undefined) return initialData.needsAssistant2;
     if (formData.assistant2Id) return true;
     if (initialData?.assistant2Id) return true;
     if (formData.asst2BusyEnd && formData.asst2BusyEnd > 0) return true;
@@ -524,7 +528,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
     const asst2End = selectedOpt ? (selectedOpt.asst2BusyEnd ?? 0) : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0);
     return asst2End > 0;
-  }, [currentProc, formData.selectedDurationOptionId, formData.assistant2Id, initialData?.assistant2Id, formData.asst2BusyEnd, initialData?.asst2BusyEnd]);
+  }, [currentProc, formData.selectedDurationOptionId, formData.assistant2Id, initialData?.assistant2Id, formData.asst2BusyEnd, initialData?.asst2BusyEnd, formData.needsAssistant2, initialData?.needsAssistant2]);
 
   const availableTimeBlocks = availableTimeData.blocks;
   const unavailableReason = availableTimeData.reason;
@@ -1450,6 +1454,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               type="button"
                               onClick={() => {
                                 const dur = defaultOpt ? defaultOpt.durationMinutes : currentProc.durationMinutes;
+                                const a1End = defaultOpt ? (defaultOpt.asst1BusyEnd ?? 0) : (currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0);
+                                const a2End = defaultOpt ? (defaultOpt.asst2BusyEnd ?? 0) : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0);
                                 setFormData(prev => {
                                   const baseEnd = prev.startTime ? addMinutesToTime(prev.startTime, dur) : '08:00';
                                   return {
@@ -1463,6 +1469,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                     asst2BusyEnd: defaultOpt ? defaultOpt.asst2BusyEnd : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes),
                                     restMinutes: defaultOpt ? defaultOpt.restMinutes : currentProc.restMinutes,
                                     allowSameAssistant: defaultOpt ? defaultOpt.allowSameAssistant : currentProc.allowSameAssistant,
+                                    needsAssistant1: a1End > 0,
+                                    needsAssistant2: a2End > 0,
                                     selectedDurationOptionId: defaultOpt ? defaultOpt.id : 'default'
                                   };
                                 });
@@ -1515,6 +1523,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                       asst2BusyStart: opt.asst2BusyStart,
                                       asst2BusyEnd: opt.asst2BusyEnd,
                                       allowSameAssistant: opt.allowSameAssistant,
+                                      needsAssistant1: (opt.asst1BusyEnd ?? 0) > 0,
+                                      needsAssistant2: (opt.asst2BusyEnd ?? 0) > 0,
                                       selectedDurationOptionId: opt.id
                                     };
                                   });
@@ -1991,7 +2001,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             </div>
                           </div>
                         </div>
-                        {((currentProc.asst1BusyEnd !== undefined && currentProc.asst1BusyEnd > 0) || (currentProc.assistant1BusyMinutes !== undefined && currentProc.assistant1BusyMinutes > 0)) && (
+                        {needsAssistant1 && (
                           <div className="flex items-center gap-4">
                             <div className="w-[84px] shrink-0 space-y-1">
                               <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">PHỤ 1:</span>
@@ -2013,7 +2023,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             </div>
                           </div>
                         )}
-                        {((currentProc.asst2BusyEnd !== undefined && currentProc.asst2BusyEnd > 0) || (currentProc.assistant2BusyMinutes !== undefined && currentProc.assistant2BusyMinutes > 0)) && (
+                        {needsAssistant2 && (
                           <div className="flex items-center gap-4">
                             <div className="w-[84px] shrink-0 space-y-1">
                               <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">PHỤ 2:</span>
@@ -2089,6 +2099,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           finalData.asst2BusyStart = finalData.asst2BusyStart !== undefined ? finalData.asst2BusyStart : (selectedOpt.asst2BusyStart ?? 0);
                           finalData.asst2BusyEnd = finalData.asst2BusyEnd !== undefined ? finalData.asst2BusyEnd : (selectedOpt.asst2BusyEnd ?? 0);
                           finalData.restMinutes = finalData.restMinutes !== undefined ? finalData.restMinutes : (selectedOpt.restMinutes ?? 0);
+                          finalData.allowSameAssistant = finalData.allowSameAssistant !== undefined ? finalData.allowSameAssistant : (selectedOpt.allowSameAssistant ?? false);
 
                           if (finalData.startTime && !hasManuallySelectedEndTime) {
                             finalData.endTime = addMinutesToTime(finalData.startTime, selectedOpt.durationMinutes);
@@ -2102,11 +2113,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           finalData.asst2BusyStart = finalData.asst2BusyStart !== undefined ? finalData.asst2BusyStart : (currentProc.asst2BusyStart ?? 0);
                           finalData.asst2BusyEnd = finalData.asst2BusyEnd !== undefined ? finalData.asst2BusyEnd : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0);
                           finalData.restMinutes = finalData.restMinutes !== undefined ? finalData.restMinutes : (currentProc.restMinutes ?? 0);
+                          finalData.allowSameAssistant = finalData.allowSameAssistant !== undefined ? finalData.allowSameAssistant : (currentProc.allowSameAssistant ?? false);
 
                           if (finalData.startTime && !hasManuallySelectedEndTime) {
                             finalData.endTime = addMinutesToTime(finalData.startTime, currentProc.durationMinutes);
                           }
                         }
+                        finalData.needsAssistant1 = needsAssistant1;
+                        finalData.needsAssistant2 = needsAssistant2;
                       }
                       onSave(finalData, false);
                     }} 

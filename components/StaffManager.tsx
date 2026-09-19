@@ -63,6 +63,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   const [editingOptId, setEditingOptId] = useState<string | null>(null);
   const [procCategoryFilter, setProcCategoryFilter] = useState<string>('ALL');
   const [procSearchTerm, setProcSearchTerm] = useState<string>('');
+  const optFormRef = useRef<HTMLDivElement>(null);
 
   // Trạng thái sao lưu & khôi phục danh mục lịch trình
   const procFileInputRef = useRef<HTMLInputElement>(null);
@@ -205,8 +206,11 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   const updateDurationOptionsAndSyncDefault = (opts: ProcedureDurationOption[]) => {
     if (!editingProcedure) return;
     
-    // Đảm bảo có ít nhất 1 phương án mặc định nếu danh sách không rỗng
-    let updatedOpts = opts.map(o => ({ ...o }));
+    // Đảm bảo có ít nhất 1 phương án mặc định và tất cả các phương án đều có id
+    let updatedOpts = opts.map((o, idx) => ({ 
+      ...o,
+      id: o.id || `opt_${idx}_${Math.random().toString(36).substr(2, 7)}`
+    }));
     if (updatedOpts.length > 0) {
         const hasDefault = updatedOpts.some(o => o.isDefault);
         if (!hasDefault) {
@@ -229,6 +233,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
             asst1BusyEnd: defaultOpt.asst1BusyEnd,
             asst2BusyStart: defaultOpt.asst2BusyStart,
             asst2BusyEnd: defaultOpt.asst2BusyEnd,
+            allowSameAssistant: defaultOpt.allowSameAssistant,
         });
     } else {
         setEditingProcedure({
@@ -236,6 +241,58 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
             durationOptions: updatedOpts
         });
     }
+  };
+
+  const handleEditOption = (opt: ProcedureDurationOption) => {
+    const optId = opt.id || `opt_${Date.now()}`;
+    const durMins = opt.durationMinutes || 30;
+    const a1Active = Boolean((opt.asst1BusyEnd && opt.asst1BusyEnd > 0) || (opt.asst1BusyStart && opt.asst1BusyStart > 0));
+    const a2Active = Boolean((opt.asst2BusyEnd && opt.asst2BusyEnd > 0) || (opt.asst2BusyStart && opt.asst2BusyStart > 0));
+
+    setNewOpt({
+      name: opt.name || '',
+      durationMinutes: durMins,
+      restMinutes: opt.restMinutes || 0,
+      mainBusyStart: opt.mainBusyStart ?? 0,
+      mainBusyEnd: opt.mainBusyEnd ?? durMins,
+      asst1BusyStart: opt.asst1BusyStart ?? 0,
+      asst1BusyEnd: opt.asst1BusyEnd ?? 0,
+      asst1Enabled: a1Active,
+      asst2BusyStart: opt.asst2BusyStart ?? 0,
+      asst2BusyEnd: opt.asst2BusyEnd ?? 0,
+      asst2Enabled: a2Active,
+      allowSameAssistant: opt.allowSameAssistant || false,
+    });
+    setEditingOptId(optId);
+    setShowOptForm(true);
+
+    setTimeout(() => {
+      optFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  };
+
+  const handleAddNewOption = () => {
+    const baseDuration = editingProcedure?.durationMinutes || 30;
+    setNewOpt({
+      name: '',
+      durationMinutes: baseDuration,
+      restMinutes: editingProcedure?.restMinutes || 0,
+      mainBusyStart: 0,
+      mainBusyEnd: baseDuration,
+      asst1BusyStart: 0,
+      asst1BusyEnd: 0,
+      asst2BusyStart: 0,
+      asst2BusyEnd: 0,
+      asst1Enabled: false,
+      asst2Enabled: false,
+      allowSameAssistant: false,
+    });
+    setEditingOptId(null);
+    setShowOptForm(true);
+
+    setTimeout(() => {
+      optFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
   };
 
   const handleGenerateMachines = () => {
@@ -1002,14 +1059,13 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                             isDefault: true
                                         }];
                                     } else {
-                                        // Đảm bảo có ít nhất một phương án được đặt làm mặc định
+                                        // Đảm bảo có ít nhất một phương án được đặt làm mặc định và tất cả phương án đều có id
                                         const hasDefault = updatedProc.durationOptions.some(o => o.isDefault);
-                                        if (!hasDefault && updatedProc.durationOptions.length > 0) {
-                                            updatedProc.durationOptions = updatedProc.durationOptions.map((o, idx) => ({
-                                                ...o,
-                                                isDefault: idx === 0
-                                            }));
-                                        }
+                                        updatedProc.durationOptions = updatedProc.durationOptions.map((o, idx) => ({
+                                            ...o,
+                                            id: o.id || `opt_${idx}_${Math.random().toString(36).substr(2, 7)}`,
+                                            isDefault: hasDefault ? !!o.isDefault : idx === 0
+                                        }));
                                     }
                                     setEditingProcedure(updatedProc);
                                 }} 
@@ -1291,24 +1347,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                               {!showOptForm && (
                                   <button
                                       type="button"
-                                      onClick={() => {
-                                          setNewOpt({
-                                              name: '',
-                                              durationMinutes: 30,
-                                              restMinutes: 0,
-                                              mainBusyStart: 0,
-                                              mainBusyEnd: 30,
-                                              asst1BusyStart: 0,
-                                              asst1BusyEnd: 0,
-                                              asst2BusyStart: 0,
-                                              asst2BusyEnd: 0,
-                                              asst1Enabled: false,
-                                              asst2Enabled: false,
-                                              allowSameAssistant: false,
-                                          });
-                                          setEditingOptId(null);
-                                          setShowOptForm(true);
-                                      }}
+                                      onClick={handleAddNewOption}
                                       className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/95 text-white font-extrabold text-xs rounded-xl transition-all shadow-sm shadow-primary/20"
                                   >
                                       <Plus size={14} strokeWidth={3} /> Thêm thời lượng
@@ -1318,7 +1357,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
 
                           {/* Form chọn thời lượng đầy đủ khi bấm thêm/sửa */}
                           {showOptForm && (
-                              <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 animate-in fade-in zoom-in-95 duration-155">
+                              <div ref={optFormRef} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 animate-in fade-in zoom-in-95 duration-155">
                                   <h5 className="text-xs font-black uppercase text-primary tracking-wider flex items-center gap-1.5">
                                       {editingOptId ? 'Chỉnh sửa phương án thời lượng' : 'Cấu hình phương án thời lượng mới'}
                                   </h5>
@@ -1366,7 +1405,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                           {/* Nhân sự chính */}
                                           <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 shadow-sm">
-                                              <span className="text-xs font-black text-blue-700 uppercase block tracking-wide">Nhân sự chính</span>
+                                              <span className="text-xs font-black text-blue-700 uppercase block tracking-wide">Chính</span>
                                               <div className="grid grid-cols-2 gap-2 text-xs">
                                                   <div>
                                                       <span className="text-[10px] text-slate-400 font-bold block mb-1">Từ phút</span>
@@ -1392,7 +1431,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                           {/* Nhân sự phụ 1 */}
                                           <div className={`p-3 border rounded-xl space-y-2 transition-all shadow-sm ${newOpt.asst1Enabled ? 'bg-emerald-50/20 border-emerald-250' : 'bg-white border-slate-200'}`}>
                                               <div className="flex justify-between items-center">
-                                                  <span className="text-xs font-black text-emerald-700 uppercase tracking-wide">Nhân sự phụ 1</span>
+                                                  <span className="text-xs font-black text-emerald-700 uppercase tracking-wide">Phụ 1</span>
                                                   <input 
                                                       type="checkbox" 
                                                       checked={newOpt.asst1Enabled} 
@@ -1435,7 +1474,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                           {/* Nhân sự phụ 2 */}
                                           <div className={`p-3 border rounded-xl space-y-2 transition-all shadow-sm ${newOpt.asst2Enabled ? 'bg-sky-50/20 border-sky-250' : 'bg-white border-slate-200'}`}>
                                               <div className="flex justify-between items-center">
-                                                  <span className="text-xs font-black text-sky-700 uppercase tracking-wide">Nhân sự phụ 2</span>
+                                                  <span className="text-xs font-black text-sky-700 uppercase tracking-wide">Phụ 2</span>
                                                   <input 
                                                       type="checkbox" 
                                                       checked={newOpt.asst2Enabled} 
@@ -1574,25 +1613,7 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                       {editingProcedure.durationOptions.map((opt) => (
                                           <div 
                                               key={opt.id} 
-                                              onClick={() => {
-                                                  // Bấm vào thẻ để sửa phương án
-                                                  setNewOpt({
-                                                      name: opt.name,
-                                                      durationMinutes: opt.durationMinutes,
-                                                      restMinutes: opt.restMinutes || 0,
-                                                      mainBusyStart: opt.mainBusyStart ?? 0,
-                                                      mainBusyEnd: opt.mainBusyEnd ?? opt.durationMinutes,
-                                                      asst1BusyStart: opt.asst1BusyStart ?? 0,
-                                                      asst1BusyEnd: opt.asst1BusyEnd ?? 0,
-                                                      asst1Enabled: (opt.asst1BusyEnd || 0) > 0,
-                                                      asst2BusyStart: opt.asst2BusyStart ?? 0,
-                                                      asst2BusyEnd: opt.asst2BusyEnd ?? 0,
-                                                      asst2Enabled: (opt.asst2BusyEnd || 0) > 0,
-                                                      allowSameAssistant: opt.allowSameAssistant || false,
-                                                  });
-                                                  setEditingOptId(opt.id);
-                                                  setShowOptForm(true);
-                                              }}
+                                              onClick={() => handleEditOption(opt)}
                                               className={`p-4 rounded-2xl border-2 transition-all flex flex-col justify-between hover:border-primary/40 cursor-pointer group relative bg-white ${opt.isDefault ? 'border-primary shadow-sm bg-primary/5' : 'border-slate-200 shadow-xs'}`}
                                           >
                                               <div className="flex justify-between items-start gap-4">
@@ -1619,6 +1640,19 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
 
                                                   <div className="flex items-center gap-1">
                                                       {/* Switch chọn làm mặc định */}
+                                                      {/* Nút sửa */}
+                                                      <button
+                                                          type="button"
+                                                          onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              handleEditOption(opt);
+                                                          }}
+                                                          className="p-1.5 text-slate-400 hover:text-primary rounded-lg hover:bg-primary/10 transition-colors"
+                                                          title="Chỉnh sửa phương án này"
+                                                      >
+                                                          <Pencil size={14} />
+                                                      </button>
+
                                                       <button
                                                           type="button"
                                                           onClick={(e) => {

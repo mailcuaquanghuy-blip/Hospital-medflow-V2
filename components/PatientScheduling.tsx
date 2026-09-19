@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Patient, Appointment, Procedure, Staff, AppointmentStatus, PatientStatus, Department, DepartmentType, UserAccount, UserRole, AttendanceRecord, ConflictDetail, AppointmentTemplate, TemplateProcedure, AttendanceStatus, MachineShift, ScheduleSnapshot } from '../types';
 import { Button } from './Button';
-import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut, BookmarkCheck, Loader2, StickyNote, Edit3 } from 'lucide-react';
+import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut, BookmarkCheck, Loader2, StickyNote, Edit3, CalendarDays } from 'lucide-react';
 
 import { calculateAge, timeStringToMinutes, minutesToPixels, minutesToTimeString, addMinutesToTime, isInsideOfficeHours, checkConflict, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
 import { CopyRangeModal } from './CopyRangeModal';
@@ -13,6 +13,7 @@ import { QuickScheduleModal } from './QuickScheduleModal';
 import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
+import { StaffTimelineModal } from './StaffTimelineModal';
 import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { DEPARTMENTS, OFFICE_SHIFTS } from '../constants';
 import { db, doc, collection, setDoc, deleteDoc } from '../utils/dbService';
@@ -221,6 +222,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const [isQuickScheduleModalOpen, setIsQuickScheduleModalOpen] = useState(false);
   
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isStaffTimelineModalOpen, setIsStaffTimelineModalOpen] = useState(false);
   const [isSavingVersion, setIsSavingVersion] = useState(false);
   const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
   const isApplyingRef = useRef(false);
@@ -1150,13 +1152,16 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           status: AppointmentStatus.PENDING,
           notes: tProc.notes || '',
           assignedMachineId: machineId,
-          mainBusyStart: tProc.mainBusyStart || null,
-          mainBusyEnd: tProc.mainBusyEnd || null,
-          asst1BusyStart: tProc.asst1BusyStart || null,
-          asst1BusyEnd: tProc.asst1BusyEnd || null,
-          asst2BusyStart: tProc.asst2BusyStart || null,
-          asst2BusyEnd: tProc.asst2BusyEnd || null,
-          restMinutes: tProc.restMinutes || 0
+          mainBusyStart: tProc.mainBusyStart !== undefined && tProc.mainBusyStart !== null ? tProc.mainBusyStart : (proc?.mainBusyStart ?? 0),
+          mainBusyEnd: tProc.mainBusyEnd !== undefined && tProc.mainBusyEnd !== null ? tProc.mainBusyEnd : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? proc?.durationMinutes ?? 0),
+          asst1BusyStart: tProc.asst1BusyStart !== undefined && tProc.asst1BusyStart !== null ? tProc.asst1BusyStart : (proc?.asst1BusyStart ?? 0),
+          asst1BusyEnd: tProc.asst1BusyEnd !== undefined && tProc.asst1BusyEnd !== null ? tProc.asst1BusyEnd : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0),
+          asst2BusyStart: tProc.asst2BusyStart !== undefined && tProc.asst2BusyStart !== null ? tProc.asst2BusyStart : (proc?.asst2BusyStart ?? 0),
+          asst2BusyEnd: tProc.asst2BusyEnd !== undefined && tProc.asst2BusyEnd !== null ? tProc.asst2BusyEnd : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0),
+          restMinutes: tProc.restMinutes || 0,
+          allowSameAssistant: tProc.allowSameAssistant !== undefined ? tProc.allowSameAssistant : (proc?.allowSameAssistant ?? false),
+          needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
+          needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
         };
         const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
         createdAppts.push(cleanAppt);
@@ -1218,6 +1223,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         let staffId = tProc.staffId;
         let assistant1Id = tProc.assistant1Id;
         let assistant2Id = tProc.assistant2Id;
+        const proc = procedures.find(p => p.id === tProc.procedureId);
 
         const apptId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newAppt: Appointment = {
@@ -1235,13 +1241,16 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           status: AppointmentStatus.PENDING,
           notes: tProc.notes,
           assignedMachineId: tProc.assignedMachineId,
-          mainBusyStart: tProc.mainBusyStart,
-          mainBusyEnd: tProc.mainBusyEnd,
-          asst1BusyStart: tProc.asst1BusyStart,
-          asst1BusyEnd: tProc.asst1BusyEnd,
-          asst2BusyStart: tProc.asst2BusyStart,
-          asst2BusyEnd: tProc.asst2BusyEnd,
-          restMinutes: tProc.restMinutes
+          mainBusyStart: tProc.mainBusyStart !== undefined && tProc.mainBusyStart !== null ? tProc.mainBusyStart : (proc?.mainBusyStart ?? 0),
+          mainBusyEnd: tProc.mainBusyEnd !== undefined && tProc.mainBusyEnd !== null ? tProc.mainBusyEnd : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? proc?.durationMinutes ?? 0),
+          asst1BusyStart: tProc.asst1BusyStart !== undefined && tProc.asst1BusyStart !== null ? tProc.asst1BusyStart : (proc?.asst1BusyStart ?? 0),
+          asst1BusyEnd: tProc.asst1BusyEnd !== undefined && tProc.asst1BusyEnd !== null ? tProc.asst1BusyEnd : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0),
+          asst2BusyStart: tProc.asst2BusyStart !== undefined && tProc.asst2BusyStart !== null ? tProc.asst2BusyStart : (proc?.asst2BusyStart ?? 0),
+          asst2BusyEnd: tProc.asst2BusyEnd !== undefined && tProc.asst2BusyEnd !== null ? tProc.asst2BusyEnd : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0),
+          restMinutes: tProc.restMinutes || 0,
+          allowSameAssistant: tProc.allowSameAssistant !== undefined ? tProc.allowSameAssistant : (proc?.allowSameAssistant ?? false),
+          needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
+          needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
         };
         const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
         createdAppts.push(cleanAppt);
@@ -1320,13 +1329,16 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           status: AppointmentStatus.PENDING,
           notes: tProc.notes || '',
           assignedMachineId: machineId,
-          mainBusyStart: tProc.mainBusyStart || null,
-          mainBusyEnd: tProc.mainBusyEnd || null,
-          asst1BusyStart: tProc.asst1BusyStart || null,
-          asst1BusyEnd: tProc.asst1BusyEnd || null,
-          asst2BusyStart: tProc.asst2BusyStart || null,
-          asst2BusyEnd: tProc.asst2BusyEnd || null,
-          restMinutes: tProc.restMinutes || 0
+          mainBusyStart: tProc.mainBusyStart !== undefined && tProc.mainBusyStart !== null ? tProc.mainBusyStart : (proc?.mainBusyStart ?? 0),
+          mainBusyEnd: tProc.mainBusyEnd !== undefined && tProc.mainBusyEnd !== null ? tProc.mainBusyEnd : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? proc?.durationMinutes ?? 0),
+          asst1BusyStart: tProc.asst1BusyStart !== undefined && tProc.asst1BusyStart !== null ? tProc.asst1BusyStart : (proc?.asst1BusyStart ?? 0),
+          asst1BusyEnd: tProc.asst1BusyEnd !== undefined && tProc.asst1BusyEnd !== null ? tProc.asst1BusyEnd : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0),
+          asst2BusyStart: tProc.asst2BusyStart !== undefined && tProc.asst2BusyStart !== null ? tProc.asst2BusyStart : (proc?.asst2BusyStart ?? 0),
+          asst2BusyEnd: tProc.asst2BusyEnd !== undefined && tProc.asst2BusyEnd !== null ? tProc.asst2BusyEnd : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0),
+          restMinutes: tProc.restMinutes || 0,
+          allowSameAssistant: tProc.allowSameAssistant !== undefined ? tProc.allowSameAssistant : (proc?.allowSameAssistant ?? false),
+          needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
+          needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
         };
         const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
         createdAppts.push(cleanAppt);
@@ -1527,8 +1539,21 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           )}
         </div>
 
-        {/* Nhóm 2 nút liền nhau gộp lại ở góc phải: Biểu tượng Lọc biến động & Lịch sử chỉnh sửa */}
-        <div className="flex items-center ml-auto bg-amber-50/80 border border-amber-200/90 rounded-2xl p-1 shadow-2xs">
+        {/* Nút Timeline nhân sự và Nhóm nút biến động/lịch sử ở góc phải */}
+        <div className="flex items-center gap-2 ml-auto">
+          {/* Nút Timeline nhân sự */}
+          <button
+            type="button"
+            onClick={() => setIsStaffTimelineModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-sky-50 text-slate-700 hover:text-sky-700 border border-slate-200 hover:border-sky-300 rounded-2xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+            title="Xem Bảng Phân Bổ Thời Gian & Timeline Bận/Rảnh Nhân Sự"
+          >
+            <CalendarDays size={15} className="text-sky-600" />
+            <span>Timeline nhân sự</span>
+          </button>
+
+          {/* Nhóm 2 nút liền nhau gộp lại ở góc phải: Biểu tượng Lọc biến động & Lịch sử chỉnh sửa */}
+          <div className="flex items-center bg-amber-50/80 border border-amber-200/90 rounded-2xl p-1 shadow-2xs">
           {/* Nút Biểu tượng Lọc biến động */}
           <button 
             type="button"
@@ -1597,6 +1622,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
               {isSavingVersion ? <Loader2 size={16} className="animate-spin text-sky-600" /> : <BookmarkCheck size={16} className="text-sky-600" />}
             </button>
           )}
+        </div>
         </div>
       </div>
 
@@ -3013,6 +3039,19 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         onSaveSnapshot={onSaveScheduleSnapshot ? handleSaveSnapshot : undefined}
         isSavingSnapshot={isSavingVersion}
         onUndoChange={onUndoAppointmentChange}
+      />
+
+      {/* Modal Bảng Phân Bổ Thời Gian & Timeline Bận/Rảnh Nhân Sự */}
+      <StaffTimelineModal
+        isOpen={isStaffTimelineModalOpen}
+        onClose={() => setIsStaffTimelineModalOpen(false)}
+        currentDept={currentDept}
+        activeDate={currentDate}
+        staff={staff}
+        appointments={appointments}
+        procedures={procedures}
+        attendanceRecords={attendanceRecords}
+        patients={patients}
       />
 
       {/* Patient Note Modal */}

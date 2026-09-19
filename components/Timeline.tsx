@@ -1800,27 +1800,39 @@ export const Timeline: React.FC<TimelineProps> = ({
                     if (viewMode === 'PROCEDURE') {
                         if (row.role === 'MAIN') {
                            if (!appt.staffId) return null;
-                           blockStartMin = startMin + (appt.mainBusyStart ?? procedure?.mainBusyStart ?? 0);
-                           blockEndMin = startMin + (appt.mainBusyEnd ?? procedure?.mainBusyEnd ?? procedure?.busyMinutes ?? procedure?.durationMinutes ?? 0);
+                           const sOffset = (appt.mainBusyStart !== undefined && appt.mainBusyStart !== null) ? appt.mainBusyStart : (procedure?.mainBusyStart ?? 0);
+                           const eOffset = (appt.mainBusyEnd !== undefined && appt.mainBusyEnd !== null) ? appt.mainBusyEnd : (procedure?.mainBusyEnd ?? procedure?.busyMinutes ?? procedure?.durationMinutes ?? 0);
+                           blockStartMin = startMin + sOffset;
+                           blockEndMin = startMin + eOffset;
                         } else if (row.role === 'ASST1') {
                            if (!appt.assistant1Id) return null;
-                           blockStartMin = startMin + (appt.asst1BusyStart ?? procedure?.asst1BusyStart ?? 0);
-                           blockEndMin = startMin + (appt.asst1BusyEnd ?? procedure?.asst1BusyEnd ?? procedure?.assistant1BusyMinutes ?? 0);
+                           const sOffset = (appt.asst1BusyStart !== undefined && appt.asst1BusyStart !== null) ? appt.asst1BusyStart : (procedure?.asst1BusyStart ?? 0);
+                           const eOffset = (appt.asst1BusyEnd !== undefined && appt.asst1BusyEnd !== null) ? appt.asst1BusyEnd : (procedure?.asst1BusyEnd ?? procedure?.assistant1BusyMinutes ?? 0);
+                           blockStartMin = startMin + sOffset;
+                           blockEndMin = startMin + eOffset;
                         } else if (row.role === 'ASST2') {
                            if (!appt.assistant2Id) return null;
-                           blockStartMin = startMin + (appt.asst2BusyStart ?? procedure?.asst2BusyStart ?? 0);
-                           blockEndMin = startMin + (appt.asst2BusyEnd ?? procedure?.asst2BusyEnd ?? procedure?.assistant2BusyMinutes ?? 0);
+                           const sOffset = (appt.asst2BusyStart !== undefined && appt.asst2BusyStart !== null) ? appt.asst2BusyStart : (procedure?.asst2BusyStart ?? 0);
+                           const eOffset = (appt.asst2BusyEnd !== undefined && appt.asst2BusyEnd !== null) ? appt.asst2BusyEnd : (procedure?.asst2BusyEnd ?? procedure?.assistant2BusyMinutes ?? 0);
+                           blockStartMin = startMin + sOffset;
+                           blockEndMin = startMin + eOffset;
                         }
                     } else if (viewMode === 'STAFF') {
                         if (appt.staffId === row.originalId) {
-                           blockStartMin = startMin + (appt.mainBusyStart ?? procedure?.mainBusyStart ?? 0);
-                           blockEndMin = startMin + (appt.mainBusyEnd ?? procedure?.mainBusyEnd ?? procedure?.busyMinutes ?? procedure?.durationMinutes ?? 0);
+                           const sOffset = (appt.mainBusyStart !== undefined && appt.mainBusyStart !== null) ? appt.mainBusyStart : (procedure?.mainBusyStart ?? 0);
+                           const eOffset = (appt.mainBusyEnd !== undefined && appt.mainBusyEnd !== null) ? appt.mainBusyEnd : (procedure?.mainBusyEnd ?? procedure?.busyMinutes ?? procedure?.durationMinutes ?? 0);
+                           blockStartMin = startMin + sOffset;
+                           blockEndMin = startMin + eOffset;
                         } else if (appt.assistant1Id === row.originalId) {
-                           blockStartMin = startMin + (appt.asst1BusyStart ?? procedure?.asst1BusyStart ?? 0);
-                           blockEndMin = startMin + (appt.asst1BusyEnd ?? procedure?.asst1BusyEnd ?? procedure?.assistant1BusyMinutes ?? 0);
+                           const sOffset = (appt.asst1BusyStart !== undefined && appt.asst1BusyStart !== null) ? appt.asst1BusyStart : (procedure?.asst1BusyStart ?? 0);
+                           const eOffset = (appt.asst1BusyEnd !== undefined && appt.asst1BusyEnd !== null) ? appt.asst1BusyEnd : (procedure?.asst1BusyEnd ?? procedure?.assistant1BusyMinutes ?? 0);
+                           blockStartMin = startMin + sOffset;
+                           blockEndMin = startMin + eOffset;
                         } else if (appt.assistant2Id === row.originalId) {
-                           blockStartMin = startMin + (appt.asst2BusyStart ?? procedure?.asst2BusyStart ?? 0);
-                           blockEndMin = startMin + (appt.asst2BusyEnd ?? procedure?.asst2BusyEnd ?? procedure?.assistant2BusyMinutes ?? 0);
+                           const sOffset = (appt.asst2BusyStart !== undefined && appt.asst2BusyStart !== null) ? appt.asst2BusyStart : (procedure?.asst2BusyStart ?? 0);
+                           const eOffset = (appt.asst2BusyEnd !== undefined && appt.asst2BusyEnd !== null) ? appt.asst2BusyEnd : (procedure?.asst2BusyEnd ?? procedure?.assistant2BusyMinutes ?? 0);
+                           blockStartMin = startMin + sOffset;
+                           blockEndMin = startMin + eOffset;
                         }
                     }
 

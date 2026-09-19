@@ -275,16 +275,24 @@ export const checkConflict = (
       ? newApptData.allowSameAssistant 
       : (option?.allowSameAssistant !== undefined ? option.allowSameAssistant : (currentProc.allowSameAssistant || false));
 
-    const asst1EndVal = newApptData?.asst1BusyEnd !== undefined 
+    const asst1EndVal = (newApptData?.asst1BusyEnd !== undefined && newApptData?.asst1BusyEnd !== null)
       ? newApptData.asst1BusyEnd 
-      : (option?.asst1BusyEnd !== undefined ? option.asst1BusyEnd : (currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0));
+      : (option?.asst1BusyEnd !== undefined && option?.asst1BusyEnd !== null 
+          ? option.asst1BusyEnd 
+          : (currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0));
       
-    const asst2EndVal = newApptData?.asst2BusyEnd !== undefined 
+    const asst2EndVal = (newApptData?.asst2BusyEnd !== undefined && newApptData?.asst2BusyEnd !== null)
       ? newApptData.asst2BusyEnd 
-      : (option?.asst2BusyEnd !== undefined ? option.asst2BusyEnd : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0));
+      : (option?.asst2BusyEnd !== undefined && option?.asst2BusyEnd !== null 
+          ? option.asst2BusyEnd 
+          : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0));
 
-    const hasAsst1Config = asst1EndVal > 0;
-    const hasAsst2Config = asst2EndVal > 0;
+    const hasAsst1Config = newApptData?.needsAssistant1 !== undefined 
+      ? newApptData.needsAssistant1 
+      : (asst1EndVal > 0);
+    const hasAsst2Config = newApptData?.needsAssistant2 !== undefined 
+      ? newApptData.needsAssistant2 
+      : (asst2EndVal > 0);
 
     if (hasAsst1Config && !assistant1Id) {
       conflictDetails.push({ message: `Chưa chọn người phụ 1 cho lịch trình này.`, level: 1 });
@@ -620,22 +628,38 @@ export const checkConflict = (
       const rawIntervals: { start: number; end: number }[] = [];
 
       if (isMain) {
-        const s = apptData?.mainBusyStart ?? option?.mainBusyStart ?? proc.mainBusyStart ?? 0;
-        const e = apptData?.mainBusyEnd ?? option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration;
+        const s = (apptData?.mainBusyStart !== undefined && apptData?.mainBusyStart !== null)
+          ? apptData.mainBusyStart
+          : (option?.mainBusyStart ?? proc.mainBusyStart ?? 0);
+        const e = (apptData?.mainBusyEnd !== undefined && apptData?.mainBusyEnd !== null)
+          ? apptData.mainBusyEnd
+          : (option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration);
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
       }
       if (isAsst1) {
-        const s = apptData?.asst1BusyStart ?? option?.asst1BusyStart ?? proc.asst1BusyStart ?? 0;
-        const e = apptData?.asst1BusyEnd ?? option?.asst1BusyEnd ?? proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration;
+        const s = (apptData?.asst1BusyStart !== undefined && apptData?.asst1BusyStart !== null)
+          ? apptData.asst1BusyStart
+          : (option?.asst1BusyStart ?? proc.asst1BusyStart ?? 0);
+        const e = (apptData?.asst1BusyEnd !== undefined && apptData?.asst1BusyEnd !== null)
+          ? apptData.asst1BusyEnd
+          : (option?.asst1BusyEnd !== undefined && option?.asst1BusyEnd !== null
+              ? option.asst1BusyEnd
+              : (proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? (apptData?.assistant1Id ? (proc.durationMinutes ?? duration) : 0)));
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }
       }
       if (isAsst2) {
-        const s = apptData?.asst2BusyStart ?? option?.asst2BusyStart ?? proc.asst2BusyStart ?? 0;
-        const e = apptData?.asst2BusyEnd ?? option?.asst2BusyEnd ?? proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration;
+        const s = (apptData?.asst2BusyStart !== undefined && apptData?.asst2BusyStart !== null)
+          ? apptData.asst2BusyStart
+          : (option?.asst2BusyStart ?? proc.asst2BusyStart ?? 0);
+        const e = (apptData?.asst2BusyEnd !== undefined && apptData?.asst2BusyEnd !== null)
+          ? apptData.asst2BusyEnd
+          : (option?.asst2BusyEnd !== undefined && option?.asst2BusyEnd !== null
+              ? option.asst2BusyEnd
+              : (proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? (apptData?.assistant2Id ? (proc.durationMinutes ?? duration) : 0)));
         if (e > s) {
           rawIntervals.push({ start: baseStart + s, end: baseStart + e });
         }

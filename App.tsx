@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, TimelineViewMode, AttendanceRecord, AttendanceStatus, PatientStatus, PatientReferral, UserAccount, UserRole, AppointmentTemplate, MachineShift, Backup, ScheduleSnapshot } from './types';
 import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN, MOCK_TEMPLATES } from './constants';
 
@@ -27,7 +27,7 @@ import { BatchLoadOptions } from './components/BatchLoadModal';
 import { Button } from './components/Button';
 import { DateTimePicker } from './components/DateTimePicker';
 import { DateInput } from './components/DateInput';
-import { Home, Building2, Table2, FileText, CalendarPlus, AlertCircle, LogOut, ShieldCheck, User, UserCog, X, Briefcase, Check, Save, PieChart, Database, Clock } from 'lucide-react';
+import { Home, Building2, Table2, FileText, CalendarPlus, AlertCircle, LogOut, ShieldCheck, User, UserCog, X, Briefcase, Check, Save, PieChart, Database, Clock, CalendarCheck } from 'lucide-react';
 
 // Database operations via Supabase
 import { 
@@ -45,7 +45,7 @@ import {
 } from './utils/dbService';
 
 
-export type MainTab = 'PATIENT_RECORDS' | 'SCHEDULING' | 'GENERAL_TIMELINE' | 'DAILY_REPORT' | 'DEPT_MANAGER' | 'ACCOUNT_MANAGER' | 'ACCOUNT_BACKUP';
+export type MainTab = 'PATIENT_RECORDS' | 'SCHEDULING' | 'GENERAL_TIMELINE' | 'DAILY_REPORT' | 'DEPT_MANAGER' | 'ATTENDANCE' | 'ACCOUNT_MANAGER' | 'ACCOUNT_BACKUP';
 export type ManagerTab = 'PERSONNEL' | 'ATTENDANCE' | 'PROCEDURES';
 
 const App: React.FC = () => {
@@ -72,6 +72,7 @@ const App: React.FC = () => {
   
   const [currentDept, setCurrentDept] = useState<Department | null>(null);
   const [activeTab, setActiveTab] = useState<MainTab>('PATIENT_RECORDS');
+  const previousTabRef = useRef<MainTab>('DEPT_MANAGER');
   const [managerSubTab, setManagerSubTab] = useState<ManagerTab>('PERSONNEL');
   const [activeDate, setActiveDate] = useState<string>(() => {
     const now = new Date();
@@ -1363,7 +1364,8 @@ const App: React.FC = () => {
           sourceAppt.procedureId, 
           undefined, 
           sourceAppt.assistant1Id, 
-          sourceAppt.assistant2Id
+          sourceAppt.assistant2Id,
+          sourceAppt
         );
 
         const newAppt: Appointment = {
@@ -2325,11 +2327,11 @@ const App: React.FC = () => {
                         }
                         setIsDeptBackupModalOpen(true);
                       }}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors border bg-white text-slate-600 border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="p-2.5 bg-white text-sky-500 hover:bg-sky-50 hover:text-sky-600 rounded-xl transition-all border border-slate-200 shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer"
                       title="Sao lưu / Khôi phục dữ liệu khoa"
+                      aria-label="Sao lưu / Khôi phục"
                     >
-                      <Database size={16} className="text-sky-500" />
-                      Sao lưu / Khôi phục
+                      <Database size={20} />
                     </button>
                   )}
                   <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
@@ -2433,6 +2435,7 @@ const App: React.FC = () => {
                     {activeTab === 'GENERAL_TIMELINE' && <Table2 size={15} />}
                     {activeTab === 'DAILY_REPORT' && <PieChart size={15} />}
                     {activeTab === 'DEPT_MANAGER' && <Building2 size={15} />}
+                    {activeTab === 'ATTENDANCE' && <CalendarCheck size={15} />}
                   </span>
                   <span className="text-[12px] font-black uppercase tracking-wider text-slate-700">
                     {activeTab === 'PATIENT_RECORDS' && 'Hồ sơ Bệnh nhân'}
@@ -2440,21 +2443,49 @@ const App: React.FC = () => {
                     {activeTab === 'GENERAL_TIMELINE' && 'Timeline Khoa'}
                     {activeTab === 'DAILY_REPORT' && 'Báo cáo thống kê'}
                     {activeTab === 'DEPT_MANAGER' && 'Quản lý Khoa'}
+                    {activeTab === 'ATTENDANCE' && 'Bảng Chấm Công'}
                   </span>
                 </div>
               </div>
 
-              {/* Khung Làm việc ngày */}
-              <div className="flex items-center gap-2 bg-slate-100/90 rounded-2xl p-1 border border-slate-200/90 shadow-2xs shrink-0 ml-auto">
-                <span className="text-[11px] font-black text-slate-500 px-2 uppercase tracking-widest hidden sm:inline">Làm việc ngày:</span>
-                <DateInput 
-                  value={activeDate} 
-                  onChange={(val) => { if (!isAnyModalOpen) handleDateChange(val); }} 
-                  showNavigation={true}
-                  showWeekday={true}
-                  size="lg"
+              {/* Nhóm Chấm công & Làm việc ngày */}
+              <div className="flex items-center gap-2.5 ml-auto shrink-0">
+                {/* Nút Tab Chấm công tách riêng */}
+                <button
+                  type="button"
                   disabled={isAnyModalOpen}
-                />
+                  onClick={() => {
+                    if (isAnyModalOpen) return;
+                    if (activeTab === 'ATTENDANCE') {
+                      setActiveTab(previousTabRef.current || 'DEPT_MANAGER');
+                    } else {
+                      previousTabRef.current = activeTab;
+                      setActiveTab('ATTENDANCE');
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 rounded-2xl text-[11px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs border active:scale-95 ${
+                    activeTab === 'ATTENDANCE'
+                      ? 'bg-sky-500 text-white border-sky-500 shadow-md shadow-sky-500/25 ring-2 ring-sky-400/20'
+                      : 'bg-white text-slate-700 hover:text-sky-600 hover:bg-sky-50 border-slate-200 hover:border-sky-200'
+                  }`}
+                  title="Xem và quản lý Bảng chấm công"
+                >
+                  <CalendarCheck size={16} className={activeTab === 'ATTENDANCE' ? 'text-white' : 'text-sky-600'} />
+                  <span>Chấm công</span>
+                </button>
+
+                {/* Khung Làm việc ngày */}
+                <div className="flex items-center gap-2 bg-slate-100/90 rounded-2xl p-1 border border-slate-200/90 shadow-2xs">
+                  <span className="text-[11px] font-black text-slate-500 px-2 uppercase tracking-widest hidden sm:inline">Làm việc ngày:</span>
+                  <DateInput 
+                    value={activeDate} 
+                    onChange={(val) => { if (!isAnyModalOpen) handleDateChange(val); }} 
+                    showNavigation={true}
+                    showWeekday={true}
+                    size="lg"
+                    disabled={isAnyModalOpen}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -2538,14 +2569,42 @@ const App: React.FC = () => {
             />
           )}
 
+          {activeTab === 'ATTENDANCE' && currentDept && (
+            <div className="flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs">
+              <StaffManager 
+                activeTab="ATTENDANCE" 
+                staff={staff} 
+                procedures={procedures} 
+                department={currentDept} 
+                attendanceRecords={attendanceRecords} 
+                onEditStaff={openStaffModal}
+                onDeleteStaff={handleDeleteStaff}
+                onUpdateAttendance={handleUpdateAttendance} 
+                onUpdateBulkAttendance={handleUpdateBulkAttendance}
+                onUpdateProcedures={handleUpdateProcedures} 
+                appointments={appointments}
+                onUpdateAppointments={handleUpdateAppointmentsSafely}
+                currentUser={currentUser!}
+              />
+            </div>
+          )}
+
          {activeTab === 'DEPT_MANAGER' && currentDept && (
              <div className="flex flex-col h-full gap-4">
                  <div className="flex bg-white rounded-lg p-1 w-fit shadow-sm border border-slate-200">
-                     {['PERSONNEL', 'ATTENDANCE', 'PROCEDURES'].map(t => <button key={t} onClick={() => setManagerSubTab(t as ManagerTab)} className={`px-6 py-2 rounded-md text-[10px] font-black uppercase tracking-wider transition-all ${managerSubTab === t ? 'bg-primary text-white shadow' : 'text-slate-400 hover:bg-slate-100'}`}>{t === 'PERSONNEL' ? 'Nhân sự' : t === 'ATTENDANCE' ? 'Chấm công' : 'Danh mục'}</button>)}
+                     {['PERSONNEL', 'PROCEDURES'].map(t => (
+                       <button 
+                         key={t} 
+                         onClick={() => setManagerSubTab(t as ManagerTab)} 
+                         className={`px-6 py-2 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${managerSubTab === t ? 'bg-primary text-white shadow' : 'text-slate-400 hover:bg-slate-100'}`}
+                       >
+                         {t === 'PERSONNEL' ? 'Nhân sự' : 'Danh mục'}
+                       </button>
+                     ))}
                  </div>
                  <div className="flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white">
                         <StaffManager 
-                           activeTab={managerSubTab} 
+                           activeTab={managerSubTab === 'ATTENDANCE' ? 'PERSONNEL' : managerSubTab} 
                            staff={staff} 
                            procedures={procedures} 
                            department={currentDept} 
