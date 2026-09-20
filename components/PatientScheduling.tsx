@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Patient, Appointment, Procedure, Staff, AppointmentStatus, PatientStatus, Department, DepartmentType, UserAccount, UserRole, AttendanceRecord, ConflictDetail, AppointmentTemplate, TemplateProcedure, AttendanceStatus, MachineShift, ScheduleSnapshot } from '../types';
 import { Button } from './Button';
-import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut, BookmarkCheck, Loader2, StickyNote, Edit3, CalendarDays } from 'lucide-react';
+import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, Link2, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut, BookmarkCheck, Loader2, StickyNote, Edit3, CalendarDays } from 'lucide-react';
 
 import { calculateAge, timeStringToMinutes, minutesToPixels, minutesToTimeString, addMinutesToTime, isInsideOfficeHours, checkConflict, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
 import { CopyRangeModal } from './CopyRangeModal';
@@ -2847,12 +2847,43 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                       </div>
                                       {((proc?.asst1BusyEnd && proc.asst1BusyEnd > 0) || (proc?.assistant1BusyMinutes && proc.assistant1BusyMinutes > 0)) && (
                                         <div>
-                                          <label className="block text-xs font-medium text-slate-500 mb-1">Người phụ 1</label>
+                                          <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-xs font-medium text-slate-500">Người phụ 1</label>
+                                            {((proc?.asst2BusyEnd && proc.asst2BusyEnd > 0) || (proc?.assistant2BusyMinutes && proc.assistant2BusyMinutes > 0)) && (
+                                              <label 
+                                                className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200/70 cursor-pointer select-none"
+                                                title="Người phụ 1 kiêm nhiệm luôn người phụ 2"
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  checked={!!tProc.allowSameAssistant}
+                                                  onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    const newProcs = [...editingTemplate.procedures];
+                                                    newProcs[idx] = {
+                                                      ...tProc,
+                                                      allowSameAssistant: checked,
+                                                      assistant2Id: checked && tProc.assistant1Id ? tProc.assistant1Id : (checked ? null : tProc.assistant2Id)
+                                                    };
+                                                    setEditingTemplate({...editingTemplate, procedures: newProcs});
+                                                  }}
+                                                  className="w-2.5 h-2.5 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
+                                                />
+                                                <Link2 size={10} className={tProc.allowSameAssistant ? "text-amber-600" : "text-slate-400"} />
+                                                <span>Kiêm Phụ 2</span>
+                                              </label>
+                                            )}
+                                          </div>
                                           <select
                                             value={tProc.assistant1Id || ''}
                                             onChange={(e) => {
                                               const newProcs = [...editingTemplate.procedures];
-                                              newProcs[idx] = {...tProc, assistant1Id: e.target.value || null};
+                                              const val = e.target.value || null;
+                                              newProcs[idx] = {
+                                                ...tProc,
+                                                assistant1Id: val,
+                                                ...(tProc.allowSameAssistant ? { assistant2Id: val } : {})
+                                              };
                                               setEditingTemplate({...editingTemplate, procedures: newProcs});
                                             }}
                                             className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -2897,24 +2928,33 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                       )}
                                       {((proc?.asst2BusyEnd && proc.asst2BusyEnd > 0) || (proc?.assistant2BusyMinutes && proc.assistant2BusyMinutes > 0)) && (
                                         <div>
-                                          <label className="block text-xs font-medium text-slate-500 mb-1">Người phụ 2</label>
+                                          <label className="block text-xs font-medium text-slate-500 mb-1">
+                                            Người phụ 2 {tProc.allowSameAssistant && <span className="text-amber-600 font-semibold lowercase text-[10px]">(Đồng bộ Phụ 1)</span>}
+                                          </label>
                                           <select
-                                            value={tProc.assistant2Id || ''}
+                                            disabled={!!tProc.allowSameAssistant}
+                                            value={tProc.allowSameAssistant ? (tProc.assistant1Id || '') : (tProc.assistant2Id || '')}
                                             onChange={(e) => {
                                               const newProcs = [...editingTemplate.procedures];
                                               newProcs[idx] = {...tProc, assistant2Id: e.target.value || null};
                                               setEditingTemplate({...editingTemplate, procedures: newProcs});
                                             }}
-                                            className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                            className={`w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${tProc.allowSameAssistant ? 'bg-amber-50/50 cursor-not-allowed border-amber-200 text-amber-900' : ''}`}
                                           >
-                                            <option value="">-- Chọn người phụ 2 --</option>
-                                            {(() => {
-                                              const filtered = staff.filter(s => s.deptId === currentDept.id && (s.assistantCapabilityIds?.includes(tProc.procedureId) || s.capabilityIds?.includes(tProc.procedureId)) && s.id !== tProc.staffId && s.id !== tProc.assistant1Id);
-                                              const list = filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id && s.id !== tProc.staffId && s.id !== tProc.assistant1Id);
-                                              return list.map(s => (
-                                                <option key={s.id} value={s.id}>{s.name}</option>
-                                              ));
-                                            })()}
+                                            {tProc.allowSameAssistant ? (
+                                              <option value="">-- Đồng bộ theo Phụ 1 --</option>
+                                            ) : (
+                                              <>
+                                                <option value="">-- Chọn người phụ 2 --</option>
+                                                {(() => {
+                                                  const filtered = staff.filter(s => s.deptId === currentDept.id && (s.assistantCapabilityIds?.includes(tProc.procedureId) || s.capabilityIds?.includes(tProc.procedureId)) && s.id !== tProc.staffId && s.id !== tProc.assistant1Id);
+                                                  const list = filtered.length > 0 ? filtered : staff.filter(s => s.deptId === currentDept.id && s.id !== tProc.staffId && s.id !== tProc.assistant1Id);
+                                                  return list.map(s => (
+                                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                                  ));
+                                                })()}
+                                              </>
+                                            )}
                                           </select>
                                         </div>
                                       )}

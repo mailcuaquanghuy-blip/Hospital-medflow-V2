@@ -1514,24 +1514,6 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                               )}
                                           </div>
                                       </div>
-
-                                      {/* Tùy chọn Phụ 1 kiêm Phụ 2 khi cả 2 phụ đều được bật */}
-                                      {newOpt.asst1Enabled && newOpt.asst2Enabled && (
-                                          <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl">
-                                              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                                                  <input 
-                                                      type="checkbox" 
-                                                      checked={newOpt.allowSameAssistant || false} 
-                                                      onChange={e => setNewOpt({ ...newOpt, allowSameAssistant: e.target.checked })} 
-                                                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
-                                                  />
-                                                  <span className="text-xs font-black text-amber-900">Cho phép người phụ 1 kiêm nhiệm luôn người phụ 2</span>
-                                              </label>
-                                              <p className="text-[11px] text-amber-800/80 pl-6.5 pt-0.5 font-medium leading-relaxed">
-                                                  Khi kích hoạt tùy chọn này, 1 nhân sự có thể làm cả 2 vị trí phụ trong cùng lịch trình nếu không bị trùng lịch trình khác.
-                                              </p>
-                                          </div>
-                                      )}
                                   </div>
 
                                   {/* Buttons cho form cấu hình */}
@@ -1608,9 +1590,9 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                           {/* Danh sách các phương án thời lượng đã cấu hình */}
                           <div className="space-y-3">
                               <label className="text-xs font-black text-slate-500 uppercase tracking-wide">Danh sách các phương án đã cấu hình</label>
-                              {editingProcedure.durationOptions && editingProcedure.durationOptions.length > 0 ? (
+                              {editingProcedure.durationOptions && editingProcedure.durationOptions.filter(o => !o.isDeleted).length > 0 ? (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                      {editingProcedure.durationOptions.map((opt) => (
+                                      {editingProcedure.durationOptions.filter(o => !o.isDeleted).map((opt) => (
                                           <div 
                                               key={opt.id} 
                                               onClick={() => handleEditOption(opt)}
@@ -1677,15 +1659,19 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                                           onClick={(e) => {
                                                               e.stopPropagation();
                                                               const opts = editingProcedure.durationOptions || [];
-                                                              if (opts.length <= 1) {
-                                                                  alert("Lịch trình cần có ít nhất một phương án thời lượng!");
+                                                              const activeOpts = opts.filter(o => !o.isDeleted);
+                                                              if (activeOpts.length <= 1) {
+                                                                  alert("Lịch trình cần có ít nhất một phương án thời lượng hoạt động!");
                                                                   return;
                                                               }
                                                               if (confirm("Bạn có chắc muốn xóa phương án thời lượng này?")) {
-                                                                  let remainingOpts = opts.filter(o => o.id !== opt.id).map(o => ({ ...o }));
-                                                                  // Nếu xóa phương án đang mặc định, gán cái đầu tiên làm mặc định
-                                                                  if (opt.isDefault && remainingOpts.length > 0) {
-                                                                      remainingOpts[0].isDefault = true;
+                                                                  let remainingOpts = opts.map(o => o.id === opt.id ? { ...o, isDeleted: true, isDefault: false } : { ...o });
+                                                                  // Nếu xóa phương án đang mặc định, gán cái hoạt động đầu tiên làm mặc định
+                                                                  if (opt.isDefault) {
+                                                                      const firstActive = remainingOpts.find(o => !o.isDeleted);
+                                                                      if (firstActive) {
+                                                                          firstActive.isDefault = true;
+                                                                      }
                                                                   }
                                                                   updateDurationOptionsAndSyncDefault(remainingOpts);
                                                                   
@@ -1722,11 +1708,6 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                                           <span className="font-mono text-slate-700">{opt.asst2BusyStart ?? 0} - {opt.asst2BusyEnd}p</span>
                                                       </div>
                                                   ) : null}
-                                                  {opt.allowSameAssistant ? (
-                                                      <div className="flex items-center gap-1.5 bg-amber-50/70 text-amber-800 border border-amber-200/60 px-2.5 py-1 rounded-lg text-[10px] font-extrabold mt-0.5">
-                                                          <Users size={11} className="text-amber-600" /> Cho phép Phụ 1 kiêm Phụ 2
-                                                      </div>
-                                                  ) : null}
                                               </div>
                                           </div>
                                       ))}
@@ -1746,14 +1727,15 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                           <Button onClick={() => {
                               let finalProc = { ...editingProcedure };
                               if (finalProc.durationOptions && finalProc.durationOptions.length > 0) {
-                                  let hasDefault = finalProc.durationOptions.some(o => o.isDefault);
+                                  let hasDefault = finalProc.durationOptions.some(o => o.isDefault && !o.isDeleted);
                                   if (!hasDefault) {
+                                      const firstActiveIdx = finalProc.durationOptions.findIndex(o => !o.isDeleted);
                                       finalProc.durationOptions = finalProc.durationOptions.map((o, idx) => ({
                                           ...o,
-                                          isDefault: idx === 0
+                                          isDefault: firstActiveIdx !== -1 ? idx === firstActiveIdx : idx === 0
                                       }));
                                   }
-                                  const defaultOpt = finalProc.durationOptions.find(o => o.isDefault) || finalProc.durationOptions[0];
+                                  const defaultOpt = finalProc.durationOptions.find(o => o.isDefault && !o.isDeleted) || finalProc.durationOptions.find(o => !o.isDeleted) || finalProc.durationOptions[0];
                                   finalProc.durationMinutes = defaultOpt.durationMinutes;
                                   finalProc.restMinutes = defaultOpt.restMinutes || 0;
                                   finalProc.mainBusyStart = defaultOpt.mainBusyStart ?? 0;

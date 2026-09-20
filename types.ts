@@ -112,6 +112,7 @@ export interface ProcedureDurationOption {
   restMinutes?: number;
   isDefault?: boolean;
   allowSameAssistant?: boolean; // Tùy chọn: Cho phép người phụ 1 kiêm nhiệm luôn người phụ 2
+  isDeleted?: boolean;
 }
 
 export interface Procedure {

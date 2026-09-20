@@ -6,7 +6,7 @@ import { Button } from './Button';
 
 import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
 // Fix: Added LogOut to lucide-react imports
-import { AlertTriangle, Calendar, User, Activity, Search, UserPlus, Zap, Bed, Clock, Info, CheckCircle2, Monitor, Building2, Stethoscope, LogOut, ChevronDown, Plus, Trash2, X, Edit2, Shield, StickyNote, Check } from 'lucide-react';
+import { AlertTriangle, Calendar, User, Activity, Search, UserPlus, Zap, Bed, Clock, Info, CheckCircle2, Monitor, Building2, Stethoscope, LogOut, ChevronDown, Plus, Trash2, X, Edit2, Shield, StickyNote, Check, Link2 } from 'lucide-react';
 import { DEPARTMENTS } from '../constants';
 import { TimeInput } from './TimeInput';
 import { DateInput } from './DateInput';
@@ -1445,7 +1445,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                         {/* Option Mặc định */}
                         {(() => {
-                          const defaultOpt = currentProc.durationOptions?.find(o => o.isDefault);
+                          const defaultOpt = currentProc.durationOptions?.find(o => o.isDefault && !o.isDeleted) || currentProc.durationOptions?.find(o => !o.isDeleted);
                           const isDefaultSelected = !formData.selectedDurationOptionId || 
                             formData.selectedDurationOptionId === 'default' || 
                             (defaultOpt && formData.selectedDurationOptionId === defaultOpt.id);
@@ -1503,7 +1503,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                         {/* Các option tùy biến thêm */}
                         {currentProc.durationOptions
-                          .filter(opt => !opt.isDefault && opt.name.toLowerCase() !== 'mặc định' && opt.id !== 'default')
+                          .filter(opt => !opt.isDefault && opt.name.toLowerCase() !== 'mặc định' && opt.id !== 'default' && (!opt.isDeleted || formData.selectedDurationOptionId === opt.id))
                           .map((opt) => {
                             const isSelected = formData.selectedDurationOptionId === opt.id;
                             return (
@@ -1635,6 +1635,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
                                 )}
                               </div>
+                              {needsAssistant2 && (
+                                <div className="pt-0.5">
+                                  <label 
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-2.5 py-1 rounded-lg border border-amber-200/80 cursor-pointer select-none transition-colors"
+                                    title="Cho phép người phụ 1 kiêm nhiệm luôn người phụ 2"
+                                  >
+                                    <input 
+                                      type="checkbox" 
+                                      checked={!!allowSameAsst} 
+                                      onChange={e => {
+                                        const checked = e.target.checked;
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          allowSameAssistant: checked,
+                                          assistant2Id: checked && prev.assistant1Id ? prev.assistant1Id : (checked ? '' : prev.assistant2Id)
+                                        }));
+                                      }} 
+                                      className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
+                                    />
+                                    <Link2 size={13} className={allowSameAsst ? "text-amber-600" : "text-slate-400"} />
+                                    <span>Kiêm phụ 2</span>
+                                  </label>
+                                </div>
+                              )}
                               {renderFieldWarnings(['người phụ 1', 'assistant 1'])}
                             </div>
                           )}

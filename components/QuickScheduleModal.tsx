@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Clock, Zap, Check, ChevronDown, Sparkles, AlertCircle, RefreshCw, User, HelpCircle, CheckCircle2, Plus } from 'lucide-react';
+import { X, Clock, Zap, Check, ChevronDown, Sparkles, AlertCircle, RefreshCw, User, HelpCircle, CheckCircle2, Plus, Link2 } from 'lucide-react';
 import { Button } from './Button';
 import { Patient, Appointment, Procedure, Staff, AttendanceRecord, AppointmentStatus, Department, AttendanceStatus, ProcedureCategory } from '../types';
 import { timeStringToMinutes, minutesToTimeString, checkConflict } from '../utils/timeUtils';
@@ -62,6 +62,7 @@ interface KipConfig {
   mainStaffId: string;
   assistant1Id: string;
   assistant2Id: string;
+  allowSameAssistant?: boolean;
 }
 
 export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
@@ -143,7 +144,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     setGroups(prev => prev.filter(g => g.id !== id));
   };
 
-  const handleUpdateGroup = (id: string, field: keyof KipConfig, value: string) => {
+  const handleUpdateGroup = <K extends keyof KipConfig>(id: string, field: K, value: KipConfig[K]) => {
     setGroups(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
   };
 
@@ -204,6 +205,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     assistant2Id: string;
     deviceId: string;
     isPriority?: boolean;
+    allowSameAssistant?: boolean;
   } | null>(null);
 
   const [addProcDuplicateWarning, setAddProcDuplicateWarning] = useState<boolean>(false);
@@ -268,8 +270,9 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     }
 
     // Check if the current option allows same assistant
-    const opt = procedure.durationOptions?.find(o => o.durationMinutes === durationMins) || 
-                 procedure.durationOptions?.find(o => o.isDefault) || 
+    const opt = procedure.durationOptions?.find(o => o.durationMinutes === durationMins && !o.isDeleted) || 
+                 procedure.durationOptions?.find(o => o.isDefault && !o.isDeleted) || 
+                 procedure.durationOptions?.find(o => !o.isDeleted) ||
                  procedure.durationOptions?.[0];
     const allowSame = opt?.allowSameAssistant !== undefined 
       ? opt.allowSameAssistant 
@@ -571,7 +574,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
         nextProcStartMin[task.procedure.id] = slotStartMin + stagger;
 
         const currentProc = task.procedure;
-        const opt = currentProc.durationOptions?.find(o => o.id === task.durationOptionId) || currentProc.durationOptions?.find(o => o.isDefault);
+        const opt = currentProc.durationOptions?.find(o => o.id === task.durationOptionId) || currentProc.durationOptions?.find(o => o.isDefault && !o.isDeleted) || currentProc.durationOptions?.find(o => !o.isDeleted);
 
         const mainBusyStart = opt ? (opt.mainBusyStart ?? 0) : (currentProc.mainBusyStart ?? 0);
         const mainBusyEnd = opt ? (opt.mainBusyEnd ?? opt.durationMinutes) : (currentProc.mainBusyEnd ?? currentProc.durationMinutes);
@@ -671,9 +674,9 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       durationMinutes = selectedDurationOpt.durationMinutes;
     }
 
-    const isSameAsst = selectedDurationOpt ? (
+    const isSameAsst = !!addProcState.allowSameAssistant || (selectedDurationOpt ? (
       selectedDurationOpt.allowSameAssistant ?? selectedProc?.allowSameAssistant
-    ) : selectedProc?.allowSameAssistant;
+    ) : selectedProc?.allowSameAssistant);
 
     // Check for duplicate warning
     const hasExistingAppt = appointments.some(appt => appt.patientId === patientId && appt.date === currentDate && appt.procedureId === procedureId);
@@ -826,14 +829,37 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
                                 {/* Asst 1 */}
                                 <div>
-                                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Người phụ 1</label>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Người phụ 1</label>
+                                    {needsAsst1 && needsAsst2 && (
+                                      <label 
+                                        className="flex items-center gap-0.5 text-[9px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-1 py-0.5 rounded border border-amber-200/70 cursor-pointer select-none"
+                                        title="Người phụ 1 kiêm nhiệm luôn người phụ 2"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={!!group.allowSameAssistant}
+                                          onChange={e => {
+                                            const checked = e.target.checked;
+                                            handleUpdateGroup(group.id, 'allowSameAssistant', checked);
+                                            if (checked && group.assistant1Id) {
+                                              handleUpdateGroup(group.id, 'assistant2Id', group.assistant1Id);
+                                            }
+                                          }}
+                                          className="w-2.5 h-2.5 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
+                                        />
+                                        <Link2 size={10} className={group.allowSameAssistant ? "text-amber-600" : "text-slate-400"} />
+                                        <span>Kiêm P2</span>
+                                      </label>
+                                    )}
+                                  </div>
                                   <select
                                     disabled={!needsAsst1}
                                     value={needsAsst1 ? group.assistant1Id : ''}
                                     onChange={e => {
                                       const val = e.target.value;
                                       handleUpdateGroup(group.id, 'assistant1Id', val);
-                                      if (proc?.allowSameAssistant) {
+                                      if (group.allowSameAssistant) {
                                         handleUpdateGroup(group.id, 'assistant2Id', val);
                                       }
                                     }}
@@ -857,17 +883,17 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                 {/* Asst 2 */}
                                 <div>
                                   <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">
-                                    Người phụ 2 {proc?.allowSameAssistant && <span className="text-amber-600 font-semibold lowercase">(Đồng bộ Phụ 1)</span>}
+                                    Người phụ 2 {group.allowSameAssistant && <span className="text-amber-600 font-semibold lowercase">(Đồng bộ Phụ 1)</span>}
                                   </label>
                                   <select
-                                    disabled={!needsAsst2 || !!proc?.allowSameAssistant}
-                                    value={proc?.allowSameAssistant ? (group.assistant1Id || '') : (needsAsst2 ? group.assistant2Id : '')}
+                                    disabled={!needsAsst2 || !!group.allowSameAssistant}
+                                    value={group.allowSameAssistant ? (group.assistant1Id || '') : (needsAsst2 ? group.assistant2Id : '')}
                                     onChange={e => handleUpdateGroup(group.id, 'assistant2Id', e.target.value)}
-                                    className={`w-full text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-1.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all ${(!needsAsst2 || proc?.allowSameAssistant) ? 'opacity-70 bg-amber-50/50 cursor-not-allowed border-amber-200' : ''}`}
+                                    className={`w-full text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-1.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all ${(!needsAsst2 || group.allowSameAssistant) ? 'opacity-70 bg-amber-50/50 cursor-not-allowed border-amber-200 text-amber-900' : ''}`}
                                   >
                                     {!needsAsst2 ? (
                                       <option value="">Không yêu cầu</option>
-                                    ) : proc?.allowSameAssistant ? (
+                                    ) : group.allowSameAssistant ? (
                                       <option value="">-- Đồng bộ theo Phụ 1 --</option>
                                     ) : (
                                       <>
@@ -1547,7 +1573,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                       className="w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer"
                     >
                       <option value="">Mặc định ({selectedProc.durationMinutes} phút)</option>
-                      {selectedProc.durationOptions?.map(opt => (
+                      {selectedProc.durationOptions?.filter(opt => !opt.isDeleted || addProcState.selectedDurationOptionId === opt.id).map(opt => (
                         <option key={opt.id} value={opt.id}>
                           {opt.name} ({opt.durationMinutes} phút)
                         </option>
@@ -1608,7 +1634,34 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                         {/* Assistant 1 */}
                         {needsAsst1 && (
                           <div className="space-y-1.5 text-left">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Người phụ 1</label>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Người phụ 1</label>
+                              {needsAsst1 && needsAsst2 && (
+                                <label 
+                                  className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200/70 cursor-pointer select-none transition-colors"
+                                  title="Người phụ 1 kiêm nhiệm luôn người phụ 2"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={!!addProcState.allowSameAssistant}
+                                    onChange={e => {
+                                      const checked = e.target.checked;
+                                      setAddProcState(prev => {
+                                        if (!prev) return null;
+                                        return {
+                                          ...prev,
+                                          allowSameAssistant: checked,
+                                          assistant2Id: checked && prev.assistant1Id ? prev.assistant1Id : (checked ? '' : prev.assistant2Id)
+                                        };
+                                      });
+                                    }}
+                                    className="w-3 h-3 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
+                                  />
+                                  <Link2 size={11} className={addProcState.allowSameAssistant ? "text-amber-600" : "text-slate-400"} />
+                                  <span>Kiêm Phụ 2</span>
+                                </label>
+                              )}
+                            </div>
                             <select
                               value={addProcState.assistant1Id}
                               onChange={e => {
@@ -1618,7 +1671,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                                   return {
                                     ...prev,
                                     assistant1Id: val,
-                                    assistant2Id: isSameAsst ? val : prev.assistant2Id
+                                    assistant2Id: prev.allowSameAssistant ? val : prev.assistant2Id
                                   };
                                 });
                               }}
@@ -1636,15 +1689,15 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                         {needsAsst2 && (
                           <div className="space-y-1.5 text-left">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
-                              Người phụ 2 {isSameAsst && <span className="text-amber-600 font-semibold lowercase">(Đồng bộ Phụ 1)</span>}
+                              Người phụ 2 {addProcState.allowSameAssistant && <span className="text-amber-600 font-semibold lowercase">(Đồng bộ Phụ 1)</span>}
                             </label>
                             <select
-                              disabled={!!isSameAsst}
-                              value={isSameAsst ? (addProcState.assistant1Id || '') : addProcState.assistant2Id}
+                              disabled={!!addProcState.allowSameAssistant}
+                              value={addProcState.allowSameAssistant ? (addProcState.assistant1Id || '') : addProcState.assistant2Id}
                               onChange={e => setAddProcState(prev => prev ? { ...prev, assistant2Id: e.target.value } : null)}
-                              className={`w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer ${isSameAsst ? 'opacity-70 bg-amber-50/50 cursor-not-allowed border-amber-200 text-amber-900' : ''}`}
+                              className={`w-full text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition-all cursor-pointer ${addProcState.allowSameAssistant ? 'opacity-70 bg-amber-50/50 cursor-not-allowed border-amber-200 text-amber-900' : ''}`}
                             >
-                              {isSameAsst ? (
+                              {addProcState.allowSameAssistant ? (
                                 <option value="">-- Đồng bộ theo Phụ 1 --</option>
                               ) : (
                                 <>
