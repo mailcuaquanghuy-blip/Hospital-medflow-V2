@@ -1594,26 +1594,26 @@ export const Timeline: React.FC<TimelineProps> = ({
                                 const message = isStr ? msg : msg.message;
                                 const level = isStr ? 1 : msg.level;
                                 
-                                let bgClass = 'bg-rose-50/90 border-rose-200 text-rose-700';
+                                let bgClass = 'bg-rose-50 border-rose-200 text-rose-700';
                                 let iconColor = 'text-rose-500';
                                 
                                 if (level === 2) {
-                                    bgClass = 'bg-amber-50/90 border-amber-200 text-amber-700';
+                                    bgClass = 'bg-amber-50 border-amber-200 text-amber-700';
                                     iconColor = 'text-amber-500';
                                 } else if (level === 3) {
-                                    bgClass = 'bg-blue-50/90 border-blue-200 text-blue-700';
+                                    bgClass = 'bg-blue-50 border-blue-200 text-blue-700';
                                     iconColor = 'text-blue-500';
                                 }
 
                                 return (
-                                    <div key={mIdx} className={`flex items-start gap-1.5 text-[10px] font-semibold p-1.5 px-2 rounded-lg border shadow-[0_1px_2px_rgba(0,0,0,0.02)] mt-1 leading-normal ${bgClass}`}>
+                                    <div key={mIdx} className={`flex items-start gap-1 text-[10px] font-bold p-1 px-1.5 rounded-md border shadow-[0_1px_2px_rgba(0,0,0,0.02)] mt-0.5 leading-tight ${bgClass}`} title={message}>
                                         <AlertTriangle size={11} className={`${iconColor} shrink-0 mt-0.5`} strokeWidth={2.5} />
                                         <span className="break-words">{message}</span>
                                     </div>
                                 );
                             })}
                             {hasConflict && (!appt.conflictDetails || appt.conflictDetails.length === 0) && (
-                                <div className="flex items-start gap-1.5 text-[10px] font-semibold p-1.5 px-2 rounded-lg border bg-rose-50/90 border-rose-200 text-rose-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)] mt-1 leading-normal">
+                                <div className="flex items-start gap-1 text-[10px] font-bold p-1 px-1.5 rounded-md border bg-rose-50 border-rose-200 text-rose-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)] mt-0.5 leading-tight">
                                     <AlertTriangle size={11} className="text-rose-500 shrink-0 mt-0.5" strokeWidth={2.5} />
                                     <span>Có xung đột lịch trình</span>
                                 </div>

@@ -335,7 +335,7 @@ export const checkConflict = (
     if (isHoliday) {
       const attendance = attendanceRecords.find(r => r.staffId === id && r.date === newDate);
       if (!attendance || attendance.status !== AttendanceStatus.DUTY) {
-        conflictDetails.push({ message: `Ngày ${formatDate(newDate)} là ngày nghỉ toàn khoa. ${getRoleLabel(role)} ${name} không có lịch trực nên không thể thực hiện lịch trình.`, level: 1 });
+        conflictDetails.push({ message: `Ngày nghỉ toàn khoa - ${name} không trực`, level: 1 });
       }
     } else {
       const attendance = attendanceRecords.find(r => r.staffId === id && r.date === newDate);
@@ -346,20 +346,20 @@ export const checkConflict = (
         const afternoonStartMin = timeStringToMinutes(shift2.start);
 
         if (attendance.status === AttendanceStatus.OFF_FULL) {
-          conflictDetails.push({ message: `${getRoleLabel(role)} ${name} nghỉ làm cả ngày ${formatDate(newDate)}.`, level: 1 });
+          conflictDetails.push({ message: `${name} nghỉ cả ngày`, level: 1 });
         } else if (attendance.status === AttendanceStatus.OFF_MORNING) {
           const shift1 = OFFICE_SHIFTS[0];
           const shift1Start = timeStringToMinutes(shift1.start);
           const shift1End = timeStringToMinutes(shift1.end);
           if (Math.max(startMin, shift1Start) < Math.min(endMin, shift1End)) {
-            conflictDetails.push({ message: `${getRoleLabel(role)} ${name} nghỉ buổi sáng ngày ${formatDate(newDate)}.`, level: 1 });
+            conflictDetails.push({ message: `${name} nghỉ sáng`, level: 1 });
           }
         } else if (attendance.status === AttendanceStatus.OFF_AFTERNOON) {
           const shift2 = OFFICE_SHIFTS[1];
           const shift2Start = timeStringToMinutes(shift2.start);
           const shift2End = timeStringToMinutes(shift2.end);
           if (Math.max(startMin, shift2Start) < Math.min(endMin, shift2End)) {
-            conflictDetails.push({ message: `${getRoleLabel(role)} ${name} nghỉ buổi chiều ngày ${formatDate(newDate)}.`, level: 1 });
+            conflictDetails.push({ message: `${name} nghỉ chiều`, level: 1 });
           }
         }
       }
@@ -411,7 +411,7 @@ export const checkConflict = (
             }).length;
 
             if (overlappingCount >= capacity) {
-               conflictDetails.push({ message: `Máy ${assignedMachineId} đã đầy hoặc không còn đủ chỗ trong khung giờ này (Đang có ${overlappingCount}/${capacity} BN).`, level: 1 });
+               conflictDetails.push({ message: `Máy ${assignedMachineId} đã đầy (${overlappingCount}/${capacity} BN)`, level: 1 });
             }
          } else {
             // Capacity = 1: Any overlap is a conflict
@@ -423,7 +423,7 @@ export const checkConflict = (
 
             if (overlappingAppt) {
                const otherPatient = getPatientFromCache(patients, overlappingAppt.patientId);
-               conflictDetails.push({ message: `Máy ${assignedMachineId} đang được sử dụng bởi BN "${otherPatient?.name || 'khác'}" trong khung giờ này.`, level: 1 });
+               conflictDetails.push({ message: `Máy ${assignedMachineId} bận - BN "${otherPatient?.name || 'khác'}"`, level: 1 });
             }
          }
       } else {
@@ -722,8 +722,8 @@ export const checkConflict = (
     if (effectiveAsst1Id && effectiveAsst2Id && effectiveAsst1Id === effectiveAsst2Id) {
       checkPersonConflictWithOtherAppt(effectiveAsst1Id, 'Phụ 1 & 2');
     } else {
-      if (effectiveAsst1Id) checkPersonConflictWithOtherAppt(effectiveAsst1Id, 'Người phụ 1');
-      if (effectiveAsst2Id) checkPersonConflictWithOtherAppt(effectiveAsst2Id, 'Người phụ 2');
+      if (effectiveAsst1Id) checkPersonConflictWithOtherAppt(effectiveAsst1Id, 'Phụ 1');
+      if (effectiveAsst2Id) checkPersonConflictWithOtherAppt(effectiveAsst2Id, 'Phụ 2');
     }
   }
 
