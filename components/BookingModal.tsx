@@ -728,7 +728,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
       setConflictData(result);
     }
-  }, [formData.startTime, formData.endTime, formData.staffId, formData.patientId, formData.date, formData.assignedMachineId, isAfterDischarge, selectedPatient, formData.assistant1Id, formData.assistant2Id, formData.mainBusyStart, formData.mainBusyEnd, formData.asst1BusyStart, formData.asst1BusyEnd, formData.asst2BusyStart, formData.asst2BusyEnd]);
+  }, [formData.startTime, formData.endTime, formData.staffId, formData.patientId, formData.date, formData.assignedMachineId, isAfterDischarge, selectedPatient, formData.assistant1Id, formData.assistant2Id, formData.mainBusyStart, formData.mainBusyEnd, formData.asst1BusyStart, formData.asst1BusyEnd, formData.asst2BusyStart, formData.asst2BusyEnd, formData.procedureId, formData.selectedDurationOptionId, formData.allowSameAssistant, appointments, staff, procedures, attendanceRecords, patients]);
 
   // Tự động nhận máy gợi ý nếu chưa chọn máy hoặc máy hiện tại bị xung đột
   useEffect(() => {
@@ -1195,15 +1195,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                       {/* TỔNG HỢP CẢNH BÁO */}
                       {(() => {
-                        const safetyCheckConflicts = conflictData.conflictDetails.filter(d => {
-                          const isFieldWarning = [
-                            'người thực hiện', 'staff', 'nhân sự chính', 'ns chính',
-                            'người phụ 1', 'phụ 1', 'assistant 1',
-                            'người phụ 2', 'phụ 2', 'assistant 2',
-                            'phụ 1 & 2'
-                          ].some(keyword => d.message.toLowerCase().includes(keyword.toLowerCase()));
-                          return !isFieldWarning;
-                        });
+                        const safetyCheckConflicts = conflictData.conflictDetails.filter(d => 
+                          !d.message.toLowerCase().includes("chưa chọn")
+                        );
 
                         return (
                           <div className="pt-6 border-t border-slate-100">
@@ -1660,7 +1654,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   </label>
                                 </div>
                               )}
-                              {renderFieldWarnings(['người phụ 1', 'assistant 1'])}
+                                {renderFieldWarnings(['người phụ 1', 'phụ 1', 'assistant 1', 'phụ 1 & 2'])}
                             </div>
                           )}
                           {needsAssistant2 && (
@@ -1692,7 +1686,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
                                 ) : null}
                               </div>
-                              {renderFieldWarnings(['người phụ 2', 'assistant 2'])}
+                              {renderFieldWarnings(['người phụ 2', 'phụ 2', 'assistant 2', 'phụ 1 & 2'])}
                             </div>
                           )}
                         </motion.div>
