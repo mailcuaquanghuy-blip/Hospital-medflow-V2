@@ -2266,7 +2266,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                             
                             <div 
                                 className="py-8 relative z-10 px-4" 
-                                style={{ height: Math.max(480, (Math.max(-1, ...patientAppointmentsWithRow.map(a => a.rowIndex)) + 1) * 210 + 100) }}
+                                style={{ height: Math.max(480, (Math.max(-1, ...patientAppointmentsWithRow.map(a => a.rowIndex)) + 1) * 190 + 100) }}
                             >
                                 {patientAppointmentsWithRow.map((appt, idx) => {
                                     const proc = procedures.find(pr => pr.id === appt.procedureId);
@@ -2278,106 +2278,121 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                     const left = (startMin - patientTimeRange.start * 60) * pixelsPerMinute;
                                     const durationWidth = duration * pixelsPerMinute;
                                     const cardWidth = 460;
-                                    const cardHeight = 190;
-                                    const containerWidth = Math.max(durationWidth, cardWidth);
+                                    const cardHeight = 146;
                                     const dynamicConflictDetails = allDynamicConflicts.get(appt.id) || [];
                                     const hasConflict = dynamicConflictDetails.some(c => c.level === 1);
                                     const hasWarning = dynamicConflictDetails.some(c => c.level === 2);
                                     const restMinutes = proc?.restMinutes || 0;
                                     const restWidth = restMinutes * pixelsPerMinute;
-                                    const top = appt.rowIndex * 210 + 20;
+                                    const top = appt.rowIndex * 190 + 20;
                                     const canEdit = appt.deptId === currentDept.id || currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(appt.deptId));
                                     const isAuthorizedCard = appt.deptId === currentDept.id || canEdit;
                                     
                                     return (
-                                        <div key={appt.id} className="absolute" style={{ top, left, width: containerWidth + restWidth, zIndex: isDragging ? 50 : 20 }}>
-                                            <div 
-                                                className={`rounded-2xl border-2 shadow-lg flex flex-col overflow-hidden transition-all bg-white ${isDragging ? 'cursor-grabbing scale-105 shadow-2xl ring-4 ring-primary/20' : 'cursor-pointer hover:shadow-xl hover:-translate-y-0.5'} ${hasConflict ? 'border-rose-500 ring-rose-500/10' : hasWarning ? 'border-amber-500 ring-amber-500/10' : (appt.deptId === currentDept.id ? 'border-sky-500 shadow-sky-100/50' : (isAuthorizedCard ? 'border-sky-300 opacity-95' : 'border-slate-200 opacity-40 grayscale blur-[0.7px] pointer-events-none'))}`} 
-                                                style={{ width: cardWidth, height: cardHeight }} 
-                                                onClick={() => !isReferralFinished && isAuthorizedCard && onBookAppointment(selectedPatient.id, appt)} 
-                                                onMouseDown={(e) => !isReferralFinished && isAuthorizedCard && handleDragStart(e, appt)}
-                                            >
-                                                <div className={`px-3 py-1.5 flex items-center justify-between border-b ${getBarColor(idx, appt.status, hasWarning, hasConflict, proc?.isIndependent, appt.deptId === currentDept.id)}`}>
-                                                   <div className="flex items-center gap-2 overflow-hidden mr-1">
-                                                      <span className="font-black text-sm uppercase tracking-tighter shrink-0">{appt.startTime} - {appt.endTime}</span>
-                                                      <div className="w-px h-3.5 bg-white/30" />
-                                                      <span className="font-extrabold text-base truncate uppercase tracking-tight">{proc?.name || 'Lịch trình đã xóa'}</span>
-                                                   </div>
-                                                   <div className="flex items-center gap-1 shrink-0">
-                                                      {!isReferralFinished && canEdit && (
-                                                         <button
-                                                            id={`delete-btn-${appt.id}`}
-                                                            onClick={(e) => {
-                                                               e.stopPropagation();
-                                                               if (window.confirm(`Bạn có chắc chắn muốn xóa lịch trình "${proc?.name || 'không tên'}" này không?`)) {
-                                                                  onDeleteAppointment(appt.id);
-                                                               }
-                                                            }}
-                                                            onMouseDown={(e) => {
-                                                               e.stopPropagation();
-                                                            }}
-                                                            className="p-1 rounded-full text-white/80 hover:text-white hover:bg-black/15 transition-all cursor-pointer"
-                                                            title="Xóa nhanh lịch trình"
-                                                         >
-                                                            <Trash2 size={15} />
-                                                         </button>
-                                                      )}
-                                                   </div>
+                                        <div key={appt.id} className="absolute flex items-start gap-3.5" style={{ top, left, zIndex: isDragging ? 50 : 20 }}>
+                                            {/* Card Container */}
+                                            <div className="relative shrink-0">
+                                                <div 
+                                                    className={`rounded-2xl border-2 shadow-lg flex flex-col overflow-hidden transition-all bg-white ${isDragging ? 'cursor-grabbing scale-105 shadow-2xl ring-4 ring-primary/20' : 'cursor-pointer hover:shadow-xl hover:-translate-y-0.5'} ${hasConflict ? 'border-rose-500 ring-rose-500/10' : hasWarning ? 'border-amber-500 ring-amber-500/10' : (appt.deptId === currentDept.id ? 'border-sky-500 shadow-sky-100/50' : (isAuthorizedCard ? 'border-sky-300 opacity-95' : 'border-slate-200 opacity-40 grayscale blur-[0.7px] pointer-events-none'))}`} 
+                                                    style={{ width: cardWidth, height: cardHeight }} 
+                                                    onClick={() => !isReferralFinished && isAuthorizedCard && onBookAppointment(selectedPatient.id, appt)} 
+                                                    onMouseDown={(e) => !isReferralFinished && isAuthorizedCard && handleDragStart(e, appt)}
+                                                >
+                                                    <div className={`px-3 py-1.5 flex items-center justify-between border-b ${getBarColor(idx, appt.status, hasWarning, hasConflict, proc?.isIndependent, appt.deptId === currentDept.id)}`}>
+                                                       <div className="flex items-center gap-2 overflow-hidden mr-1">
+                                                          <span className="font-black text-sm uppercase tracking-tighter shrink-0">{appt.startTime} - {appt.endTime}</span>
+                                                          <div className="w-px h-3.5 bg-white/30" />
+                                                          <span className="font-extrabold text-base truncate uppercase tracking-tight">{proc?.name || 'Lịch trình đã xóa'}</span>
+                                                       </div>
+                                                       <div className="flex items-center gap-1 shrink-0">
+                                                          {!isReferralFinished && canEdit && (
+                                                             <button
+                                                                id={`delete-btn-${appt.id}`}
+                                                                onClick={(e) => {
+                                                                   e.stopPropagation();
+                                                                   if (window.confirm(`Bạn có chắc chắn muốn xóa lịch trình "${proc?.name || 'không tên'}" này không?`)) {
+                                                                      onDeleteAppointment(appt.id);
+                                                                   }
+                                                                }}
+                                                                onMouseDown={(e) => {
+                                                                   e.stopPropagation();
+                                                                }}
+                                                                className="p-1 rounded-full text-white/80 hover:text-white hover:bg-black/15 transition-all cursor-pointer"
+                                                                title="Xóa nhanh lịch trình"
+                                                             >
+                                                                <Trash2 size={15} />
+                                                             </button>
+                                                          )}
+                                                       </div>
+                                                    </div>
+
+                                                    {/* Content Details */}
+                                                    <div className="p-2.5 flex flex-col gap-1.5 flex-1 justify-between overflow-hidden">
+                                                       <div className="flex flex-col gap-1 overflow-hidden">
+                                                          <div className="flex items-center gap-2 text-[16px] font-black text-slate-800 truncate">
+                                                             <User size={18} className="text-slate-400 shrink-0" />
+                                                             {staffMember?.name || 'Chưa phân công'}
+                                                          </div>
+                                                          {(appt.assistant1Id || appt.assistant2Id) && (
+                                                            <div className="flex flex-wrap gap-x-2.5 gap-y-1 ml-5">
+                                                              {appt.assistant1Id && <span className="text-[14px] font-extrabold text-slate-650 bg-slate-100/80 px-2 py-0.5 rounded-lg truncate max-w-[210px]" title={"Phụ 1: " + (staff.find(s => s.id === appt.assistant1Id)?.name || "")}>Phụ 1: {staff.find(s => s.id === appt.assistant1Id)?.name}</span>}
+                                                              {appt.assistant2Id && <span className="text-[14px] font-extrabold text-slate-650 bg-slate-100/80 px-2 py-0.5 rounded-lg truncate max-w-[210px]" title={"Phụ 2: " + (staff.find(s => s.id === appt.assistant2Id)?.name || "")}>Phụ 2: {staff.find(s => s.id === appt.assistant2Id)?.name}</span>}
+                                                            </div>
+                                                          )}
+                                                       </div>
+
+                                                       <div className="flex flex-wrap gap-1.5 mt-auto">
+                                                          {appt.assignedMachineId && (
+                                                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 text-[13.5px] font-black uppercase tracking-wider shadow-sm">
+                                                                <Cpu size={15} className="text-indigo-500" /> {appt.assignedMachineId}
+                                                             </div>
+                                                          )}
+                                                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-50 text-slate-700 border border-slate-100 text-[13.5px] font-black uppercase tracking-wider truncate max-w-[310px] shadow-sm">
+                                                             <Building2 size={15} className="text-slate-500" /> {DEPARTMENTS.find(d => d.id === (proc?.deptId || appt.deptId))?.name}
+                                                          </div>
+                                                          {appt.status === 'COMPLETED' && (appt.deptId === 'dept_cdha' || appt.deptId === 'dept_xetnghiem') && (
+                                                             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 text-[13.5px] font-black uppercase tracking-wider shadow-sm">
+                                                                <Clock size={15} className="text-emerald-500" /> Thực hiện lúc: {appt.endTime}
+                                                             </div>
+                                                          )}
+                                                       </div>
+                                                    </div>
                                                 </div>
 
-                                                {/* Content Details */}
-                                                <div className="p-2.5 flex flex-col gap-1.5 flex-1 justify-between overflow-hidden">
-                                                   <div className="flex flex-col gap-1 overflow-hidden">
-                                                      <div className="flex items-center gap-2 text-[16.5px] font-black text-slate-800 truncate">
-                                                         <User size={19} className="text-slate-400 shrink-0" />
-                                                         {staffMember?.name || 'Chưa phân công'}
-                                                      </div>
-                                                      {(appt.assistant1Id || appt.assistant2Id) && (
-                                                        <div className="flex flex-wrap gap-x-2.5 gap-y-1 ml-5">
-                                                          {appt.assistant1Id && <span className="text-[14.5px] font-extrabold text-slate-650 bg-slate-100/80 px-2 py-0.5 rounded-lg truncate max-w-[220px]" title={"Phụ 1: " + (staff.find(s => s.id === appt.assistant1Id)?.name || "")}>Phụ 1: {staff.find(s => s.id === appt.assistant1Id)?.name}</span>}
-                                                          {appt.assistant2Id && <span className="text-[14.5px] font-extrabold text-slate-650 bg-slate-100/80 px-2 py-0.5 rounded-lg truncate max-w-[220px]" title={"Phụ 2: " + (staff.find(s => s.id === appt.assistant2Id)?.name || "")}>Phụ 2: {staff.find(s => s.id === appt.assistant2Id)?.name}</span>}
+                                                {/* Rest Time Visualizer */}
+                                                {restMinutes > 0 && (
+                                                    <div 
+                                                        className="absolute rounded-r-xl border-y border-r border-dashed border-slate-300 bg-slate-100/30 flex items-center justify-center overflow-hidden -z-10 pointer-events-none"
+                                                        style={{ left: cardWidth - 2, width: restWidth + 2, height: cardHeight, top: 0 }}
+                                                    >
+                                                        <div className="whitespace-nowrap text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                                                           Nghỉ {restMinutes}p
                                                         </div>
-                                                      )}
-                                                   </div>
-
-                                                   <div className="flex flex-wrap gap-1.5 mt-auto">
-                                                      {appt.assignedMachineId && (
-                                                         <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 text-[14px] font-black uppercase tracking-wider shadow-sm">
-                                                            <Cpu size={16} className="text-indigo-500" /> {appt.assignedMachineId}
-                                                         </div>
-                                                      )}
-                                                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-slate-50 text-slate-700 border border-slate-100 text-[14px] font-black uppercase tracking-wider truncate max-w-[320px] shadow-sm">
-                                                         <Building2 size={16} className="text-slate-500" /> {DEPARTMENTS.find(d => d.id === (proc?.deptId || appt.deptId))?.name}
-                                                      </div>
-                                                      {appt.status === 'COMPLETED' && (appt.deptId === 'dept_cdha' || appt.deptId === 'dept_xetnghiem') && (
-                                                         <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 text-[14px] font-black uppercase tracking-wider shadow-sm">
-                                                            <Clock size={16} className="text-emerald-500" /> Thực hiện lúc: {appt.endTime}
-                                                         </div>
-                                                      )}
-                                                   </div>
-                                                </div>
-
-                                                {/* Conflict Alerts Area - Inside the timeline block as requested */}
-                                                {dynamicConflictDetails.length > 0 && (
-                                                  <div className={`px-3 py-1 border-t overflow-y-auto max-h-[50px] scrollbar-thin ${hasConflict ? 'bg-rose-50 border-rose-100' : 'bg-amber-50 border-amber-100'}`}>
-                                                     {dynamicConflictDetails.map((c, mIdx) => (
-                                                        <p key={mIdx} className={`text-[11px] font-bold leading-tight flex items-start gap-1 mb-0.5 last:mb-0 ${c.level === 1 ? 'text-rose-600' : 'text-amber-600'}`}>
-                                                           <AlertCircle size={12} className="shrink-0 mt-0.5" /> {c.message}
-                                                        </p>
-                                                     ))}
-                                                  </div>
+                                                    </div>
                                                 )}
                                             </div>
 
-                                            {/* Rest Time Visualizer */}
-                                            {restMinutes > 0 && (
-                                                <div 
-                                                    className="absolute rounded-r-xl border-y border-r border-dashed border-slate-300 bg-slate-100/30 flex items-center justify-center overflow-hidden -z-10 pointer-events-none"
-                                                    style={{ left: durationWidth - 2, width: restWidth + 2, height: cardHeight }}
-                                                >
-                                                    <div className="whitespace-nowrap text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
-                                                       Nghỉ {restMinutes}p
-                                                    </div>
+                                            {/* Conflict Alerts Area - Outside next to the card */}
+                                            {dynamicConflictDetails.length > 0 && (
+                                                <div className="flex flex-col gap-1.5 min-w-[260px] max-w-[420px] pointer-events-auto shrink-0 pt-0.5">
+                                                    {dynamicConflictDetails.map((c, mIdx) => {
+                                                        const isLevel1 = c.level === 1;
+                                                        return (
+                                                            <div 
+                                                                key={mIdx} 
+                                                                className={`flex items-start gap-2.5 px-3 py-2 rounded-xl border shadow-sm transition-all ${
+                                                                    isLevel1 
+                                                                        ? 'bg-rose-50/95 border-rose-300 text-rose-800' 
+                                                                        : 'bg-amber-50/95 border-amber-300 text-amber-900'
+                                                                }`}
+                                                            >
+                                                                <AlertCircle size={17} className={`shrink-0 mt-0.5 ${isLevel1 ? 'text-rose-600' : 'text-amber-600'}`} /> 
+                                                                <span className="text-[13.5px] font-bold leading-snug break-words">
+                                                                    {c.message}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>

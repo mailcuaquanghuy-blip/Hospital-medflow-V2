@@ -548,38 +548,38 @@ export const checkConflict = (
             if (startMin === apptEnd) {
               const nextAllowedMin = apptPatientEnd + 1;
               conflictDetails.push({ 
-                message: `Bệnh nhân vừa kết thúc "${apptProc?.name}" lúc ${appt.endTime}. Lịch trình tiếp theo chỉ có thể bắt đầu từ ${minutesToTimeString(nextAllowedMin)} (cần cách ít nhất 1 phút, không được gối cùng phút kết thúc).`, 
+                message: `BN vừa xong "${apptProc?.name}" (${appt.endTime}). Lịch tiếp từ ${minutesToTimeString(nextAllowedMin)} (cần cách ≥ 1p).`, 
                 level: 1 
               });
             } else if (endMin === apptStart) {
               conflictDetails.push({ 
-                message: `Lịch trình kết thúc lúc ${newEnd}, trùng phút bắt đầu của "${apptProc?.name}" (${appt.startTime}). Cần cách nhau ít nhất 1 phút.`, 
+                message: `Kết thúc (${newEnd}) trùng bắt đầu "${apptProc?.name}" (${appt.startTime}). Cần cách ≥ 1p.`, 
                 level: 1 
               });
             } else {
               conflictDetails.push({ 
-                message: `Bệnh nhân đang có lịch trình "${apptProc?.name}" (${appt.startTime}-${appt.endTime}).`, 
+                message: `BN đang có lịch "${apptProc?.name}" (${appt.startTime}-${appt.endTime}).`, 
                 level: 1 
               });
             }
           } else if (apptRest > 0 && startMin >= apptEnd && startMin <= apptPatientEnd) {
             conflictDetails.push({ 
-              message: `Bệnh nhân đang trong thời gian nghỉ của lịch trình "${apptProc?.name}" (đến ${minutesToTimeString(apptPatientEnd)}). Lịch tiếp theo bắt đầu từ ${minutesToTimeString(apptPatientEnd + 1)}.`, 
+              message: `BN đang nghỉ sau "${apptProc?.name}" (đến ${minutesToTimeString(apptPatientEnd)}). Tiếp từ ${minutesToTimeString(apptPatientEnd + 1)}.`, 
               level: 1 
             });
           } else if (currentRest > 0 && apptStart >= endMin && apptStart <= currentPatientEnd) {
             conflictDetails.push({ 
-              message: `Thời gian nghỉ của lịch trình này (đến ${minutesToTimeString(currentPatientEnd)}) trùng với lịch trình "${apptProc?.name}".`, 
+              message: `Giờ nghỉ (đến ${minutesToTimeString(currentPatientEnd)}) trùng "${apptProc?.name}".`, 
               level: 1 
             });
           } else if (apptRest > 0 || currentRest > 0) {
             conflictDetails.push({ 
-              message: `Xung đột thời gian nghỉ với lịch trình "${apptProc?.name}".`, 
+              message: `Trùng giờ nghỉ với "${apptProc?.name}".`, 
               level: 1 
             });
           } else {
             conflictDetails.push({ 
-              message: `Bệnh nhân có lịch trình "${apptProc?.name}" (${appt.startTime}-${appt.endTime}). Lịch tiếp theo phải bắt đầu từ ${minutesToTimeString(apptPatientEnd + 1)}.`, 
+              message: `BN có lịch "${apptProc?.name}" (${appt.startTime}-${appt.endTime}). Tiếp từ ${minutesToTimeString(apptPatientEnd + 1)}.`, 
               level: 1 
             });
           }
@@ -588,11 +588,11 @@ export const checkConflict = (
       
       if (!currentProc?.isIndependent && !apptProc?.isIndependent && apptProc?.deptId === currentProc?.deptId) {
         if (apptProc?.isPreRequisite && startMin < apptStart) {
-          conflictDetails.push({ message: `Khoa này đã có lịch trình chặn trước "${apptProc?.name}" (${appt.startTime}). Lịch trình này phải thực hiện sau "${apptProc?.name}".`, level: 1 });
+          conflictDetails.push({ message: `Khoa có lịch chặn trước "${apptProc?.name}" (${appt.startTime}), phải làm sau.`, level: 1 });
         }
 
         if (apptProc?.isPostRequisite && startMin > apptStart) {
-          conflictDetails.push({ message: `Khoa này đã có lịch trình "${apptProc?.name}" bắt buộc phải làm sau cùng.`, level: 1 });
+          conflictDetails.push({ message: `Khoa có "${apptProc?.name}" bắt buộc làm sau cùng.`, level: 1 });
         }
       }
     }
@@ -706,7 +706,7 @@ export const checkConflict = (
             if (isOverlap) {
               const otherPatient = getPatientFromCache(patients, appt.patientId);
               conflictDetails.push({ 
-                message: `${label} đang bận lịch trình "${apptProc?.name || 'khác'}" cho BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(aInt.start)}-${minutesToTimeString(aInt.end)}).`, 
+                message: `${label} bận "${apptProc?.name || 'khác'}" - BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(aInt.start)}-${minutesToTimeString(aInt.end)})`, 
                 level: 1 
               });
               return;
@@ -717,10 +717,10 @@ export const checkConflict = (
     };
 
     if (effectiveStaffId && effectiveStaffId !== 'temp') {
-      checkPersonConflictWithOtherAppt(effectiveStaffId, 'Nhân sự chính');
+      checkPersonConflictWithOtherAppt(effectiveStaffId, 'NS chính');
     }
     if (effectiveAsst1Id && effectiveAsst2Id && effectiveAsst1Id === effectiveAsst2Id) {
-      checkPersonConflictWithOtherAppt(effectiveAsst1Id, 'Người phụ (Phụ 1 & 2)');
+      checkPersonConflictWithOtherAppt(effectiveAsst1Id, 'Phụ 1 & 2');
     } else {
       if (effectiveAsst1Id) checkPersonConflictWithOtherAppt(effectiveAsst1Id, 'Người phụ 1');
       if (effectiveAsst2Id) checkPersonConflictWithOtherAppt(effectiveAsst2Id, 'Người phụ 2');

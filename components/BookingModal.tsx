@@ -1197,9 +1197,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       {(() => {
                         const safetyCheckConflicts = conflictData.conflictDetails.filter(d => {
                           const isFieldWarning = [
-                            'người thực hiện', 'staff',
-                            'người phụ 1', 'assistant 1',
-                            'người phụ 2', 'assistant 2'
+                            'người thực hiện', 'staff', 'nhân sự chính', 'ns chính',
+                            'người phụ 1', 'phụ 1', 'assistant 1',
+                            'người phụ 2', 'phụ 2', 'assistant 2',
+                            'phụ 1 & 2'
                           ].some(keyword => d.message.toLowerCase().includes(keyword.toLowerCase()));
                           return !isFieldWarning;
                         });
@@ -1591,7 +1592,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
                           )}
                         </div>
-                        {renderFieldWarnings(['người thực hiện', 'staff'])}
+                        {renderFieldWarnings(['người thực hiện', 'staff', 'nhân sự chính', 'ns chính'])}
                       </div>
 
                       {currentProc && (needsAssistant1 || needsAssistant2) && (
