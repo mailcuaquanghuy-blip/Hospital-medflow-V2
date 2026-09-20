@@ -2538,6 +2538,8 @@ const App: React.FC = () => {
              onChangeDate={handleDateChange} 
              staff={staff} 
              appointments={deptAppointments} 
+             allAppointments={appointments}
+             attendanceRecords={attendanceRecords}
              procedures={procedures} 
              patients={patients} 
              viewMode="GENERAL" 

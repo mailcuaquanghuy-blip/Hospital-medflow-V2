@@ -1,8 +1,8 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole, ScheduleSnapshot } from '../types';
+import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole, ScheduleSnapshot, AttendanceRecord, ConflictDetail } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
-import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString } from '../utils/timeUtils';
+import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString, checkConflict } from '../utils/timeUtils';
 import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
 import { getBaselineAppointments, getAllBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
@@ -196,6 +196,8 @@ interface TimelineProps {
   onChangeDate?: (date: string) => void;
   staff: Staff[];
   appointments: Appointment[];
+  allAppointments?: Appointment[];
+  attendanceRecords?: AttendanceRecord[];
   procedures: Procedure[];
   patients: Patient[];
   viewMode: TimelineViewMode;
@@ -220,6 +222,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   onChangeDate,
   staff,
   appointments,
+  allAppointments,
+  attendanceRecords = [],
   procedures,
   patients,
   viewMode,
@@ -548,6 +552,36 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
   }, [viewMode, staff, procedures, patients]);
 
+  const targetAppointmentsPool = allAppointments || appointments;
+
+  const allDynamicConflicts = useMemo(() => {
+    const conflicts = new Map<string, ConflictDetail[]>();
+    const dayAppts = targetAppointmentsPool.filter(a => a.date === date);
+    dayAppts.forEach(a => {
+      const res = checkConflict(
+        a.startTime,
+        a.endTime,
+        a.date,
+        a.staffId,
+        a.patientId,
+        targetAppointmentsPool,
+        staff,
+        procedures,
+        attendanceRecords,
+        patients,
+        a.procedureId,
+        a.id,
+        a.assistant1Id,
+        a.assistant2Id,
+        a
+      );
+      if (res.conflictDetails.length > 0) {
+        conflicts.set(a.id, res.conflictDetails);
+      }
+    });
+    return conflicts;
+  }, [targetAppointmentsPool, date, staff, procedures, attendanceRecords, patients]);
+
   const filteredAppointments = useMemo(() => {
     // Only process appointments for the current active date
     let result = appointments.filter(a => a.date === date);
@@ -630,12 +664,14 @@ export const Timeline: React.FC<TimelineProps> = ({
         // Procedure status filter (headerProcedureStatusFilters)
         if (headerProcedureStatusFilters.length > 0) {
             result = result.filter(a => {
+                const dynamicConflicts = allDynamicConflicts.get(a.id) || [];
+                const hasDynamicConflict = dynamicConflicts.some(c => c.level === 1);
                 return headerProcedureStatusFilters.some(filter => {
                     if (filter === 'ERROR') {
-                        return a.status === AppointmentStatus.CONFLICT;
+                        return hasDynamicConflict;
                     }
                     if (filter === 'NO_ERROR') {
-                        return a.status !== AppointmentStatus.CONFLICT;
+                        return !hasDynamicConflict;
                     }
                     return false;
                 });
@@ -807,7 +843,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         });
     }
     return enriched;
-  }, [appointments, date, filterModifiedOnly, deviations, filterText, patients, staff, procedures, viewMode, sortBy, sortDir, headerPatientStatusFilters, headerPatientFilters, headerBedTypeFilters, headerDeptFilters, headerProcedureStatusFilters, headerProcedureFilters, headerStaffRoleFilters, headerStaffIdFilters, headerTimeShiftFilters, headerMachineFilters, currentDept]);
+  }, [appointments, date, filterModifiedOnly, deviations, filterText, patients, staff, procedures, viewMode, sortBy, sortDir, headerPatientStatusFilters, headerPatientFilters, headerBedTypeFilters, headerDeptFilters, headerProcedureStatusFilters, headerProcedureFilters, headerStaffRoleFilters, headerStaffIdFilters, headerTimeShiftFilters, headerMachineFilters, currentDept, allDynamicConflicts]);
 
   const getStatusColor = (status: AppointmentStatus, isOutside: boolean, isIndependent: boolean = false, isCurrentDept: boolean = true) => {
     if (!isCurrentDept) return 'bg-slate-50 border-slate-200 text-slate-400 opacity-40 grayscale-[0.5]';
@@ -1519,7 +1555,10 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const exactWidth = minutesToPixels(duration, pixelsPerMinute);
                 const left = minutesToPixels(startMin, pixelsPerMinute);
                 const isOutside = !isInsideOfficeHours(startMin, endMin);
-                const hasConflict = appt.status === AppointmentStatus.CONFLICT;
+                
+                const dynamicConflicts = allDynamicConflicts.get(appt.id) || [];
+                const hasConflict = dynamicConflicts.some(c => c.level === 1);
+                const displayConflictDetails = dynamicConflicts;
 
                 // Format start and end time text strings cleanly (HH:MM)
                 const displayStartTime = appt.startTime || minutesToTimeString(startMin);
@@ -1589,7 +1628,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                                     <Clock size={11} /> Ngoài giờ HC
                                 </div>
                             )}
-                            {hasConflict && appt.conflictDetails && appt.conflictDetails.map((msg, mIdx) => {
+                            {hasConflict && displayConflictDetails && displayConflictDetails.map((msg, mIdx) => {
                                 const isStr = typeof msg === 'string';
                                 const message = isStr ? msg : msg.message;
                                 const level = isStr ? 1 : msg.level;
@@ -1612,12 +1651,6 @@ export const Timeline: React.FC<TimelineProps> = ({
                                     </div>
                                 );
                             })}
-                            {hasConflict && (!appt.conflictDetails || appt.conflictDetails.length === 0) && (
-                                <div className="flex items-start gap-1 text-[10px] font-bold p-1 px-1.5 rounded-md border bg-rose-50 border-rose-200 text-rose-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)] mt-0.5 leading-tight">
-                                    <AlertTriangle size={11} className="text-rose-500 shrink-0 mt-0.5" strokeWidth={2.5} />
-                                    <span>Có xung đột lịch trình</span>
-                                </div>
-                            )}
                         </div>
                     </td>
                     <td className={`p-3 sticky left-[720px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 text-slate-600 w-[200px] min-w-[200px] max-w-[200px]`}>
@@ -1650,7 +1683,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                         ) : null}
                         <div 
                           onClick={() => onAppointmentClick(appt)} 
-                          className={`absolute top-1/2 -translate-y-1/2 rounded-lg border shadow-xs flex items-center justify-center px-2 cursor-pointer hover:z-30 hover:scale-[1.02] hover:shadow-md transition-all z-10 ${getBarColor(appt.procedureId, appt.status, isOutside, procedures.find(p => p.id === appt.procedureId)?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} 
+                          className={`absolute top-1/2 -translate-y-1/2 rounded-lg border shadow-xs flex items-center justify-center px-2 cursor-pointer hover:z-30 hover:scale-[1.02] hover:shadow-md transition-all z-10 ${getBarColor(appt.procedureId, hasConflict ? 'CONFLICT' : appt.status, isOutside, procedures.find(p => p.id === appt.procedureId)?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} 
                           style={{ left, width: cardWidth, minWidth: 'max-content', height: 38 }}
                           title={`${displayStartTime} - ${displayEndTime}: ${procedureName}`}
                         >
@@ -1843,7 +1876,8 @@ export const Timeline: React.FC<TimelineProps> = ({
                     const patient = patients.find(p => p.id === appt.patientId);
                     const staffMember = staff.find(s => s.id === appt.staffId);
                     const isOutside = !isInsideOfficeHours(startMin, endMin);
-                    const hasConflict = appt.status === AppointmentStatus.CONFLICT;
+                    const dynamicConflicts = allDynamicConflicts.get(appt.id) || [];
+                    const hasConflict = dynamicConflicts.some(c => c.level === 1);
 
                     const displayWidth = Math.max(width, 100);
 
@@ -1857,7 +1891,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                              <div className="px-2 pl-3 text-[9px] font-bold text-slate-500 whitespace-nowrap truncate">Nghỉ {procedure.restMinutes}p</div>
                           </div>
                         ) : null}
-                        <div onClick={(e) => { e.stopPropagation(); onAppointmentClick(appt); }} className={`absolute top-3 bottom-3 rounded-lg border px-3 py-2 cursor-pointer hover:shadow-lg hover:z-50 hover:scale-[1.02] transition-all z-20 flex flex-col justify-between overflow-hidden ${getStatusColor(appt.status, isOutside, procedure?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} style={{ left, width: displayWidth }}>
+                        <div onClick={(e) => { e.stopPropagation(); onAppointmentClick(appt); }} className={`absolute top-3 bottom-3 rounded-lg border px-3 py-2 cursor-pointer hover:shadow-lg hover:z-50 hover:scale-[1.02] transition-all z-20 flex flex-col justify-between overflow-hidden ${getStatusColor(hasConflict ? AppointmentStatus.CONFLICT : appt.status, isOutside, procedure?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} style={{ left, width: displayWidth }}>
                          <div className={`font-bold text-xs truncate flex items-center gap-1.5 ${hasConflict || isOutside ? 'text-white' : 'text-slate-900'}`}>
                             {patient?.insuranceLevel && (
                               <div className={`shrink-0 w-2.5 h-3.5 rounded-[2px] border shadow-sm ${
