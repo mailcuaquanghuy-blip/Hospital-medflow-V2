@@ -2372,29 +2372,39 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                                 )}
                                             </div>
 
-                                            {/* Conflict Alerts Area - Outside next to the card */}
-                                            {dynamicConflictDetails.length > 0 && (
-                                                <div className="flex flex-col gap-1.5 min-w-[260px] max-w-[420px] pointer-events-auto shrink-0 pt-0.5">
-                                                    {dynamicConflictDetails.map((c, mIdx) => {
-                                                        const isLevel1 = c.level === 1;
-                                                        return (
-                                                            <div 
-                                                                key={mIdx} 
-                                                                className={`flex items-start gap-2.5 px-3 py-2 rounded-xl border shadow-sm transition-all ${
-                                                                    isLevel1 
-                                                                        ? 'bg-rose-50/95 border-rose-300 text-rose-800' 
-                                                                        : 'bg-amber-50/95 border-amber-300 text-amber-900'
-                                                                }`}
-                                                            >
-                                                                <AlertCircle size={17} className={`shrink-0 mt-0.5 ${isLevel1 ? 'text-rose-600' : 'text-amber-600'}`} /> 
-                                                                <span className="text-[13.5px] font-bold leading-snug break-words">
-                                                                    {c.message}
-                                                                </span>
+                                            {/* Conflict Alerts Area - Outside next to the card (split into columns of max 3 warnings each) */}
+                                            {dynamicConflictDetails.length > 0 && (() => {
+                                                const conflictChunks: typeof dynamicConflictDetails[] = [];
+                                                for (let i = 0; i < dynamicConflictDetails.length; i += 3) {
+                                                    conflictChunks.push(dynamicConflictDetails.slice(i, i + 3));
+                                                }
+                                                return (
+                                                    <div className="flex items-start gap-2.5 pointer-events-auto shrink-0 pt-0.5">
+                                                        {conflictChunks.map((chunk, colIdx) => (
+                                                            <div key={colIdx} className="flex flex-col gap-1.5 min-w-[260px] max-w-[390px] shrink-0">
+                                                                {chunk.map((c, mIdx) => {
+                                                                    const isLevel1 = c.level === 1;
+                                                                    return (
+                                                                        <div 
+                                                                            key={mIdx} 
+                                                                            className={`flex items-start gap-2 px-3 py-1.5 rounded-xl border shadow-sm transition-all ${
+                                                                                isLevel1 
+                                                                                    ? 'bg-rose-50/95 border-rose-300 text-rose-800' 
+                                                                                    : 'bg-amber-50/95 border-amber-300 text-amber-900'
+                                                                            }`}
+                                                                        >
+                                                                            <AlertCircle size={16} className={`shrink-0 mt-0.5 ${isLevel1 ? 'text-rose-600' : 'text-amber-600'}`} /> 
+                                                                            <span className="text-[13px] font-bold leading-snug break-words">
+                                                                                {c.message}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     );
                                 })}
