@@ -2,36 +2,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ===============================================================
-    // Global Helpers
-    // ===============================================================
-    
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
     match /users/{userId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /staff/{staffId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /attendance/{attendanceId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /patients/{patientId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /procedures/{procedureId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /appointments/{appointmentId} {
@@ -39,36 +31,40 @@ service cloud.firestore {
     }
 
     match /backups/{backupId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
     
     match /machineShifts/{shiftId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
+    }
+
+    match /machine_shifts/{shiftId} {
+      allow read, write: if true;
     }
 
     match /templates/{templateId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /system_config/{configId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /test/{testId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /scheduleSnapshots/{snapshotId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /schedule_snapshots/{snapshotId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
-    // Default deny
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }
+

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel, ProcedureCategory, PROCEDURE_CATEGORIES } from '../types';
 import { Button } from './Button';
 
-import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
+import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, formatDate, getAbbreviation, getLocalDateString, getLocalTimeMinutes } from '../utils/timeUtils';
 // Fix: Added LogOut to lucide-react imports
 import { AlertTriangle, Calendar, User, Activity, Search, UserPlus, Zap, Bed, Clock, Info, CheckCircle2, Monitor, Building2, Stethoscope, LogOut, ChevronDown, Plus, Trash2, X, Edit2, Shield, StickyNote, Check, Link2 } from 'lucide-react';
 import { DEPARTMENTS } from '../constants';
@@ -179,6 +179,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
     return false;
   }, [selectedPatient, formData.date]);
+
+  // Kiểm tra thời gian vào viện
+  const isBeforeAdmission = useMemo(() => {
+    if (selectedPatient?.admissionDate && formData.date) {
+      const admissionDateStr = getLocalDateString(selectedPatient.admissionDate);
+      if (formData.date < admissionDateStr) return true;
+      if (formData.date === admissionDateStr && formData.startTime) {
+        const admissionMin = getLocalTimeMinutes(selectedPatient.admissionDate);
+        const startMin = timeStringToMinutes(formData.startTime);
+        return admissionMin !== null && startMin < admissionMin;
+      }
+    }
+    return false;
+  }, [selectedPatient, formData.date, formData.startTime]);
 
   const eligibleStaff = useMemo(() => {
     let deptStaff = staff.filter(s => s.deptId === currentDept.id);
@@ -623,7 +637,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 setFormData(prev => ({ ...prev, startTime: slot.startTime, endTime: slot.endTime }));
             } else {
                 // Set default time to trigger checkConflict and show warnings
-                const defaultStart = '07:30';
+                let defaultStart = '07:30';
+                if (selectedPatient?.admissionDate && formData.date) {
+                  const admDate = getLocalDateString(selectedPatient.admissionDate);
+                  if (formData.date === admDate) {
+                    const admMin = getLocalTimeMinutes(selectedPatient.admissionDate);
+                    if (admMin !== null && admMin > 450) {
+                      defaultStart = minutesToTimeString(admMin);
+                    }
+                  }
+                }
                 const defaultEnd = addMinutesToTime(defaultStart, proc.durationMinutes);
                 setFormData(prev => ({ ...prev, startTime: defaultStart, endTime: defaultEnd }));
             }
@@ -678,7 +701,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         formData
       );
       
-      // Merge logic chặn ra viện vào conflict data
+      // Merge logic chặn vào viện / ra viện vào conflict data
+      if (isBeforeAdmission && selectedPatient?.admissionDate) {
+        result.hasConflict = true;
+        const admissionDateStr = getLocalDateString(selectedPatient.admissionDate);
+        const admissionMin = getLocalTimeMinutes(selectedPatient.admissionDate);
+        const timeStr = admissionMin !== null ? minutesToTimeString(admissionMin) : '';
+        const msg = `Lịch trình bắt đầu lúc ${formData.startTime} trước giờ bệnh nhân vào viện (${timeStr} ngày ${formatDate(admissionDateStr)}).`;
+        if (!result.conflictDetails.some(c => c.message.includes("trước giờ bệnh nhân vào viện") || c.message.includes("chưa vào viện"))) {
+          result.conflictDetails.push({ message: msg, level: 1 });
+        }
+      }
+
       if (isAfterDischarge) {
         result.hasConflict = true;
         result.conflictDetails.push({ message: `Bệnh nhân đã ra viện vào ngày ${new Date(selectedPatient!.dischargeDate!).toLocaleDateString('vi-VN')}. Không thể chỉ định sau ngày này.`, level: 1 });
@@ -728,7 +762,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
       setConflictData(result);
     }
-  }, [formData.startTime, formData.endTime, formData.staffId, formData.patientId, formData.date, formData.assignedMachineId, isAfterDischarge, selectedPatient, formData.assistant1Id, formData.assistant2Id, formData.mainBusyStart, formData.mainBusyEnd, formData.asst1BusyStart, formData.asst1BusyEnd, formData.asst2BusyStart, formData.asst2BusyEnd, formData.procedureId, formData.selectedDurationOptionId, formData.allowSameAssistant, appointments, staff, procedures, attendanceRecords, patients]);
+  }, [formData.startTime, formData.endTime, formData.staffId, formData.patientId, formData.date, formData.assignedMachineId, isBeforeAdmission, isAfterDischarge, selectedPatient, formData.assistant1Id, formData.assistant2Id, formData.mainBusyStart, formData.mainBusyEnd, formData.asst1BusyStart, formData.asst1BusyEnd, formData.asst2BusyStart, formData.asst2BusyEnd, formData.procedureId, formData.selectedDurationOptionId, formData.allowSameAssistant, appointments, staff, procedures, attendanceRecords, patients]);
 
   // Tự động nhận máy gợi ý nếu chưa chọn máy hoặc máy hiện tại bị xung đột
   useEffect(() => {
@@ -896,6 +930,37 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (currentProc) {
       if (needsAssistant1 && !formData.assistant1Id) return "Vui lòng chọn người phụ 1";
       if (needsAssistant2 && !formData.assistant2Id) return "Vui lòng chọn người phụ 2";
+    }
+
+    // Check patient admission & discharge boundaries
+    if (selectedPatient?.admissionDate && formData.date) {
+      const admissionDateStr = getLocalDateString(selectedPatient.admissionDate);
+      if (formData.date < admissionDateStr) {
+        return `Bệnh nhân chưa vào viện vào ngày này (Vào viện: ${formatDate(admissionDateStr)})`;
+      }
+      if (formData.date === admissionDateStr && formData.startTime) {
+        const admissionMin = getLocalTimeMinutes(selectedPatient.admissionDate);
+        const startMin = timeStringToMinutes(formData.startTime);
+        if (admissionMin !== null && startMin < admissionMin) {
+          const timeStr = minutesToTimeString(admissionMin);
+          return `Giờ chỉ định (${formData.startTime}) trước giờ bệnh nhân vào viện (${timeStr} ngày ${formatDate(admissionDateStr)})`;
+        }
+      }
+    }
+
+    if (selectedPatient?.dischargeDate && formData.date) {
+      const dischargeDateStr = getLocalDateString(selectedPatient.dischargeDate);
+      if (formData.date > dischargeDateStr) {
+        return `Bệnh nhân đã ra viện vào ngày này (Ra viện: ${formatDate(dischargeDateStr)})`;
+      }
+      if (formData.date === dischargeDateStr && formData.endTime) {
+        const dischargeMin = getLocalTimeMinutes(selectedPatient.dischargeDate);
+        const endMin = timeStringToMinutes(formData.endTime);
+        if (dischargeMin !== null && endMin > dischargeMin) {
+          const timeStr = minutesToTimeString(dischargeMin);
+          return `Giờ kết thúc (${formData.endTime}) sau giờ bệnh nhân ra viện (${timeStr} ngày ${formatDate(dischargeDateStr)})`;
+        }
+      }
     }
 
     // Block saving if there is a hard level-1 scheduling conflict
@@ -1753,7 +1818,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 );
                                 const isSelected = formData.machineShiftId === shift.id;
                                 const hasStaffConflicts = conflicts.length > 0;
-                                const isValid = !isFull && !isPatientBusy && !hasStaffConflicts;
+                                const isShiftBeforeAdmission = selectedPatient?.admissionDate ? (() => {
+                                  const admDateStr = getLocalDateString(selectedPatient.admissionDate);
+                                  if (shift.date < admDateStr) return true;
+                                  if (shift.date === admDateStr) {
+                                    const admMin = getLocalTimeMinutes(selectedPatient.admissionDate);
+                                    return admMin !== null && timeStringToMinutes(shift.startTime) < admMin;
+                                  }
+                                  return false;
+                                })() : false;
+                                const isValid = !isFull && !isPatientBusy && !hasStaffConflicts && !isShiftBeforeAdmission;
 
                                 return (
                                   <button 

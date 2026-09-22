@@ -217,11 +217,20 @@ export const checkConflict = (
   if (patientId && patients.length > 0) {
     const currentPatient = getPatientFromCache(patients, patientId);
     if (currentPatient) {
-      // Check admission date
+      // Check admission date & time
       if (currentPatient.admissionDate) {
         const admissionDateStr = getLocalDateString(currentPatient.admissionDate);
         if (newDate < admissionDateStr) {
           conflictDetails.push({ message: `Bệnh nhân chưa vào viện vào ngày này (Vào viện: ${formatDate(admissionDateStr)}).`, level: 1 });
+        } else if (newDate === admissionDateStr) {
+          const admissionMin = getLocalTimeMinutes(currentPatient.admissionDate);
+          if (admissionMin !== null && startMin < admissionMin) {
+            const timeStr = minutesToTimeString(admissionMin);
+            conflictDetails.push({ 
+              message: `Lịch trình bắt đầu lúc ${newStart} trước giờ bệnh nhân vào viện (${timeStr} ngày ${formatDate(admissionDateStr)}).`, 
+              level: 1 
+            });
+          }
         }
       }
 
@@ -820,6 +829,20 @@ export const findAvailableSlot = (
       let currentMin = timeStringToMinutes(shift.start);
       const shiftEndLimit = timeStringToMinutes(shift.end);
       
+      // If patient was admitted on this date, don't start before admission time
+      if (patientId && patients && patients.length > 0) {
+        const currentPat = getPatientFromCache(patients, patientId);
+        if (currentPat?.admissionDate) {
+          const admDate = getLocalDateString(currentPat.admissionDate);
+          if (date === admDate) {
+            const admMin = getLocalTimeMinutes(currentPat.admissionDate);
+            if (admMin !== null && admMin > currentMin) {
+              currentMin = admMin;
+            }
+          }
+        }
+      }
+
       while (currentMin + duration <= shiftEndLimit) {
           const start = minutesToTimeString(currentMin);
           const end = minutesToTimeString(currentMin + duration);
@@ -900,6 +923,20 @@ export const getAvailableTimeBlocks = (
         
         let currentMin = timeStringToMinutes(shift.start);
         const endLimit = timeStringToMinutes(shift.end);
+
+        // If patient was admitted on this date, don't start before admission time
+        if (patientId && patients && patients.length > 0) {
+          const currentPat = getPatientFromCache(patients, patientId);
+          if (currentPat?.admissionDate) {
+            const admDate = getLocalDateString(currentPat.admissionDate);
+            if (date === admDate) {
+              const admMin = getLocalTimeMinutes(currentPat.admissionDate);
+              if (admMin !== null && admMin > currentMin) {
+                currentMin = admMin;
+              }
+            }
+          }
+        }
 
         while (currentMin + duration <= endLimit) {
             const start = minutesToTimeString(currentMin);

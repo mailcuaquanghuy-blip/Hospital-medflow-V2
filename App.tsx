@@ -29,7 +29,7 @@ import { DateTimePicker } from './components/DateTimePicker';
 import { DateInput } from './components/DateInput';
 import { Home, Building2, Table2, FileText, CalendarPlus, AlertCircle, LogOut, ShieldCheck, User, UserCog, X, Briefcase, Check, Save, PieChart, Database, Clock, CalendarCheck } from 'lucide-react';
 
-// Database operations via Supabase
+// Database operations via Firestore
 import { 
   db,
   collection, 
@@ -41,8 +41,13 @@ import {
   setDoc, 
   updateDoc, 
   deleteDoc, 
-  writeBatch 
+  writeBatch,
+  fetchCollectionFromFirestore,
+  fetchScheduleSnapshotsFromFirestore,
+  saveScheduleSnapshotToFirestore,
+  ensureAuthReady
 } from './utils/dbService';
+
 
 
 export type MainTab = 'PATIENT_RECORDS' | 'SCHEDULING' | 'GENERAL_TIMELINE' | 'DAILY_REPORT' | 'DEPT_MANAGER' | 'ATTENDANCE' | 'ACCOUNT_MANAGER' | 'ACCOUNT_BACKUP';
@@ -323,204 +328,239 @@ const App: React.FC = () => {
 
   // Auth readiness
   useEffect(() => {
-    setIsAuthReady(true);
+    ensureAuthReady().then(() => setIsAuthReady(true)).catch(() => setIsAuthReady(true));
   }, []);
 
-  // Load users from Supabase on startup and perform basic Supabase seeding if empty
+  // Load users from database on startup and perform basic seeding if empty
   useEffect(() => {
-    if (isSupabaseConfigured()) {
-      const initSupabase = async () => {
-        try {
-          const usrs = await fetchSupabaseTable<UserAccount>('users');
-          let currentUsrs = usrs || [];
-          
-          // Seed DEFAULT_ADMIN if not present
-          if (!currentUsrs.some(u => u.id === DEFAULT_ADMIN.id)) {
-            console.log("Seeding DEFAULT_ADMIN to Supabase...");
-            await saveSupabaseItem('users', DEFAULT_ADMIN.id, DEFAULT_ADMIN);
-            currentUsrs.push(DEFAULT_ADMIN);
-          }
-          
-          setUsers(currentUsrs);
-
-          // Seed procedures if empty
-          const procs = await fetchSupabaseTable<Procedure>('procedures');
-          if (!procs || procs.length === 0) {
-            console.log("Seeding MOCK_PROCEDURES to Supabase...");
-            for (const p of MOCK_PROCEDURES) {
-              await saveSupabaseItem('procedures', p.id, p);
-            }
-          }
-
-          // Seed templates if empty
-          const tpls = await fetchSupabaseTable<AppointmentTemplate>('templates');
-          if (!tpls || tpls.length === 0) {
-            console.log("Seeding MOCK_TEMPLATES to Supabase...");
-            for (const t of MOCK_TEMPLATES) {
-              await saveSupabaseItem('templates', t.id, t);
-            }
-          }
-        } catch (err) {
-          console.warn("Failed to initialize or fetch users on startup from Supabase:", err);
+    const initData = async () => {
+      try {
+        let usrs = await fetchSupabaseTable<UserAccount>('users');
+        if (!usrs || usrs.length === 0) {
+          await ensureAuthReady();
+          usrs = await fetchCollectionFromFirestore<UserAccount>('users');
         }
-      };
-      initSupabase();
-    }
+        let currentUsrs = usrs || [];
+        
+        // Seed DEFAULT_ADMIN if not present
+        if (!currentUsrs.some(u => u.id === DEFAULT_ADMIN.id)) {
+          console.log("Seeding DEFAULT_ADMIN...");
+          await setDoc(doc(db, 'users', DEFAULT_ADMIN.id), DEFAULT_ADMIN);
+          currentUsrs.push(DEFAULT_ADMIN);
+        }
+        
+        setUsers(currentUsrs);
+
+        // Seed procedures if empty
+        let procs = await fetchSupabaseTable<Procedure>('procedures');
+        if (!procs || procs.length === 0) {
+          procs = await fetchCollectionFromFirestore<Procedure>('procedures');
+        }
+        if (!procs || procs.length === 0) {
+          console.log("Seeding MOCK_PROCEDURES...");
+          for (const p of MOCK_PROCEDURES) {
+            await setDoc(doc(db, 'procedures', p.id), p);
+          }
+          setProcedures(MOCK_PROCEDURES);
+        } else {
+          setProcedures(procs);
+        }
+
+        // Seed templates if empty
+        let tpls = await fetchSupabaseTable<AppointmentTemplate>('templates');
+        if (!tpls || tpls.length === 0) {
+          tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
+        }
+        if (!tpls || tpls.length === 0) {
+          console.log("Seeding MOCK_TEMPLATES...");
+          for (const t of MOCK_TEMPLATES) {
+            await setDoc(doc(db, 'templates', t.id), t);
+          }
+          setTemplates(MOCK_TEMPLATES);
+        } else {
+          const sanitizedTpls = tpls
+            .filter(t => !t.id?.startsWith('snap_'))
+            .map(t => ({
+              ...t,
+              procedures: t.procedures || []
+            }));
+          setTemplates(sanitizedTpls);
+        }
+      } catch (err) {
+        console.warn("Failed to initialize or fetch users on startup:", err);
+      }
+    };
+    initData();
   }, []);
 
   useEffect(() => {
     if (!currentUser) return;
-    if (isSupabaseConfigured()) {
-      console.log("Supabase configured. Loading and subscribing to real-time data from Supabase project...");
-      
-      const loadSupabaseData = async (force = false) => {
-        const now = Date.now();
-        // Throttle reloads to maximum once every 20 seconds, unless forced
-        if (!force && now - lastFetchTimeRef.current < 20000) {
-          console.log("[loadSupabaseData] Throttled (last sync was < 20s ago). Skipping fetch to preserve UI state.");
-          return;
-        }
-        lastFetchTimeRef.current = now;
+    console.log("Loading and synchronizing real-time data from Supabase & Firestore...");
+    
+    const loadAppData = async (force = false) => {
+      const now = Date.now();
+      // Throttle reloads to maximum once every 20 seconds, unless forced
+      if (!force && now - lastFetchTimeRef.current < 20000) {
+        console.log("[loadAppData] Throttled (last sync was < 20s ago). Skipping fetch to preserve UI state.");
+        return;
+      }
+      lastFetchTimeRef.current = now;
 
-        try {
-          const [pats, appts, stf, procs, att, shifts, tpls, usrs, snapshots, bkps] = await Promise.all([
-            fetchSupabaseTable<Patient>('patients'),
-            fetchSupabaseTable<Appointment>('appointments'),
-            fetchSupabaseTable<Staff>('staff'),
-            fetchSupabaseTable<Procedure>('procedures'),
-            fetchSupabaseTable<AttendanceRecord>('attendance'),
-            fetchSupabaseTable<MachineShift>('machine_shifts'),
-            fetchSupabaseTable<AppointmentTemplate>('templates'),
-            fetchSupabaseTable<UserAccount>('users'),
-            fetchScheduleSnapshotsFromSupabase(),
-            fetchSupabaseTable<Backup>('backups')
-          ]);
-          if (pats) setPatients(pats);
-          if (appts) {
-            setAppointments(prev => {
-              if (!prev || prev.length === 0) return appts;
-              const serverIds = new Set(appts.map(a => a.id));
-              const localOnly = prev.filter(local => !serverIds.has(local.id));
-              return [...appts, ...localOnly];
-            });
-          }
-          if (stf) setStaff(stf);
-          if (procs) setProcedures(procs);
-          if (att) setAttendanceRecords(att);
-          if (shifts) setMachineShifts(shifts);
-          if (tpls) {
-            const sanitizedTpls = tpls
-              .filter(t => !t.id?.startsWith('snap_'))
-              .map(t => ({
-                ...t,
-                procedures: t.procedures || []
-              }));
-            setTemplates(sanitizedTpls);
-          }
-          if (usrs && usrs.length > 0) setUsers(usrs);
-          if (snapshots && snapshots.length > 0) {
-            setScheduleSnapshots(prev => {
-              const serverMap = new Map(snapshots.map(s => [s.id, s]));
-              const localOnly = prev.filter(local => !serverMap.has(local.id));
-              const merged = [...snapshots, ...localOnly];
-              if (typeof window !== 'undefined') {
-                try {
-                  localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(merged));
-                } catch (e) {}
-              }
-              return merged;
-            });
-          } else {
-            // Restore from localStorage if server snapshots were empty
+      try {
+        // Fetch from Supabase (Pro) first with automatic Firestore fallback
+        let [pats, appts, stf, procs, att, shifts, tpls, usrs, snapshots, bkps] = await Promise.all([
+          fetchSupabaseTable<Patient>('patients'),
+          fetchSupabaseTable<Appointment>('appointments'),
+          fetchSupabaseTable<Staff>('staff'),
+          fetchSupabaseTable<Procedure>('procedures'),
+          fetchSupabaseTable<AttendanceRecord>('attendance'),
+          fetchSupabaseTable<MachineShift>('machine_shifts'),
+          fetchSupabaseTable<AppointmentTemplate>('templates'),
+          fetchSupabaseTable<UserAccount>('users'),
+          fetchScheduleSnapshotsFromSupabase(),
+          fetchSupabaseTable<Backup>('backups')
+        ]);
+
+        // Fallback to Firestore if any collection returned empty or errored
+        await ensureAuthReady();
+        if (!pats || pats.length === 0) pats = await fetchCollectionFromFirestore<Patient>('patients');
+        if (!appts || appts.length === 0) appts = await fetchCollectionFromFirestore<Appointment>('appointments');
+        if (!stf || stf.length === 0) stf = await fetchCollectionFromFirestore<Staff>('staff');
+        if (!procs || procs.length === 0) procs = await fetchCollectionFromFirestore<Procedure>('procedures');
+        if (!att || att.length === 0) att = await fetchCollectionFromFirestore<AttendanceRecord>('attendance');
+        if (!shifts || shifts.length === 0) shifts = await fetchCollectionFromFirestore<MachineShift>('machineShifts');
+        if (!tpls || tpls.length === 0) tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
+        if (!usrs || usrs.length === 0) usrs = await fetchCollectionFromFirestore<UserAccount>('users');
+        if (!snapshots || snapshots.length === 0) snapshots = await fetchScheduleSnapshotsFromFirestore();
+        if (!bkps || bkps.length === 0) bkps = await fetchCollectionFromFirestore<Backup>('backups');
+
+        if (pats && pats.length > 0) setPatients(pats);
+        if (appts && appts.length > 0) {
+          setAppointments(prev => {
+            if (!prev || prev.length === 0) return appts;
+            const serverIds = new Set(appts.map(a => a.id));
+            const localOnly = prev.filter(local => !serverIds.has(local.id));
+            return [...appts, ...localOnly];
+          });
+        }
+        if (stf && stf.length > 0) setStaff(stf);
+        if (procs && procs.length > 0) setProcedures(procs);
+        if (att) setAttendanceRecords(att);
+        if (shifts) setMachineShifts(shifts);
+        if (tpls && tpls.length > 0) {
+          const sanitizedTpls = tpls
+            .filter(t => !t.id?.startsWith('snap_'))
+            .map(t => ({
+              ...t,
+              procedures: t.procedures || []
+            }));
+          setTemplates(sanitizedTpls);
+        }
+        if (usrs && usrs.length > 0) setUsers(usrs);
+        if (snapshots && snapshots.length > 0) {
+          setScheduleSnapshots(prev => {
+            const serverMap = new Map(snapshots.map(s => [s.id, s]));
+            const localOnly = prev.filter(local => !serverMap.has(local.id));
+            const merged = [...snapshots, ...localOnly];
             if (typeof window !== 'undefined') {
               try {
-                const local = localStorage.getItem('medflow_schedule_snapshots') || localStorage.getItem('medflow_local_schedule_snapshots');
-                if (local) {
-                  const parsed = JSON.parse(local);
-                  if (Array.isArray(parsed) && parsed.length > 0) {
-                    setScheduleSnapshots(parsed);
-                  }
-                }
+                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(merged));
               } catch (e) {}
             }
-          }
-          if (bkps) setBackups(bkps);
-
-          setLoadedCollections({
-            patients: true,
-            appointments: true,
-            templates: true,
-            attendance: true,
-            staff: true,
-            machineShifts: true,
-            procedures: true,
-            scheduleSnapshots: true,
+            return merged;
           });
-        } catch (err) {
-          console.warn("Failed to fetch Supabase data:", err);
+        } else {
+          // Restore from localStorage if server snapshots were empty
+          if (typeof window !== 'undefined') {
+            try {
+              const local = localStorage.getItem('medflow_schedule_snapshots') || localStorage.getItem('medflow_local_schedule_snapshots');
+              if (local) {
+                const parsed = JSON.parse(local);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setScheduleSnapshots(parsed);
+                }
+              }
+            } catch (e) {}
+          }
         }
-      };
+        if (bkps) setBackups(bkps);
 
-      // Force initial load of data on mount
-      loadSupabaseData(true);
+        setLoadedCollections({
+          patients: true,
+          appointments: true,
+          templates: true,
+          attendance: true,
+          staff: true,
+          machineShifts: true,
+          procedures: true,
+          scheduleSnapshots: true,
+        });
+      } catch (err) {
+        console.warn("Failed to fetch application data:", err);
+      }
+    };
 
-      // Supabase Realtime Subscription for instant updates across tabs & devices
-      const channel = supabase
-        .channel('schema-db-changes')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public' },
-          (payload) => {
-            const tableName = payload.table;
-            let collectionName = tableName;
-            if (tableName === 'machine_shifts') collectionName = 'machineShifts';
-            if (tableName === 'schedule_snapshots' || tableName === 'scheduleSnapshots') collectionName = 'scheduleSnapshots';
+    // Force initial load of data on mount
+    loadAppData(true);
 
-            if (payload.eventType === 'DELETE') {
-              const docId = payload.old?.id;
-              if (docId) {
-                const event = new CustomEvent('db-change', {
-                  detail: { collectionName, docId, data: null, action: 'delete' }
-                });
-                window.dispatchEvent(event);
-              }
-            } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              const row = payload.new;
-              if (row && row.id) {
-                const itemData = row.data && typeof row.data === 'object' ? { ...row.data, id: row.id } : row;
-                const event = new CustomEvent('db-change', {
-                  detail: { collectionName, docId: row.id, data: itemData, action: 'set' }
-                });
-                window.dispatchEvent(event);
-              }
+    // Supabase Realtime Subscription for instant cross-tab & cross-device updates
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        (payload) => {
+          const tableName = payload.table;
+          let collectionName = tableName;
+          if (tableName === 'machine_shifts') collectionName = 'machineShifts';
+          if (tableName === 'schedule_snapshots' || tableName === 'scheduleSnapshots') collectionName = 'scheduleSnapshots';
+
+          if (payload.eventType === 'DELETE') {
+            const docId = payload.old?.id;
+            if (docId) {
+              const event = new CustomEvent('db-change', {
+                detail: { collectionName, docId, data: null, action: 'delete' }
+              });
+              window.dispatchEvent(event);
+            }
+          } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const row = payload.new;
+            if (row && row.id) {
+              const itemData = row.data && typeof row.data === 'object' ? { ...row.data, id: row.id } : row;
+              const event = new CustomEvent('db-change', {
+                detail: { collectionName, docId: row.id, data: itemData, action: 'set' }
+              });
+              window.dispatchEvent(event);
             }
           }
-        )
-        .subscribe();
-
-      // Background periodic sync (every 60s) when page is visible as a fallback
-      const pollInterval = setInterval(() => {
-        if (document.visibilityState === 'visible') {
-          loadSupabaseData(true);
         }
-      }, 60000);
+      )
+      .subscribe();
 
-      // Throttled re-sync on tab visibility change (tab switches, locks, etc.)
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-          loadSupabaseData(false);
-        }
-      };
+    // Background periodic sync (every 60s) when page is visible as a fallback
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadAppData(true);
+      }
+    }, 60000);
 
-      window.addEventListener('visibilitychange', handleVisibilityChange);
+    // Throttled re-sync on tab visibility change (tab switches, locks, etc.)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadAppData(false);
+      }
+    };
 
-      return () => {
-        supabase.removeChannel(channel);
-        clearInterval(pollInterval);
-        window.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    }
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [currentUser]);
+
+
 
   const handleLogin = (user: UserAccount) => {
     setShowLoginLoading(true);

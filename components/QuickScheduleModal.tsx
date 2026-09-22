@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { X, Clock, Zap, Check, ChevronDown, Sparkles, AlertCircle, RefreshCw, User, HelpCircle, CheckCircle2, Plus, Link2 } from 'lucide-react';
 import { Button } from './Button';
 import { Patient, Appointment, Procedure, Staff, AttendanceRecord, AppointmentStatus, Department, AttendanceStatus, ProcedureCategory } from '../types';
-import { timeStringToMinutes, minutesToTimeString, checkConflict } from '../utils/timeUtils';
+import { timeStringToMinutes, minutesToTimeString, checkConflict, getLocalDateString, getLocalTimeMinutes } from '../utils/timeUtils';
 import { db, doc, setDoc } from '../utils/dbService';
 
 const calculateAge = (dobString: string) => {
@@ -278,9 +278,22 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       ? opt.allowSameAssistant 
       : (procedure.allowSameAssistant || false);
 
-    // Slide search from userStartMin to userEndMin - durationMins
+    // Ensure search does not start before patient's admission time
+    let effectiveStartMin = userStartMin;
+    const pat = patientsList.find(p => p.id === patientId);
+    if (pat?.admissionDate) {
+      const admDateStr = getLocalDateString(pat.admissionDate);
+      if (currentDate === admDateStr) {
+        const admMin = getLocalTimeMinutes(pat.admissionDate);
+        if (admMin !== null && admMin > effectiveStartMin) {
+          effectiveStartMin = admMin;
+        }
+      }
+    }
+
+    // Slide search from effectiveStartMin to userEndMin - durationMins
     // Step by 1 minute for exact scheduling precision
-    for (let currentMin = userStartMin; currentMin + durationMins <= userEndMin; currentMin += 1) {
+    for (let currentMin = effectiveStartMin; currentMin + durationMins <= userEndMin; currentMin += 1) {
       const startStr = minutesToTimeString(currentMin);
       const endStr = minutesToTimeString(currentMin + durationMins);
 
