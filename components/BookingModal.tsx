@@ -32,7 +32,9 @@ interface BookingModalProps {
 
 const getDiscreteStartTimes = (
   blocks: { start: string; end: string }[],
-  duration: number
+  duration: number,
+  currentTime?: string,
+  isCurrentTimeValid?: boolean
 ): string[] => {
   const list: string[] = [];
   const seen = new Set<string>();
@@ -49,6 +51,34 @@ const getDiscreteStartTimes = (
       list.push(exactStartStr);
       seen.add(exactStartStr);
     }
+
+    // If block is long, also add intermediate intervals of duration length
+    let stepMin = startMin + duration;
+    while (stepMin <= maxStartMin && list.length < 24) {
+      const stepStr = minutesToTimeString(stepMin);
+      if (!seen.has(stepStr)) {
+        list.push(stepStr);
+        seen.add(stepStr);
+      }
+      stepMin += duration;
+    }
+
+    // If currentTime fits within this block, ensure it is added!
+    if (currentTime) {
+      const curMin = timeStringToMinutes(currentTime);
+      if (curMin >= startMin && curMin <= maxStartMin) {
+        if (!seen.has(currentTime)) {
+          list.push(currentTime);
+          seen.add(currentTime);
+        }
+      }
+    }
+  }
+
+  // If currentTime is valid and has no conflict, ensure it is included even if block parsing differed slightly
+  if (currentTime && isCurrentTimeValid && !seen.has(currentTime)) {
+    list.push(currentTime);
+    seen.add(currentTime);
   }
 
   return list.sort((a, b) => timeStringToMinutes(a) - timeStringToMinutes(b));
@@ -564,14 +594,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const availableTimeBlocks = availableTimeData.blocks;
   const unavailableReason = availableTimeData.reason;
 
+  const isCurrentTimeValid = useMemo(() => {
+    if (!formData.startTime || !formData.date || !formData.staffId || !formData.procedureId) return false;
+    return !conflictData.hasConflict && !conflictData.conflictDetails.some(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
+  }, [formData.startTime, formData.date, formData.staffId, formData.procedureId, conflictData.hasConflict, conflictData.conflictDetails]);
+
   const discreteStartTimes = useMemo(() => {
     let duration = currentProc?.durationMinutes || 25;
     if (formData.selectedDurationOptionId && currentProc?.durationOptions) {
       const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
       if (opt) duration = opt.durationMinutes;
     }
-    return getDiscreteStartTimes(availableTimeBlocks, duration);
-  }, [availableTimeBlocks, currentProc, formData.selectedDurationOptionId]);
+    return getDiscreteStartTimes(availableTimeBlocks, duration, formData.startTime, isCurrentTimeValid);
+  }, [availableTimeBlocks, currentProc, formData.selectedDurationOptionId, formData.startTime, isCurrentTimeValid]);
+
+  const displayStartTimes = useMemo(() => {
+    if (discreteStartTimes.length <= 16) return discreteStartTimes;
+    if (formData.startTime && discreteStartTimes.includes(formData.startTime)) {
+      const idx = discreteStartTimes.indexOf(formData.startTime);
+      if (idx >= 16) {
+        return [...discreteStartTimes.slice(0, 15), formData.startTime].sort((a, b) => timeStringToMinutes(a) - timeStringToMinutes(b));
+      }
+    }
+    return discreteStartTimes.slice(0, 16);
+  }, [discreteStartTimes, formData.startTime]);
 
   const selectedMachineActiveSlots = useMemo(() => {
     if (!formData.assignedMachineId || !formData.date || !currentProc || (currentProc.machineCapacity || 1) <= 1) return [];
@@ -1815,7 +1861,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           >
                             <Info size={14} /> Chọn nhân sự để xem gợi ý...
                           </motion.p>
-                        ) : (isMachineShiftRequired ? availableShifts : discreteStartTimes).length > 0 ? (
+                        ) : (isMachineShiftRequired ? availableShifts : displayStartTimes).length > 0 ? (
                           <motion.div
                             key="avail-times"
                             initial={{ opacity: 0, y: 5 }}
@@ -1880,7 +1926,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 );
                               })
                             ) : (
-                              discreteStartTimes.slice(0, 12).map((time, idx) => {
+                              displayStartTimes.map((time, idx) => {
                                 let currentDuration = currentProc?.durationMinutes || 25;
                                 if (formData.selectedDurationOptionId && currentProc?.durationOptions) {
                                   const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
