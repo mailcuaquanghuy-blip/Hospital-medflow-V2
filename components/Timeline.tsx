@@ -2,28 +2,12 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole, ScheduleSnapshot, AttendanceRecord, ConflictDetail } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
-import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString, checkConflict } from '../utils/timeUtils';
+import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString, checkConflict, getLocalDateString } from '../utils/timeUtils';
 import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
 import { getBaselineAppointments, getAllBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
 import { DateInput } from './DateInput';
-
-
-const getLocalDateString = (isoStr: string | null | undefined): string => {
-  if (!isoStr) return '';
-  if (!isoStr.includes('T')) {
-    return isoStr.split(' ')[0] || '';
-  }
-  const d = new Date(isoStr);
-  if (isNaN(d.getTime())) {
-    return isoStr.split('T')[0] || '';
-  }
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const compareNamesByFirstName = (aName: string, bName: string) => {
   const partsA = aName.trim().split(/\s+/);
@@ -521,16 +505,25 @@ export const Timeline: React.FC<TimelineProps> = ({
         return patients.filter(p => {
           if (p.status !== 'TREATING' && p.status !== 'DISCHARGED') return false;
           const admissionDateStr = getLocalDateString(p.admissionDate);
-          return date >= admissionDateStr;
-        }).map(p => ({
-          id: p.id,
-          originalId: p.id,
-          role: 'ALL',
-          title: p.name + (p.status === 'DISCHARGED' ? ' (Ra viện)' : ''),
-          subtitle: `G: ${p.bedNumber} | ${p.bedType || 'Nội trú'} | ${calculateAge(p.dob)}t | BH: ${p.insuranceLevel || '100%'}${p.note ? ` | ${p.note}` : ''}`,
-          color: p.status === 'DISCHARGED' ? 'bg-slate-400' : 'bg-emerald-500',
-          icon: <User size={14} />
-        }));
+          if (admissionDateStr && date < admissionDateStr) return false;
+          const isDischarged = p.status === 'DISCHARGED';
+          const dischargeDateStr = getLocalDateString(p.dischargeDate);
+          if (isDischarged && dischargeDateStr && dischargeDateStr < date) return false;
+          return true;
+        }).map(p => {
+          const isDischarged = p.status === 'DISCHARGED';
+          const dischargeDateStr = getLocalDateString(p.dischargeDate);
+          const isDischargedOnDate = isDischarged && dischargeDateStr === date;
+          return {
+            id: p.id,
+            originalId: p.id,
+            role: 'ALL',
+            title: p.name + (isDischargedOnDate ? ' (Ra viện)' : ''),
+            subtitle: `G: ${p.bedNumber} | ${p.bedType || 'Nội trú'} | ${calculateAge(p.dob)}t | BH: ${p.insuranceLevel || '100%'}${p.note ? ` | ${p.note}` : ''}`,
+            color: isDischargedOnDate ? 'bg-slate-400' : 'bg-emerald-500',
+            icon: <User size={14} />
+          };
+        });
       case 'STAFF':
         return staff.filter(s => !currentDept || s.deptId === currentDept.id).map(s => ({
           id: s.id,
@@ -622,12 +615,18 @@ export const Timeline: React.FC<TimelineProps> = ({
         if (headerPatientStatusFilters.length > 0) {
             result = result.filter(a => {
                 const p = patMap.get(a.patientId);
+                if (!p) return false;
+                const isDischarged = p.status === 'DISCHARGED';
+                const dischargeDateStr = getLocalDateString(p.dischargeDate);
+                const isDischargedOnDate = isDischarged && dischargeDateStr === date;
+                const isTreatingOnDate = !isDischarged || (dischargeDateStr ? dischargeDateStr > date : false);
+
                 return headerPatientStatusFilters.some(filter => {
                     if (filter === 'TREATING') {
-                        return p?.status !== 'DISCHARGED';
+                        return isTreatingOnDate;
                     }
                     if (filter === 'DISCHARGED') {
-                        return p?.status === 'DISCHARGED';
+                        return isDischargedOnDate;
                     }
                     return false;
                 });
@@ -1582,7 +1581,22 @@ export const Timeline: React.FC<TimelineProps> = ({
                   <tr key={appt.id} className={`hover:bg-slate-50 transition-all group min-h-[5rem] ${hasConflict || isOutside ? 'bg-rose-50/20' : ''}`}>
                     <td className={`p-3 font-medium text-slate-800 sticky left-0 ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[220px] min-w-[220px] max-w-[220px]`}>
                         <div className="flex flex-col">
-                            <span className="font-bold text-sm text-primary">{patient?.name || 'Không yêu cầu BN'} {patient?.status === 'DISCHARGED' && <span className="text-slate-400 font-normal">(Ra viện)</span>}</span>
+                            <span className="font-bold text-sm text-primary">
+                              {patient?.name || 'Không yêu cầu BN'} {(() => {
+                                if (!patient) return null;
+                                const isDischarged = patient.status === 'DISCHARGED';
+                                const dischargeDateStr = getLocalDateString(patient.dischargeDate);
+                                const isDischargedOnDate = isDischarged && dischargeDateStr === date;
+                                const isDischargedPast = isDischarged && dischargeDateStr && dischargeDateStr < date;
+                                if (isDischargedOnDate) {
+                                  return <span className="text-slate-400 font-normal">(Ra viện)</span>;
+                                }
+                                if (isDischargedPast) {
+                                  return <span className="text-slate-400 font-normal">(Đã ra viện)</span>;
+                                }
+                                return null;
+                              })()}
+                            </span>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className="text-xs text-slate-500 font-bold">{patient ? `${patient.gender} • ${calculateAge(patient.dob)} tuổi` : '-'}</span>
                                 {patient?.bedType && (
