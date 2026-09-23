@@ -2,23 +2,39 @@
 import { Appointment, AttendanceRecord, AttendanceStatus, Staff, Procedure, Patient, ConflictDetail, DepartmentType } from '../types';
 import { BUSINESS_HOURS, OFFICE_SHIFTS, DEPARTMENTS } from '../constants';
 
+const timeStringToMinutesCache = new Map<string, number>();
+const minutesToTimeStringCache = new Map<number, string>();
+
 export const minutesToPixels = (minutes: number, pixelsPerMinute: number = 2) => {
   return minutes * pixelsPerMinute;
 };
 
 export const timeStringToMinutes = (time: string | undefined): number => {
   if (!time) return 0;
+  const cached = timeStringToMinutesCache.get(time);
+  if (cached !== undefined) return cached;
   const parts = time.split(':');
   if (parts.length < 2) return 0;
-  const [hours, minutes] = parts.map(Number);
-  return (hours || 0) * 60 + (minutes || 0);
+  const h = parseInt(parts[0], 10) || 0;
+  const m = parseInt(parts[1], 10) || 0;
+  const res = h * 60 + m;
+  if (timeStringToMinutesCache.size < 1000) {
+    timeStringToMinutesCache.set(time, res);
+  }
+  return res;
 };
 
 export const minutesToTimeString = (totalMinutes: number | undefined): string => {
   if (totalMinutes === undefined || isNaN(totalMinutes)) return '00:00';
+  const cached = minutesToTimeStringCache.get(totalMinutes);
+  if (cached !== undefined) return cached;
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const res = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  if (minutesToTimeStringCache.size < 1500) {
+    minutesToTimeStringCache.set(totalMinutes, res);
+  }
+  return res;
 };
 
 export const isInsideOfficeHours = (startMin: number, endMin: number): boolean => {
@@ -51,80 +67,214 @@ export const formatDate = (dateStr: string): string => {
   return `${day}/${month}/${year}`;
 };
 
+const vnDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+const vnTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false
+});
+
+const localDateCache = new Map<string, string>();
+const localTimeCache = new Map<string, number | null>();
+
 export const getLocalDateString = (isoStr: string | null | undefined): string => {
   if (!isoStr) return '';
+  const cached = localDateCache.get(isoStr);
+  if (cached !== undefined) return cached;
   const trimmed = isoStr.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-  const d = new Date(trimmed);
-  if (!isNaN(d.getTime())) {
-    try {
-      return new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).format(d);
-    } catch {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+  let res = '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    res = trimmed;
+  } else {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      try {
+        res = vnDateFormatter.format(d);
+      } catch {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        res = `${year}-${month}-${day}`;
+      }
+    } else {
+      res = trimmed.split('T')[0] || trimmed.split(' ')[0] || '';
     }
   }
-  return trimmed.split('T')[0] || trimmed.split(' ')[0] || '';
+  if (localDateCache.size < 2000) {
+    localDateCache.set(isoStr, res);
+  }
+  return res;
 };
 
 export const getLocalTimeMinutes = (isoStr: string | null | undefined): number | null => {
   if (!isoStr) return null;
+  const cached = localTimeCache.get(isoStr);
+  if (cached !== undefined) return cached;
   const trimmed = isoStr.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    localTimeCache.set(isoStr, null);
+    return null;
+  }
+  let res: number | null = null;
   const d = new Date(trimmed);
   if (!isNaN(d.getTime())) {
     try {
-      const timeParts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Asia/Ho_Chi_Minh',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      }).format(d).split(':');
+      const timeParts = vnTimeFormatter.format(d).split(':');
       const h = parseInt(timeParts[0], 10);
       const m = parseInt(timeParts[1], 10);
-      if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+      if (!isNaN(h) && !isNaN(m)) res = h * 60 + m;
     } catch {
-      return d.getHours() * 60 + d.getMinutes();
+      res = d.getHours() * 60 + d.getMinutes();
+    }
+  } else {
+    const timePart = trimmed.includes('T') ? trimmed.split('T')[1] : (trimmed.includes(' ') ? trimmed.split(' ')[1] : '');
+    if (timePart) {
+      const cleanTime = timePart.split('.')[0].replace('Z', '');
+      const parts = cleanTime.split(':');
+      if (parts.length >= 2) {
+        const h = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        if (!isNaN(h) && !isNaN(m)) res = h * 60 + m;
+      }
     }
   }
-  const timePart = trimmed.includes('T') ? trimmed.split('T')[1] : (trimmed.includes(' ') ? trimmed.split(' ')[1] : '');
-  if (timePart) {
-    const cleanTime = timePart.split('.')[0].replace('Z', '');
-    const parts = cleanTime.split(':');
-    if (parts.length >= 2) {
-      const h = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
-      if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
-    }
+  if (localTimeCache.size < 2000) {
+    localTimeCache.set(isoStr, res);
   }
-  return null;
+  return res;
 };
+
+const procMapCache = new WeakMap<Procedure[], Map<string, Procedure>>();
+const staffMapCache = new WeakMap<Staff[], Map<string, Staff>>();
+const patientMapCache = new WeakMap<Patient[], Map<string, Patient>>();
+const dayApptsCache = new WeakMap<Appointment[], Map<string, Appointment[]>>();
 
 const getProcFromCache = (arr: Procedure[], id: string | undefined): Procedure | undefined => {
   if (!id || !arr) return undefined;
-  return arr.find(p => p.id === id);
+  let map = procMapCache.get(arr);
+  if (!map) {
+    map = new Map(arr.map(p => [p.id, p]));
+    procMapCache.set(arr, map);
+  }
+  return map.get(id);
 };
 
 const getStaffFromCache = (arr: Staff[], id: string | undefined): Staff | undefined => {
   if (!id || !arr) return undefined;
-  return arr.find(s => s.id === id);
+  let map = staffMapCache.get(arr);
+  if (!map) {
+    map = new Map(arr.map(s => [s.id, s]));
+    staffMapCache.set(arr, map);
+  }
+  return map.get(id);
 };
 
 const getPatientFromCache = (arr: Patient[], id: string | undefined): Patient | undefined => {
   if (!id || !arr) return undefined;
-  return arr.find(p => p.id === id);
+  let map = patientMapCache.get(arr);
+  if (!map) {
+    map = new Map(arr.map(p => [p.id, p]));
+    patientMapCache.set(arr, map);
+  }
+  return map.get(id);
 };
 
 const getDayAppointmentsFromCache = (arr: Appointment[], date: string): Appointment[] => {
   if (!arr || !date) return [];
-  return arr.filter(a => a.date === date);
+  let map = dayApptsCache.get(arr);
+  if (!map) {
+    map = new Map();
+    for (let i = 0; i < arr.length; i++) {
+      const a = arr[i];
+      if (!a.date) continue;
+      const list = map.get(a.date);
+      if (list) {
+        list.push(a);
+      } else {
+        map.set(a.date, [a]);
+      }
+    }
+    dayApptsCache.set(arr, map);
+  }
+  return map.get(date) || [];
+};
+
+export const getStaffBusyIntervalsInAppointment = (
+  proc: Procedure | undefined, 
+  personId: string, 
+  baseStart: number, 
+  apptData?: Partial<Appointment>
+): { start: number; end: number }[] => {
+  if (!proc || !personId) return [];
+
+  let duration = proc.durationMinutes;
+  if (apptData?.startTime && apptData?.endTime) {
+    duration = timeStringToMinutes(apptData.endTime) - timeStringToMinutes(apptData.startTime);
+  }
+
+  let option = proc.durationOptions?.find(o => o.id === apptData?.selectedDurationOptionId);
+  if (!option && (!apptData?.selectedDurationOptionId || apptData?.selectedDurationOptionId === 'default')) {
+    option = proc.durationOptions?.find(o => o.isDefault);
+  }
+
+  const allowSame = apptData?.allowSameAssistant !== undefined 
+    ? apptData.allowSameAssistant 
+    : (option?.allowSameAssistant !== undefined ? option.allowSameAssistant : (proc.allowSameAssistant || false));
+
+  const isMain = (apptData?.staffId === personId);
+  const isAsst1 = (apptData?.assistant1Id === personId);
+  const isAsst2 = (apptData?.assistant2Id === personId) || (allowSame && isAsst1 && (!apptData?.assistant2Id || apptData?.assistant2Id === apptData?.assistant1Id));
+
+  if (!isMain && !isAsst1 && !isAsst2) return [];
+
+  const rawIntervals: { start: number; end: number }[] = [];
+
+  if (isMain) {
+    const s = (apptData?.mainBusyStart !== undefined && apptData?.mainBusyStart !== null)
+      ? apptData.mainBusyStart
+      : (option?.mainBusyStart ?? proc.mainBusyStart ?? 0);
+    const e = (apptData?.mainBusyEnd !== undefined && apptData?.mainBusyEnd !== null)
+      ? apptData.mainBusyEnd
+      : (option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration);
+    if (e > s) {
+      rawIntervals.push({ start: baseStart + s, end: baseStart + e });
+    }
+  }
+  if (isAsst1) {
+    const s = (apptData?.asst1BusyStart !== undefined && apptData?.asst1BusyStart !== null)
+      ? apptData.asst1BusyStart
+      : (option?.asst1BusyStart ?? proc.asst1BusyStart ?? 0);
+    const e = (apptData?.asst1BusyEnd !== undefined && apptData?.asst1BusyEnd !== null)
+      ? apptData.asst1BusyEnd
+      : (option?.asst1BusyEnd !== undefined && option?.asst1BusyEnd !== null
+          ? option.asst1BusyEnd 
+          : (proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? (apptData?.assistant1Id ? (proc.durationMinutes ?? duration) : 0)));
+    if (e > s) {
+      rawIntervals.push({ start: baseStart + s, end: baseStart + e });
+    }
+  }
+  if (isAsst2) {
+    const s = (apptData?.asst2BusyStart !== undefined && apptData?.asst2BusyStart !== null)
+      ? apptData.asst2BusyStart
+      : (option?.asst2BusyStart ?? proc.asst2BusyStart ?? 0);
+    const e = (apptData?.asst2BusyEnd !== undefined && apptData?.asst2BusyEnd !== null)
+      ? apptData.asst2BusyEnd
+      : (option?.asst2BusyEnd !== undefined && option?.asst2BusyEnd !== null
+          ? option.asst2BusyEnd 
+          : (proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? (apptData?.assistant2Id ? (proc.durationMinutes ?? duration) : 0)));
+    if (e > s) {
+      rawIntervals.push({ start: baseStart + s, end: baseStart + e });
+    }
+  }
+
+  return rawIntervals;
 };
 
 export const checkConflict = (
@@ -143,13 +293,22 @@ export const checkConflict = (
   assistant1Id?: string | null,
   assistant2Id?: string | null,
   newApptData?: Partial<Appointment>
-): { hasConflict: boolean; reason: string | null; conflictDetails: ConflictDetail[]; assignedMachineId?: string; isOvertime: boolean; isOutsideOfficeHours: boolean } => {
+): { 
+  hasConflict: boolean; 
+  reason: string | null; 
+  conflictDetails: ConflictDetail[]; 
+  assignedMachineId?: string; 
+  isOvertime: boolean; 
+  isOutsideOfficeHours: boolean;
+  conflictUntilMin?: number;
+} => {
   let startMin = timeStringToMinutes(newStart);
   let endMin = timeStringToMinutes(newEnd);
   const currentProc = getProcFromCache(procedures, procedureId);
   const staff = getStaffFromCache(staffList, staffId);
   
   const conflictDetails: ConflictDetail[] = [];
+  let conflictUntilMin: number | undefined;
 
   if (startMin > endMin) {
     conflictDetails.push({ message: `Giờ kết thúc (${newEnd}) không thể trước giờ bắt đầu (${newStart}).`, level: 1 });
@@ -230,6 +389,7 @@ export const checkConflict = (
               message: `Lịch trình bắt đầu lúc ${newStart} trước giờ bệnh nhân vào viện (${timeStr} ngày ${formatDate(admissionDateStr)}).`, 
               level: 1 
             });
+            conflictUntilMin = Math.max(conflictUntilMin || 0, admissionMin);
           }
         }
       }
@@ -433,6 +593,8 @@ export const checkConflict = (
             if (overlappingAppt) {
                const otherPatient = getPatientFromCache(patients, overlappingAppt.patientId);
                conflictDetails.push({ message: `Máy ${assignedMachineId} bận - BN "${otherPatient?.name || 'khác'}"`, level: 1 });
+               const mApptEnd = timeStringToMinutes(overlappingAppt.endTime);
+               conflictUntilMin = Math.max(conflictUntilMin || 0, mApptEnd);
             }
          }
       } else {
@@ -553,6 +715,7 @@ export const checkConflict = (
         // Quy tắc: 2 thủ thuật trên cùng bệnh nhân không được trùng hoặc gối đầu tại cùng một phút
         // Ví dụ: Thủy châm từ 14h00 - 14h25 thì thủ thuật tiếp theo chỉ có thể bắt đầu từ 14h26 (không được bắt đầu lúc 14h25)
         if (Math.max(startMin, apptStart) <= Math.min(currentPatientEnd, apptPatientEnd)) {
+          conflictUntilMin = Math.max(conflictUntilMin || 0, apptPatientEnd + 1);
           if (Math.max(startMin, apptStart) <= Math.min(endMin, apptEnd)) {
             if (startMin === apptEnd) {
               const nextAllowedMin = apptPatientEnd + 1;
@@ -606,77 +769,6 @@ export const checkConflict = (
       }
     }
 
-    const getStaffBusyIntervalsInAppointment = (
-      proc: Procedure | undefined, 
-      personId: string, 
-      baseStart: number, 
-      apptData?: Partial<Appointment>
-    ): { start: number; end: number }[] => {
-      if (!proc || !personId) return [];
-
-      let duration = proc.durationMinutes;
-      if (apptData?.startTime && apptData?.endTime) {
-        duration = timeStringToMinutes(apptData.endTime) - timeStringToMinutes(apptData.startTime);
-      }
-
-      let option = proc.durationOptions?.find(o => o.id === apptData?.selectedDurationOptionId);
-      if (!option && (!apptData?.selectedDurationOptionId || apptData?.selectedDurationOptionId === 'default')) {
-        option = proc.durationOptions?.find(o => o.isDefault);
-      }
-
-      const allowSame = apptData?.allowSameAssistant !== undefined 
-        ? apptData.allowSameAssistant 
-        : (option?.allowSameAssistant !== undefined ? option.allowSameAssistant : (proc.allowSameAssistant || false));
-
-      const isMain = (apptData?.staffId === personId);
-      const isAsst1 = (apptData?.assistant1Id === personId);
-      const isAsst2 = (apptData?.assistant2Id === personId) || (allowSame && isAsst1 && (!apptData?.assistant2Id || apptData?.assistant2Id === apptData?.assistant1Id));
-
-      if (!isMain && !isAsst1 && !isAsst2) return [];
-
-      const rawIntervals: { start: number; end: number }[] = [];
-
-      if (isMain) {
-        const s = (apptData?.mainBusyStart !== undefined && apptData?.mainBusyStart !== null)
-          ? apptData.mainBusyStart
-          : (option?.mainBusyStart ?? proc.mainBusyStart ?? 0);
-        const e = (apptData?.mainBusyEnd !== undefined && apptData?.mainBusyEnd !== null)
-          ? apptData.mainBusyEnd
-          : (option?.mainBusyEnd ?? proc.mainBusyEnd ?? proc.busyMinutes ?? proc.durationMinutes ?? duration);
-        if (e > s) {
-          rawIntervals.push({ start: baseStart + s, end: baseStart + e });
-        }
-      }
-      if (isAsst1) {
-        const s = (apptData?.asst1BusyStart !== undefined && apptData?.asst1BusyStart !== null)
-          ? apptData.asst1BusyStart
-          : (option?.asst1BusyStart ?? proc.asst1BusyStart ?? 0);
-        const e = (apptData?.asst1BusyEnd !== undefined && apptData?.asst1BusyEnd !== null)
-          ? apptData.asst1BusyEnd
-          : (option?.asst1BusyEnd !== undefined && option?.asst1BusyEnd !== null
-              ? option.asst1BusyEnd
-              : (proc.asst1BusyEnd ?? proc.assistant1BusyMinutes ?? (apptData?.assistant1Id ? (proc.durationMinutes ?? duration) : 0)));
-        if (e > s) {
-          rawIntervals.push({ start: baseStart + s, end: baseStart + e });
-        }
-      }
-      if (isAsst2) {
-        const s = (apptData?.asst2BusyStart !== undefined && apptData?.asst2BusyStart !== null)
-          ? apptData.asst2BusyStart
-          : (option?.asst2BusyStart ?? proc.asst2BusyStart ?? 0);
-        const e = (apptData?.asst2BusyEnd !== undefined && apptData?.asst2BusyEnd !== null)
-          ? apptData.asst2BusyEnd
-          : (option?.asst2BusyEnd !== undefined && option?.asst2BusyEnd !== null
-              ? option.asst2BusyEnd
-              : (proc.asst2BusyEnd ?? proc.assistant2BusyMinutes ?? (apptData?.assistant2Id ? (proc.durationMinutes ?? duration) : 0)));
-        if (e > s) {
-          rawIntervals.push({ start: baseStart + s, end: baseStart + e });
-        }
-      }
-
-      return rawIntervals;
-    };
-
     const checkedStaffIdsInAppt = new Set<string>();
 
     const effectiveStaffId = (staffId && staffId !== 'temp') ? staffId : (newApptData?.staffId && newApptData.staffId !== 'temp' ? newApptData.staffId : '');
@@ -718,6 +810,7 @@ export const checkConflict = (
                 message: `${label} bận "${apptProc?.name || 'khác'}" - BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(aInt.start)}-${minutesToTimeString(aInt.end)})`, 
                 level: 1 
               });
+              conflictUntilMin = Math.max(conflictUntilMin || 0, aInt.end + (isFromSept5 ? 1 : 0));
               return;
             }
           }
@@ -750,7 +843,8 @@ export const checkConflict = (
     conflictDetails: uniqueConflicts, 
     assignedMachineId, 
     isOvertime,
-    isOutsideOfficeHours
+    isOutsideOfficeHours,
+    conflictUntilMin
   };
 };
 
@@ -876,7 +970,11 @@ export const findAvailableSlot = (
               const level1Conflict = res.conflictDetails.find(c => c.level === 1);
               if (level1Conflict) firstConflictReason = level1Conflict.message;
           }
-          currentMin += 1;
+          if (res.conflictUntilMin && res.conflictUntilMin > currentMin) {
+              currentMin = res.conflictUntilMin;
+          } else {
+              currentMin += 1;
+          }
       }
     }
 
@@ -982,6 +1080,10 @@ export const getAvailableTimeBlocks = (
                     blocks.push({ start: currentBlockStart, end: currentBlockEnd });
                     currentBlockStart = null;
                     currentBlockEnd = null;
+                }
+                if (res.conflictUntilMin && res.conflictUntilMin > currentMin) {
+                    currentMin = res.conflictUntilMin;
+                    continue;
                 }
             }
             currentMin += 1;

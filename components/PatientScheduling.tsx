@@ -496,49 +496,58 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     return list;
   }, [patients, currentDept, currentDate, showDischarged]);
 
+  const patientApptsMap = useMemo(() => {
+    const map = new Map<string, Appointment[]>();
+    activeApptsToday.forEach(a => {
+      const list = map.get(a.patientId);
+      if (list) {
+        list.push(a);
+      } else {
+        map.set(a.patientId, [a]);
+      }
+    });
+    return map;
+  }, [activeApptsToday]);
+
   const allDynamicConflicts = useMemo(() => {
     const conflicts = new Map<string, ConflictDetail[]>();
-    appointments.forEach(a => {
-      if (a.date === currentDate) {
-        const res = checkConflict(
-          a.startTime,
-          a.endTime,
-          a.date,
-          a.staffId,
-          a.patientId,
-          appointments,
-          staff,
-          procedures,
-          attendanceRecords,
-          patients,
-          a.procedureId,
-          a.id,
-          a.assistant1Id,
-          a.assistant2Id,
-          a
-        );
-        if (res.conflictDetails.length > 0) {
-          conflicts.set(a.id, res.conflictDetails);
-        }
+    activeApptsToday.forEach(a => {
+      const res = checkConflict(
+        a.startTime,
+        a.endTime,
+        a.date,
+        a.staffId,
+        a.patientId,
+        activeApptsToday,
+        staff,
+        procedures,
+        attendanceRecords,
+        patients,
+        a.procedureId,
+        a.id,
+        a.assistant1Id,
+        a.assistant2Id,
+        a
+      );
+      if (res.conflictDetails.length > 0) {
+        conflicts.set(a.id, res.conflictDetails);
       }
     });
     return conflicts;
-  }, [appointments, currentDate, staff, procedures, attendanceRecords, patients]);
+  }, [activeApptsToday, staff, procedures, attendanceRecords, patients]);
 
   const patientIdsWithIssues = useMemo(() => {
     const issuePatients = new Set<string>();
-    appointments.forEach(a => {
-      if (a.date === currentDate) {
-        const hasConflict = allDynamicConflicts.has(a.id) && allDynamicConflicts.get(a.id)!.some(c => c.level === 1);
-        const hasWarning = allDynamicConflicts.has(a.id) && allDynamicConflicts.get(a.id)!.some(c => c.level === 2);
+    activeApptsToday.forEach(a => {
+      const hasConflict = allDynamicConflicts.has(a.id) && allDynamicConflicts.get(a.id)!.some(c => c.level === 1);
+      const hasWarning = allDynamicConflicts.has(a.id) && allDynamicConflicts.get(a.id)!.some(c => c.level === 2);
 
-        if (hasConflict || hasWarning) {
-          issuePatients.add(a.patientId);
-        }
+      if (hasConflict || hasWarning) {
+        issuePatients.add(a.patientId);
       }
     });
     return issuePatients;
-  }, [appointments, currentDate, allDynamicConflicts]);
+  }, [activeApptsToday, allDynamicConflicts]);
 
   const filteredPatients = visiblePatients.filter(p => {
     const term = searchTerm.trim().toLowerCase();
@@ -551,7 +560,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     const matchesDept = referringDeptFilter === 'ALL' || p.admittedByDeptId === referringDeptFilter;
     const matchesAdmissionDate = !filterAdmissionDate || p.admissionDate.startsWith(filterAdmissionDate);
     
-    const patientAppts = appointments.filter(a => a.patientId === p.id && a.date === currentDate);
+    const patientAppts = patientApptsMap.get(p.id) || [];
     const matchesProcedure = procedureFilter === 'ALL' || patientAppts.some(a => a.procedureId === procedureFilter);
     const matchesNoProcedure = !showNoProcedureOnly || patientAppts.length === 0;
     const matchesStaff = staffFilter === 'ALL' || patientAppts.some(a => a.staffId === staffFilter || a.assistant1Id === staffFilter || a.assistant2Id === staffFilter);
@@ -612,7 +621,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   }, [visiblePatients, patientIdsWithIssues]);
 
   const getPatientAppointmentsForDate = (patientId: string) => {
-    const raw = appointments.filter(a => a.patientId === patientId && a.date === currentDate);
+    const raw = patientApptsMap.get(patientId) || [];
     const seen = new Set<string>();
     const unique = raw.filter(a => {
       if (seen.has(a.id)) return false;
@@ -1979,7 +1988,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                               {hasIssue && <AlertTriangle size={19} className="text-rose-500 animate-blink shrink-0 mb-1" />}
                               <div className="grid grid-cols-3 gap-1">
                                   {(() => {
-                                      const rawAppts = appointments.filter(a => a.patientId === p.id && a.date === currentDate);
+                                      const rawAppts = patientApptsMap.get(p.id) || [];
                                       const seen = new Set<string>();
                                       const uniqueAppts = rawAppts.filter(a => {
                                           if (seen.has(a.id)) return false;

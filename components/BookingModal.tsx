@@ -72,13 +72,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onDeleteShift,
   onDelete
 }) => {
-  const [formData, setFormData] = useState<Partial<Appointment>>({
-    date: new Date().toISOString().split('T')[0],
-    startTime: '07:30',
-    endTime: '08:00',
-    status: AppointmentStatus.PENDING,
-    assignedMachineId: '',
-    ...initialData,
+  const [formData, setFormData] = useState<Partial<Appointment>>(() => {
+    const patId = initialData?.patientId;
+    const pat = patId ? patients.find(p => p.id === patId) : undefined;
+    const apptDate = initialData?.date || new Date().toISOString().split('T')[0];
+    
+    let defaultStart = '07:30';
+    if (pat?.admissionDate) {
+      const admDate = getLocalDateString(pat.admissionDate);
+      if (apptDate === admDate) {
+        const admMin = getLocalTimeMinutes(pat.admissionDate);
+        if (admMin !== null && admMin > 450) {
+          defaultStart = minutesToTimeString(admMin);
+        }
+      }
+    }
+    
+    return {
+      date: apptDate,
+      startTime: defaultStart,
+      endTime: addMinutesToTime(defaultStart, 25),
+      status: AppointmentStatus.PENDING,
+      assignedMachineId: '',
+      ...initialData,
+    };
   });
   
   const [conflictData, setConflictData] = useState<{
@@ -655,6 +672,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   }, [formData.procedureId, formData.staffId, formData.date, formData.assistant1Id, formData.assistant2Id, hasManuallySelectedTime, formData.id, initialData?.id, initialData?.startTime, appointments, staff, procedures, attendanceRecords, patients]);
 
   useEffect(() => {
+    // If appointment is for a new appointment and current startTime is before patient's admission time on that date, adjust it
+    if (!initialData?.id && !formData.id && selectedPatient?.admissionDate && formData.date) {
+      const admDate = getLocalDateString(selectedPatient.admissionDate);
+      if (formData.date === admDate) {
+        const admMin = getLocalTimeMinutes(selectedPatient.admissionDate);
+        if (admMin !== null && (!formData.startTime || timeStringToMinutes(formData.startTime) < admMin)) {
+          const newStart = minutesToTimeString(admMin);
+          const duration = currentProc?.durationMinutes || 25;
+          setFormData(prev => ({
+            ...prev,
+            startTime: newStart,
+            endTime: addMinutesToTime(newStart, duration)
+          }));
+        }
+      }
+    }
+  }, [formData.patientId, formData.date, selectedPatient, initialData?.id, formData.id, currentProc]);
+
+  useEffect(() => {
     if (formData.procedureId && formData.startTime) {
       const proc = procedures.find(p => p.id === formData.procedureId);
       if (proc) {
@@ -932,35 +968,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       if (needsAssistant2 && !formData.assistant2Id) return "Vui lòng chọn người phụ 2";
     }
 
-    // Check patient admission & discharge boundaries
-    if (selectedPatient?.admissionDate && formData.date) {
-      const admissionDateStr = getLocalDateString(selectedPatient.admissionDate);
-      if (formData.date < admissionDateStr) {
-        return `Bệnh nhân chưa vào viện vào ngày này (Vào viện: ${formatDate(admissionDateStr)})`;
+    if (isBeforeAdmission) {
+      if (selectedPatient?.admissionDate) {
+        const admMin = getLocalTimeMinutes(selectedPatient.admissionDate);
+        const timeStr = admMin !== null ? minutesToTimeString(admMin) : '';
+        return `Không thể chỉ định trước giờ bệnh nhân vào viện (${timeStr})`;
       }
-      if (formData.date === admissionDateStr && formData.startTime) {
-        const admissionMin = getLocalTimeMinutes(selectedPatient.admissionDate);
-        const startMin = timeStringToMinutes(formData.startTime);
-        if (admissionMin !== null && startMin < admissionMin) {
-          const timeStr = minutesToTimeString(admissionMin);
-          return `Giờ chỉ định (${formData.startTime}) trước giờ bệnh nhân vào viện (${timeStr} ngày ${formatDate(admissionDateStr)})`;
-        }
-      }
+      return "Không thể chỉ định trước giờ bệnh nhân vào viện";
     }
 
-    if (selectedPatient?.dischargeDate && formData.date) {
-      const dischargeDateStr = getLocalDateString(selectedPatient.dischargeDate);
-      if (formData.date > dischargeDateStr) {
-        return `Bệnh nhân đã ra viện vào ngày này (Ra viện: ${formatDate(dischargeDateStr)})`;
-      }
-      if (formData.date === dischargeDateStr && formData.endTime) {
-        const dischargeMin = getLocalTimeMinutes(selectedPatient.dischargeDate);
-        const endMin = timeStringToMinutes(formData.endTime);
-        if (dischargeMin !== null && endMin > dischargeMin) {
-          const timeStr = minutesToTimeString(dischargeMin);
-          return `Giờ kết thúc (${formData.endTime}) sau giờ bệnh nhân ra viện (${timeStr} ngày ${formatDate(dischargeDateStr)})`;
-        }
-      }
+    if (isAfterDischarge) {
+      return "Không thể chỉ định sau ngày bệnh nhân đã ra viện";
     }
 
     // Block saving if there is a hard level-1 scheduling conflict
@@ -2163,71 +2181,65 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               ) : (
                 <div />
               )}
-              <div className="flex gap-4">
+              <div className="flex items-center gap-4">
                 <button 
                   type="button" 
                   onClick={onClose} 
-                  className="px-8 py-3 text-slate-500 font-bold text-xs hover:text-slate-800 transition-all uppercase tracking-widest hover:bg-slate-50 rounded-xl"
+                  className="px-8 py-3.5 text-slate-500 font-bold text-xs hover:text-slate-800 transition-all uppercase tracking-widest hover:bg-slate-50 rounded-xl"
                 >
                   HỦY BỎ
                 </button>
-                <div className="flex flex-col items-end gap-2">
-                  <Button 
-                    onClick={() => {
-                      const finalData = { ...formData };
+                <Button 
+                  onClick={() => {
+                    const finalData = { ...formData };
 
-                      if (currentProc) {
-                        const optId = finalData.selectedDurationOptionId;
-                        let selectedOpt = currentProc.durationOptions?.find(o => o.id === optId);
-                        if (!selectedOpt && (!optId || optId === 'default')) {
-                          selectedOpt = currentProc.durationOptions?.find(o => o.isDefault);
-                        }
-
-                        if (selectedOpt) {
-                          finalData.selectedDurationOptionId = selectedOpt.id;
-                          finalData.mainBusyStart = finalData.mainBusyStart !== undefined ? finalData.mainBusyStart : (selectedOpt.mainBusyStart ?? 0);
-                          finalData.mainBusyEnd = finalData.mainBusyEnd !== undefined ? finalData.mainBusyEnd : (selectedOpt.mainBusyEnd ?? selectedOpt.durationMinutes);
-                          finalData.asst1BusyStart = finalData.asst1BusyStart !== undefined ? finalData.asst1BusyStart : (selectedOpt.asst1BusyStart ?? 0);
-                          finalData.asst1BusyEnd = finalData.asst1BusyEnd !== undefined ? finalData.asst1BusyEnd : (selectedOpt.asst1BusyEnd ?? 0);
-                          finalData.asst2BusyStart = finalData.asst2BusyStart !== undefined ? finalData.asst2BusyStart : (selectedOpt.asst2BusyStart ?? 0);
-                          finalData.asst2BusyEnd = finalData.asst2BusyEnd !== undefined ? finalData.asst2BusyEnd : (selectedOpt.asst2BusyEnd ?? 0);
-                          finalData.restMinutes = finalData.restMinutes !== undefined ? finalData.restMinutes : (selectedOpt.restMinutes ?? 0);
-                          finalData.allowSameAssistant = finalData.allowSameAssistant !== undefined ? finalData.allowSameAssistant : (selectedOpt.allowSameAssistant ?? false);
-
-                          if (finalData.startTime && !hasManuallySelectedEndTime) {
-                            finalData.endTime = addMinutesToTime(finalData.startTime, selectedOpt.durationMinutes);
-                          }
-                        } else {
-                          finalData.selectedDurationOptionId = 'default';
-                          finalData.mainBusyStart = finalData.mainBusyStart !== undefined ? finalData.mainBusyStart : (currentProc.mainBusyStart ?? 0);
-                          finalData.mainBusyEnd = finalData.mainBusyEnd !== undefined ? finalData.mainBusyEnd : (currentProc.mainBusyEnd ?? currentProc.busyMinutes ?? currentProc.durationMinutes);
-                          finalData.asst1BusyStart = finalData.asst1BusyStart !== undefined ? finalData.asst1BusyStart : (currentProc.asst1BusyStart ?? 0);
-                          finalData.asst1BusyEnd = finalData.asst1BusyEnd !== undefined ? finalData.asst1BusyEnd : (currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0);
-                          finalData.asst2BusyStart = finalData.asst2BusyStart !== undefined ? finalData.asst2BusyStart : (currentProc.asst2BusyStart ?? 0);
-                          finalData.asst2BusyEnd = finalData.asst2BusyEnd !== undefined ? finalData.asst2BusyEnd : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0);
-                          finalData.restMinutes = finalData.restMinutes !== undefined ? finalData.restMinutes : (currentProc.restMinutes ?? 0);
-                          finalData.allowSameAssistant = finalData.allowSameAssistant !== undefined ? finalData.allowSameAssistant : (currentProc.allowSameAssistant ?? false);
-
-                          if (finalData.startTime && !hasManuallySelectedEndTime) {
-                            finalData.endTime = addMinutesToTime(finalData.startTime, currentProc.durationMinutes);
-                          }
-                        }
-                        finalData.needsAssistant1 = needsAssistant1;
-                        finalData.needsAssistant2 = needsAssistant2;
+                    if (currentProc) {
+                      const optId = finalData.selectedDurationOptionId;
+                      let selectedOpt = currentProc.durationOptions?.find(o => o.id === optId);
+                      if (!selectedOpt && (!optId || optId === 'default')) {
+                        selectedOpt = currentProc.durationOptions?.find(o => o.isDefault);
                       }
-                      onSave(finalData, false);
-                    }} 
-                    disabled={!!disabledReason} 
-                    className={`px-12 h-14 rounded-2xl shadow-xl text-sm font-bold uppercase tracking-widest transition-all ${disabledReason ? 'opacity-50 grayscale bg-slate-200 text-slate-500 shadow-none cursor-not-allowed' : 'shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]'}`}
-                  >
-                    {formData.id ? 'Cập nhật chỉ định' : 'Xác nhận chỉ định'}
-                  </Button>
-                  {disabledReason && (
-                    <p className="text-[10px] font-bold text-rose-500 uppercase tracking-tight flex items-center gap-1 animate-pulse">
-                      <AlertTriangle size={12} /> {disabledReason}
-                    </p>
-                  )}
-                </div>
+
+                      if (selectedOpt) {
+                        finalData.selectedDurationOptionId = selectedOpt.id;
+                        finalData.mainBusyStart = finalData.mainBusyStart !== undefined ? finalData.mainBusyStart : (selectedOpt.mainBusyStart ?? 0);
+                        finalData.mainBusyEnd = finalData.mainBusyEnd !== undefined ? finalData.mainBusyEnd : (selectedOpt.mainBusyEnd ?? selectedOpt.durationMinutes);
+                        finalData.asst1BusyStart = finalData.asst1BusyStart !== undefined ? finalData.asst1BusyStart : (selectedOpt.asst1BusyStart ?? 0);
+                        finalData.asst1BusyEnd = finalData.asst1BusyEnd !== undefined ? finalData.asst1BusyEnd : (selectedOpt.asst1BusyEnd ?? 0);
+                        finalData.asst2BusyStart = finalData.asst2BusyStart !== undefined ? finalData.asst2BusyStart : (selectedOpt.asst2BusyStart ?? 0);
+                        finalData.asst2BusyEnd = finalData.asst2BusyEnd !== undefined ? finalData.asst2BusyEnd : (selectedOpt.asst2BusyEnd ?? 0);
+                        finalData.restMinutes = finalData.restMinutes !== undefined ? finalData.restMinutes : (selectedOpt.restMinutes ?? 0);
+                        finalData.allowSameAssistant = finalData.allowSameAssistant !== undefined ? finalData.allowSameAssistant : (selectedOpt.allowSameAssistant ?? false);
+
+                        if (finalData.startTime && !hasManuallySelectedEndTime) {
+                          finalData.endTime = addMinutesToTime(finalData.startTime, selectedOpt.durationMinutes);
+                        }
+                      } else {
+                        finalData.selectedDurationOptionId = 'default';
+                        finalData.mainBusyStart = finalData.mainBusyStart !== undefined ? finalData.mainBusyStart : (currentProc.mainBusyStart ?? 0);
+                        finalData.mainBusyEnd = finalData.mainBusyEnd !== undefined ? finalData.mainBusyEnd : (currentProc.mainBusyEnd ?? currentProc.busyMinutes ?? currentProc.durationMinutes);
+                        finalData.asst1BusyStart = finalData.asst1BusyStart !== undefined ? finalData.asst1BusyStart : (currentProc.asst1BusyStart ?? 0);
+                        finalData.asst1BusyEnd = finalData.asst1BusyEnd !== undefined ? finalData.asst1BusyEnd : (currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0);
+                        finalData.asst2BusyStart = finalData.asst2BusyStart !== undefined ? finalData.asst2BusyStart : (currentProc.asst2BusyStart ?? 0);
+                        finalData.asst2BusyEnd = finalData.asst2BusyEnd !== undefined ? finalData.asst2BusyEnd : (currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0);
+                        finalData.restMinutes = finalData.restMinutes !== undefined ? finalData.restMinutes : (currentProc.restMinutes ?? 0);
+                        finalData.allowSameAssistant = finalData.allowSameAssistant !== undefined ? finalData.allowSameAssistant : (currentProc.allowSameAssistant ?? false);
+
+                        if (finalData.startTime && !hasManuallySelectedEndTime) {
+                          finalData.endTime = addMinutesToTime(finalData.startTime, currentProc.durationMinutes);
+                        }
+                      }
+                      finalData.needsAssistant1 = needsAssistant1;
+                      finalData.needsAssistant2 = needsAssistant2;
+                    }
+                    onSave(finalData, false);
+                  }} 
+                  disabled={!!disabledReason} 
+                  title={disabledReason || undefined}
+                  className={`px-12 h-14 rounded-2xl shadow-xl text-sm font-bold uppercase tracking-widest transition-all ${disabledReason ? 'opacity-50 grayscale bg-slate-200 text-slate-500 shadow-none cursor-not-allowed' : 'shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]'}`}
+                >
+                  {formData.id ? 'Cập nhật chỉ định' : 'Xác nhận chỉ định'}
+                </Button>
               </div>
             </div>
           </form>

@@ -554,9 +554,12 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   const targetAppointmentsPool = allAppointments || appointments;
 
+  const dayAppts = useMemo(() => {
+    return targetAppointmentsPool.filter(a => a.date === date);
+  }, [targetAppointmentsPool, date]);
+
   const allDynamicConflicts = useMemo(() => {
     const conflicts = new Map<string, ConflictDetail[]>();
-    const dayAppts = targetAppointmentsPool.filter(a => a.date === date);
     dayAppts.forEach(a => {
       const res = checkConflict(
         a.startTime,
@@ -564,7 +567,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         a.date,
         a.staffId,
         a.patientId,
-        targetAppointmentsPool,
+        dayAppts,
         staff,
         procedures,
         attendanceRecords,
@@ -580,11 +583,11 @@ export const Timeline: React.FC<TimelineProps> = ({
       }
     });
     return conflicts;
-  }, [targetAppointmentsPool, date, staff, procedures, attendanceRecords, patients]);
+  }, [dayAppts, staff, procedures, attendanceRecords, patients]);
 
   const filteredAppointments = useMemo(() => {
     // Only process appointments for the current active date
-    let result = appointments.filter(a => a.date === date);
+    let result = appointments === targetAppointmentsPool ? dayAppts : appointments.filter(a => a.date === date);
     
     // Quick pre-indexing for O(1) lookup
     const patMap = new Map<string, Patient>();

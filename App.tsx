@@ -421,18 +421,21 @@ const App: React.FC = () => {
           fetchSupabaseTable<Backup>('backups')
         ]);
 
-        // Fallback to Firestore if any collection returned empty or errored
-        await ensureAuthReady();
-        if (!pats || pats.length === 0) pats = await fetchCollectionFromFirestore<Patient>('patients');
-        if (!appts || appts.length === 0) appts = await fetchCollectionFromFirestore<Appointment>('appointments');
-        if (!stf || stf.length === 0) stf = await fetchCollectionFromFirestore<Staff>('staff');
-        if (!procs || procs.length === 0) procs = await fetchCollectionFromFirestore<Procedure>('procedures');
-        if (!att || att.length === 0) att = await fetchCollectionFromFirestore<AttendanceRecord>('attendance');
-        if (!shifts || shifts.length === 0) shifts = await fetchCollectionFromFirestore<MachineShift>('machineShifts');
-        if (!tpls || tpls.length === 0) tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
-        if (!usrs || usrs.length === 0) usrs = await fetchCollectionFromFirestore<UserAccount>('users');
-        if (!snapshots || snapshots.length === 0) snapshots = await fetchScheduleSnapshotsFromFirestore();
-        if (!bkps || bkps.length === 0) bkps = await fetchCollectionFromFirestore<Backup>('backups');
+        // Fallback to Firestore only if Supabase returned completely empty or errored
+        const supabaseActive = (pats && pats.length > 0) || (appts && appts.length > 0) || (stf && stf.length > 0);
+        if (!supabaseActive) {
+          await ensureAuthReady();
+          if (!pats || pats.length === 0) pats = await fetchCollectionFromFirestore<Patient>('patients');
+          if (!appts || appts.length === 0) appts = await fetchCollectionFromFirestore<Appointment>('appointments');
+          if (!stf || stf.length === 0) stf = await fetchCollectionFromFirestore<Staff>('staff');
+          if (!procs || procs.length === 0) procs = await fetchCollectionFromFirestore<Procedure>('procedures');
+          if (!att || att.length === 0) att = await fetchCollectionFromFirestore<AttendanceRecord>('attendance');
+          if (!shifts || shifts.length === 0) shifts = await fetchCollectionFromFirestore<MachineShift>('machineShifts');
+          if (!tpls || tpls.length === 0) tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
+          if (!usrs || usrs.length === 0) usrs = await fetchCollectionFromFirestore<UserAccount>('users');
+          if (!snapshots || snapshots.length === 0) snapshots = await fetchScheduleSnapshotsFromFirestore();
+          if (!bkps || bkps.length === 0) bkps = await fetchCollectionFromFirestore<Backup>('backups');
+        }
 
         if (pats && pats.length > 0) setPatients(pats);
         if (appts && appts.length > 0) {
