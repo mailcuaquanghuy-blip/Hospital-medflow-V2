@@ -461,6 +461,43 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return currentProc?.allowSameAssistant || false;
   }, [formData.allowSameAssistant, currentProc, formData.selectedDurationOptionId]);
 
+  const mainStaffStatusMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    if (!formData.startTime || !formData.date || !formData.procedureId) return map;
+    const basePayload = { ...formData, allowSameAssistant: allowSameAsst };
+    for (const s of eligibleStaff) {
+      const res = checkConflict(
+        formData.startTime!, 
+        formData.endTime!, 
+        formData.date!, 
+        s.id, 
+        formData.patientId, 
+        appointments, 
+        staff, 
+        procedures, 
+        attendanceRecords, 
+        patients, 
+        formData.procedureId, 
+        formData.id, 
+        formData.assistant1Id, 
+        formData.assistant2Id, 
+        { ...basePayload, staffId: s.id }
+      );
+      map.set(s.id, !res.hasConflict);
+    }
+    return map;
+  }, [eligibleStaff, formData.startTime, formData.endTime, formData.date, formData.procedureId, formData.patientId, formData.id, formData.assistant1Id, formData.assistant2Id, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients]);
+
+  const sortedEligibleStaff = useMemo(() => {
+    if (!formData.startTime || !formData.date) return eligibleStaff;
+    
+    return [...eligibleStaff].sort((a, b) => {
+      const aOk = mainStaffStatusMap.get(a.id) ? 1 : 0;
+      const bOk = mainStaffStatusMap.get(b.id) ? 1 : 0;
+      return bOk - aOk;
+    });
+  }, [eligibleStaff, formData.startTime, formData.date, mainStaffStatusMap]);
+
   const assistant1StatusMap = useMemo(() => {
     const map = new Map<string, boolean>();
     if (!formData.startTime || !formData.date || !formData.procedureId) return map;
@@ -1687,8 +1724,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             disabled={!formData.procedureId || !!lockedStaff?.staffId || isMachineShiftRequired}
                           >
                             <option value="">-- Chọn nhân sự --</option>
-                            {eligibleStaff.map(s => {
-                              let label = `${s.name} (${getRoleLabel(s.role)})`;
+                            {sortedEligibleStaff.map(s => {
+                              const hasNoConflict = mainStaffStatusMap.get(s.id);
+                              let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                               return <option key={s.id} value={s.id}>{label}</option>;
                             })}
                           </select>
@@ -1928,11 +1966,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                     key={idx} 
                                     type="button" 
                                     onClick={() => {
-                                      setFormData(prev => ({ 
-                                        ...prev, 
-                                        startTime: block.start, 
-                                        endTime: end 
-                                      }));
+                                      setFormData(prev => {
+                                        const nextData = { 
+                                          ...prev, 
+                                          startTime: block.start, 
+                                          endTime: end 
+                                        };
+                                        if (!prev.staffId) {
+                                          const suggestedStaff = sortedEligibleStaff.find(s => mainStaffStatusMap.get(s.id));
+                                          if (suggestedStaff) {
+                                            nextData.staffId = suggestedStaff.id;
+                                          }
+                                        }
+                                        return nextData;
+                                      });
                                       setHasManuallySelectedTime(true);
                                     }} 
                                     className={`px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 ${
