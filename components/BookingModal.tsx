@@ -45,22 +45,24 @@ const getDiscreteStartTimes = (
     const maxStartMin = endMin - duration;
     if (maxStartMin < startMin) continue;
 
-    // Always add the exact start of the block (e.g. 10:47)
-    const exactStartStr = minutesToTimeString(startMin);
-    if (!seen.has(exactStartStr)) {
-      list.push(exactStartStr);
-      seen.add(exactStartStr);
+    // Suggest clean round times (:00 and :30) that fit inside the available block
+    let hasRoundSlot = false;
+    for (let slotMin = Math.ceil(startMin / 30) * 30; slotMin <= maxStartMin; slotMin += 30) {
+      const slotStr = minutesToTimeString(slotMin);
+      if (!seen.has(slotStr)) {
+        list.push(slotStr);
+        seen.add(slotStr);
+        hasRoundSlot = true;
+      }
     }
 
-    // If block is long, also add intermediate intervals of duration length
-    let stepMin = startMin + duration;
-    while (stepMin <= maxStartMin && list.length < 24) {
-      const stepStr = minutesToTimeString(stepMin);
-      if (!seen.has(stepStr)) {
-        list.push(stepStr);
-        seen.add(stepStr);
+    // Fallback: If no round slot fits in this free block, use the block start so the window is not lost
+    if (!hasRoundSlot && startMin <= maxStartMin) {
+      const exactStartStr = minutesToTimeString(startMin);
+      if (!seen.has(exactStartStr)) {
+        list.push(exactStartStr);
+        seen.add(exactStartStr);
       }
-      stepMin += duration;
     }
 
     // If currentTime fits within this block, ensure it is added!
@@ -536,24 +538,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     });
   }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.date, allowSameAsst, assistant2StatusMap]);
 
+  const hasAnyStaff = Boolean(formData.staffId || formData.assistant1Id || formData.assistant2Id);
+
   const availableTimeData = useMemo(() => {
-    if (!formData.date || !currentProc || !formData.staffId) return { blocks: [], reason: null };
+    if (!formData.date || !currentProc || !hasAnyStaff) return { blocks: [], reason: null };
     return getAvailableTimeBlocks(
       formData.date,
       currentProc,
-      formData.staffId,
+      formData.staffId || '',
       formData.patientId,
       appointments,
       staff,
       procedures,
       attendanceRecords,
       patients,
-      formData.assistant1Id,
-      formData.assistant2Id,
+      formData.assistant1Id || undefined,
+      formData.assistant2Id || undefined,
       formData.id,
       formData
     );
-  }, [formData.date, currentProc, formData.staffId, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData.assignedMachineId]);
+  }, [formData.date, currentProc, hasAnyStaff, formData.staffId, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData.assignedMachineId]);
 
   const needsAssistant1 = useMemo(() => {
     if (formData.needsAssistant1 !== undefined) return formData.needsAssistant1;
@@ -595,29 +599,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const unavailableReason = availableTimeData.reason;
 
   const isCurrentTimeValid = useMemo(() => {
-    if (!formData.startTime || !formData.date || !formData.staffId || !formData.procedureId) return false;
+    if (!formData.startTime || !formData.date || !hasAnyStaff || !formData.procedureId) return false;
     return !conflictData.hasConflict && !conflictData.conflictDetails.some(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
-  }, [formData.startTime, formData.date, formData.staffId, formData.procedureId, conflictData.hasConflict, conflictData.conflictDetails]);
-
-  const discreteStartTimes = useMemo(() => {
-    let duration = currentProc?.durationMinutes || 25;
-    if (formData.selectedDurationOptionId && currentProc?.durationOptions) {
-      const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
-      if (opt) duration = opt.durationMinutes;
-    }
-    return getDiscreteStartTimes(availableTimeBlocks, duration, formData.startTime, isCurrentTimeValid);
-  }, [availableTimeBlocks, currentProc, formData.selectedDurationOptionId, formData.startTime, isCurrentTimeValid]);
-
-  const displayStartTimes = useMemo(() => {
-    if (discreteStartTimes.length <= 16) return discreteStartTimes;
-    if (formData.startTime && discreteStartTimes.includes(formData.startTime)) {
-      const idx = discreteStartTimes.indexOf(formData.startTime);
-      if (idx >= 16) {
-        return [...discreteStartTimes.slice(0, 15), formData.startTime].sort((a, b) => timeStringToMinutes(a) - timeStringToMinutes(b));
-      }
-    }
-    return discreteStartTimes.slice(0, 16);
-  }, [discreteStartTimes, formData.startTime]);
+  }, [formData.startTime, formData.date, hasAnyStaff, formData.procedureId, conflictData.hasConflict, conflictData.conflictDetails]);
 
   const selectedMachineActiveSlots = useMemo(() => {
     if (!formData.assignedMachineId || !formData.date || !currentProc || (currentProc.machineCapacity || 1) <= 1) return [];
@@ -692,10 +676,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     // AND if the user hasn't already manually adjusted something.
     if (initialData?.id || formData.id) return;
 
-    if (formData.procedureId && formData.staffId && formData.date && !initialData?.startTime && !hasManuallySelectedTime) {
+    if (formData.procedureId && hasAnyStaff && formData.date && !initialData?.startTime && !hasManuallySelectedTime) {
         const proc = procedures.find(p => p.id === formData.procedureId);
         if (proc) {
-            const slot = findAvailableSlot(formData.date, proc, formData.staffId, formData.patientId || '', appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData);
+            const slot = findAvailableSlot(formData.date, proc, formData.staffId || '', formData.patientId || '', appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData);
             if (slot && slot.startTime) {
                 setFormData(prev => ({ ...prev, startTime: slot.startTime, endTime: slot.endTime }));
             } else {
@@ -715,7 +699,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             }
         }
     }
-  }, [formData.procedureId, formData.staffId, formData.date, formData.assistant1Id, formData.assistant2Id, hasManuallySelectedTime, formData.id, initialData?.id, initialData?.startTime, appointments, staff, procedures, attendanceRecords, patients]);
+  }, [formData.procedureId, hasAnyStaff, formData.staffId, formData.date, formData.assistant1Id, formData.assistant2Id, hasManuallySelectedTime, formData.id, initialData?.id, initialData?.startTime, appointments, staff, procedures, attendanceRecords, patients]);
 
   useEffect(() => {
     // If appointment is for a new appointment and current startTime is before patient's admission time on that date, adjust it
@@ -1850,7 +1834,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </label>
                     <div className="p-5 bg-white border border-emerald-100 rounded-2xl shadow-sm min-h-[76px] flex flex-col justify-center">
                       <AnimatePresence mode="wait">
-                        {!formData.staffId ? (
+                        {!hasAnyStaff ? (
                           <motion.p
                             key="select-staff"
                             initial={{ opacity: 0, y: 5 }}
@@ -1861,7 +1845,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           >
                             <Info size={14} /> Chọn nhân sự để xem gợi ý...
                           </motion.p>
-                        ) : (isMachineShiftRequired ? availableShifts : displayStartTimes).length > 0 ? (
+                        ) : (isMachineShiftRequired ? availableShifts : availableTimeBlocks).length > 0 ? (
                           <motion.div
                             key="avail-times"
                             initial={{ opacity: 0, y: 5 }}
@@ -1926,14 +1910,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 );
                               })
                             ) : (
-                              displayStartTimes.map((time, idx) => {
+                              availableTimeBlocks.map((block, idx) => {
                                 let currentDuration = currentProc?.durationMinutes || 25;
                                 if (formData.selectedDurationOptionId && currentProc?.durationOptions) {
                                   const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
                                   if (opt) currentDuration = opt.durationMinutes;
                                 }
-                                const end = addMinutesToTime(time, currentDuration);
-                                const isSelected = formData.startTime === time;
+                                const end = addMinutesToTime(block.start, currentDuration);
+                                const isSelected = formData.startTime === block.start || (
+                                  Boolean(formData.startTime) &&
+                                  timeStringToMinutes(formData.startTime) >= timeStringToMinutes(block.start) &&
+                                  timeStringToMinutes(formData.endTime || formData.startTime) <= timeStringToMinutes(block.end)
+                                );
 
                                 return (
                                   <button 
@@ -1942,7 +1930,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                     onClick={() => {
                                       setFormData(prev => ({ 
                                         ...prev, 
-                                        startTime: time, 
+                                        startTime: block.start, 
                                         endTime: end 
                                       }));
                                       setHasManuallySelectedTime(true);
@@ -1953,7 +1941,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                         : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600'
                                     }`}
                                   >
-                                    {time}
+                                    {block.start} - {block.end}
                                   </button>
                                 );
                               })

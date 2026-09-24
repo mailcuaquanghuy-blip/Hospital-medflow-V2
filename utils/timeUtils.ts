@@ -966,7 +966,7 @@ export const findAvailableSlot = (
           if (!res.hasConflict) return { startTime: start, endTime: end };
           
           if (!firstConflictReason && res.conflictDetails.length > 0) {
-              const level1Conflict = res.conflictDetails.find(c => c.level === 1);
+              const level1Conflict = res.conflictDetails.find(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
               if (level1Conflict) firstConflictReason = level1Conflict.message;
           }
           if (res.conflictUntilMin && res.conflictUntilMin > currentMin) {
@@ -1072,7 +1072,7 @@ export const getAvailableTimeBlocks = (
                 }
             } else {
                 if (!firstConflictReason && res.conflictDetails.length > 0) {
-                    const level1Conflict = res.conflictDetails.find(c => c.level === 1);
+                    const level1Conflict = res.conflictDetails.find(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
                     if (level1Conflict) firstConflictReason = level1Conflict.message;
                 }
                 if (currentBlockStart && currentBlockEnd) {
