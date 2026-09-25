@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel, ProcedureCategory, PROCEDURE_CATEGORIES } from '../types';
 import { Button } from './Button';
 
-import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, formatDate, getAbbreviation, getLocalDateString, getLocalTimeMinutes } from '../utils/timeUtils';
+import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, getRoleShortLabel, formatDate, getAbbreviation, getLocalDateString, getLocalTimeMinutes } from '../utils/timeUtils';
 // Fix: Added LogOut to lucide-react imports
 import { AlertTriangle, Calendar, User, Activity, Search, UserPlus, Zap, Bed, Clock, Info, CheckCircle2, Monitor, Building2, Stethoscope, LogOut, ChevronDown, Plus, Trash2, X, Edit2, Shield, StickyNote, Check, Link2 } from 'lucide-react';
 import { DEPARTMENTS } from '../constants';
@@ -636,9 +636,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const unavailableReason = availableTimeData.reason;
 
   const isCurrentTimeValid = useMemo(() => {
-    if (!formData.startTime || !formData.date || !hasAnyStaff || !formData.procedureId) return false;
+    if (!formData.startTime || !formData.date || !formData.procedureId) return false;
     return !conflictData.hasConflict && !conflictData.conflictDetails.some(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
-  }, [formData.startTime, formData.date, hasAnyStaff, formData.procedureId, conflictData.hasConflict, conflictData.conflictDetails]);
+  }, [formData.startTime, formData.date, formData.procedureId, conflictData.hasConflict, conflictData.conflictDetails]);
 
   const selectedMachineActiveSlots = useMemo(() => {
     if (!formData.assignedMachineId || !formData.date || !currentProc || (currentProc.machineCapacity || 1) <= 1) return [];
@@ -1078,25 +1078,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="bg-white rounded-3xl shadow-2xl w-full max-w-7xl overflow-hidden flex flex-col max-h-[95vh]"
+          className="bg-white rounded-3xl shadow-2xl w-full max-w-[1380px] h-[92vh] min-h-[720px] max-h-[96vh] overflow-hidden flex flex-col"
         >
-          <div className="bg-white border-b border-slate-100 p-6 flex justify-between items-center shrink-0">
-            <div className="flex items-center gap-4">
-              <div className="bg-primary/10 p-3 rounded-2xl text-primary">
-                <Activity className="w-7 h-7" />
+          <div className="bg-white border-b border-slate-100 px-6 py-3 flex justify-between items-center shrink-0">
+            <div className="flex items-center gap-3.5">
+              <div className="bg-primary/10 p-2 rounded-xl text-primary">
+                <Activity className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">
                   {formData.id ? 'Cập nhật chỉ định' : 'Chỉ định lịch trình'}
                 </h2>
-                <p className="text-sm font-medium text-slate-500">Hệ thống quản lý lâm sàng Hospital medflow</p>
+                <p className="text-xs font-medium text-slate-500">Hệ thống quản lý lâm sàng Hospital medflow</p>
               </div>
             </div>
             <button 
               onClick={onClose} 
-              className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+              className="p-1.5 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
             >
-              <LogOut className="w-6 h-6 rotate-180" />
+              <LogOut className="w-5 h-5 rotate-180" />
             </button>
           </div>
 
@@ -1104,7 +1104,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <div className="grid grid-cols-3 divide-x divide-slate-100 flex-1 overflow-hidden">
               {/* CỘT 1: THÔNG TIN BỆNH NHÂN */}
               <div className="flex flex-col overflow-hidden bg-slate-50/50">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white/50 backdrop-blur-sm">
+                <div className="px-5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-white/50 backdrop-blur-sm">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <User size={16} className="text-primary" /> Thông tin bệnh nhân
                   </h3>
@@ -1112,13 +1112,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     <button 
                       type="button" 
                       onClick={() => setIsAddingNewPatient(true)} 
-                      className="text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1.5 transition-all bg-primary/5 px-3 py-1.5 rounded-lg"
+                      className="text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1.5 transition-all bg-primary/5 px-2.5 py-1 rounded-lg"
                     >
                       <UserPlus size={14} /> THÊM MỚI
                     </button>
                   )}
                 </div>
-                <div className="p-6 pb-32 space-y-6 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
+                <div className="px-5 py-3 space-y-2.5 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
                   {isAddingNewPatient ? (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
@@ -1254,13 +1254,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       </div>
                     </motion.div>
                   ) : (
-                    <div className="space-y-6">
-                      <div className="space-y-2">
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chọn bệnh nhân</label>
                         <div className="relative group">
                           <select 
                             required 
-                            className={`w-full p-4 pr-12 border rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-slate-800 appearance-none transition-all shadow-sm group-hover:border-slate-300 ${formData.patientId ? 'border-blue-500 shadow-sm shadow-blue-100' : 'border-slate-200'}`} 
+                            className={`w-full py-2 px-3.5 pr-10 border rounded-xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-slate-800 text-sm appearance-none transition-all shadow-sm group-hover:border-slate-300 ${formData.patientId ? 'border-blue-500 shadow-sm shadow-blue-100' : 'border-slate-200'}`} 
                             value={formData.patientId || ''} 
                             onChange={e => setFormData({ ...formData, patientId: e.target.value })}
                           >
@@ -1288,8 +1288,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 <option key={p.id} value={p.id}>{p.name} - {p.bedNumber}</option>
                               ))}
                           </select>
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors group-hover:text-primary">
-                            <Search size={20} />
+                          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors group-hover:text-primary">
+                            <Search size={18} />
                           </div>
                         </div>
                       </div>
@@ -1298,34 +1298,34 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         <motion.div 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="grid grid-cols-2 gap-4"
+                          className="grid grid-cols-2 gap-2"
                         >
-                          <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1.5">
+                          <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-0.5">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Loại giường</p>
                             <p className="text-sm font-semibold text-slate-700">
                               {selectedPatient.bedType || 'Nội trú'}
                             </p>
                           </div>
-                          <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1.5">
+                          <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-0.5">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Khoa điều trị</p>
                             <p className="text-sm font-semibold text-slate-700 truncate" title={patientDept?.name}>{patientDept?.name || 'N/A'}</p>
                           </div>
-                          <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1.5">
+                          <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-0.5">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Buồng bệnh</p>
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-semibold text-slate-700">{selectedPatient.roomNumber || 'N/A'}</p>
                             </div>
                           </div>
-                          <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1.5">
+                          <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-0.5">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Giường bệnh</p>
                             <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                               <Bed size={16} className="text-primary" /> {selectedPatient.bedNumber || 'N/A'}
                             </p>
                           </div>
-                          <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1.5 col-span-2">
+                          <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col gap-0.5 col-span-2">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mức hưởng BHYT & Ghi chú</p>
-                            <div className="flex items-center gap-3">
-                              <div className={`px-2 py-1 rounded-lg text-xs font-bold border ${
+                            <div className="flex items-center gap-2">
+                              <div className={`px-2 py-0.5 rounded-lg text-xs font-bold border ${
                                 selectedPatient.insuranceLevel === '0%' ? 'bg-rose-50 text-rose-700 border-rose-100' :
                                 selectedPatient.insuranceLevel === '80%' ? 'bg-orange-50 text-orange-700 border-orange-100' :
                                 selectedPatient.insuranceLevel === '95%' ? 'bg-lime-50 text-lime-700 border-lime-100' :
@@ -1334,7 +1334,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 BHYT: {selectedPatient.insuranceLevel || '100%'}
                               </div>
                               {selectedPatient.note && (
-                                <div className="text-xs font-medium text-slate-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100 italic flex-1 truncate" title={selectedPatient.note}>
+                                <div className="text-xs font-medium text-slate-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 italic flex-1 truncate" title={selectedPatient.note}>
                                   "{selectedPatient.note}"
                                 </div>
                               )}
@@ -1350,11 +1350,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         );
 
                         return (
-                          <div className="pt-6 border-t border-slate-100">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-4">
-                              <AlertTriangle size={16} className="text-amber-500" /> Kiểm tra an toàn
+                          <div className="pt-2 border-t border-slate-100">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                              <AlertTriangle size={15} className="text-amber-500" /> Kiểm tra an toàn
                             </label>
-                            <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin pr-2">
+                            <div className="space-y-1.5 max-h-[160px] overflow-y-auto scrollbar-thin pr-1">
                               {safetyCheckConflicts.length > 0 ? (
                                 safetyCheckConflicts.map((d, i) => (
                                   <motion.div 
@@ -1362,26 +1362,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: i * 0.05 }}
                                     key={i} 
-                                    className={`p-4 rounded-2xl text-xs font-medium flex items-start gap-3 shadow-sm border ${d.level === 1 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}
+                                    className={`p-2.5 rounded-xl text-xs font-medium flex items-start gap-2 shadow-sm border ${d.level === 1 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}
                                   >
-                                    <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                                    <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                                     <span className="leading-relaxed">{d.message}</span>
                                   </motion.div>
                                 ))
                               ) : (
-                                <div className="p-5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl text-xs font-medium flex items-center gap-3 shadow-sm">
-                                  <CheckCircle2 size={20} className="shrink-0" /> 
+                                <div className="p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl text-xs font-medium flex items-center gap-2 shadow-sm">
+                                  <CheckCircle2 size={18} className="shrink-0" /> 
                                   <span>Hệ thống không phát hiện xung đột lịch trình.</span>
                                 </div>
                               )}
                               {conflictData.isOutsideOfficeHours && (
-                                <div className="p-4 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl text-xs font-medium flex items-center gap-3 shadow-sm">
-                                  <Clock size={18} className="shrink-0" /> Thực hiện lịch trình ngoài giờ hành chính.
+                                <div className="p-2.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-xl text-xs font-medium flex items-center gap-2 shadow-sm">
+                                  <Clock size={16} className="shrink-0" /> Thực hiện lịch trình ngoài giờ hành chính.
                                 </div>
                               )}
                               {conflictData.isOvertime && (
-                                <div className="p-4 bg-rose-50 text-rose-600 border border-rose-100 rounded-2xl text-xs font-medium flex items-center gap-3 shadow-sm">
-                                  <Clock size={18} className="shrink-0" /> Ngoài giờ làm việc bệnh viện (7h-18h).
+                                <div className="p-2.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs font-medium flex items-center gap-2 shadow-sm">
+                                  <Clock size={16} className="shrink-0" /> Ngoài giờ làm việc bệnh viện (7h-18h).
                                 </div>
                               )}
                             </div>
@@ -1395,25 +1395,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
               {/* CỘT 2: CHỈ ĐỊNH LỊCH TRÌNH */}
               <div className="flex flex-col overflow-hidden bg-white">
-                <div className="p-6 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
+                <div className="px-5 py-2.5 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <Activity size={16} className="text-primary" /> Chỉ định lịch trình
                   </h3>
                 </div>
-                <div className="p-6 pb-80 space-y-8 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
+                <div className="px-5 py-3 space-y-2.5 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
                   {/* Nhóm 1: Thông tin cơ bản */}
-                  <div className="space-y-5">
-                    <div className="space-y-2">
+                  <div className="space-y-2">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Khoa thực hiện</label>
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-semibold text-slate-700 text-sm flex items-center gap-3 shadow-sm">
+                      <div className="py-2 px-3.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 text-sm flex items-center gap-2.5 shadow-sm">
                         <Building2 size={18} className="text-primary/60" /> {currentDept.name}
                       </div>
                     </div>
 
                     {/* Chọn Nhóm Danh Mục */}
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nhóm danh mục</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                         {PROCEDURE_CATEGORIES.map(cat => {
                           const isSelected = selectedCategory === cat;
                           const count = filteredProcedures.filter(p => p.deptId === currentDept.id && (p.category || 'Lâm sàng') === cat).length;
@@ -1443,7 +1443,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   }));
                                 }
                               }}
-                              className={`py-2.5 px-2 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-0.5 border-2 ${
+                              className={`py-1.5 px-2 rounded-xl font-bold text-xs transition-all flex flex-col items-center justify-center gap-0.5 border-2 ${
                                 isSelected
                                   ? cat === 'Lâm sàng' ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
                                   : cat === 'Cận lâm sàng' ? 'bg-purple-50 border-purple-600 text-purple-700 shadow-sm'
@@ -1465,7 +1465,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <div className="flex justify-between items-center ml-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tên lịch trình ({selectedCategory})</label>
                         <span className="text-[10px] font-bold text-slate-400">
@@ -1476,12 +1476,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setIsProcDropdownOpen(!isProcDropdownOpen)}
-                          className={`w-full p-4 border rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all hover:border-slate-300 flex items-center justify-between shadow-sm ${currentProc && currentProc.deptId === currentDept.id ? 'border-blue-500 shadow-sm shadow-blue-100' : 'border-slate-200'}`}
+                          className={`w-full py-2 px-3.5 border rounded-xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all hover:border-slate-300 flex items-center justify-between shadow-sm ${currentProc && currentProc.deptId === currentDept.id ? 'border-blue-500 shadow-sm shadow-blue-100' : 'border-slate-200'}`}
                         >
                           <div className="flex items-center gap-2">
                             {currentProc ? (
                               <>
-                                <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-black bg-primary/10 text-primary">{getAbbreviation(currentProc.name)}</div>
+                                <div className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-black bg-primary/10 text-primary">{getAbbreviation(currentProc.name)}</div>
                                 <span>{currentProc.name}</span>
                               </>
                             ) : (
@@ -1578,16 +1578,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.2 }}
-                      className="space-y-3.5 mt-5 p-5 bg-slate-50/70 rounded-3xl border border-slate-200/80 overflow-hidden"
+                      className="space-y-1.5 mt-1.5 p-2.5 bg-slate-50/70 rounded-xl border border-slate-200/80 overflow-hidden"
                     >
-                      <div className="flex justify-between items-center pb-1">
-                        <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                          <Clock size={15} className="text-indigo-500" />
+                      <div className="flex justify-between items-center pb-0.5">
+                        <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <Clock size={14} className="text-indigo-500" />
                           Thời lượng
                         </label>
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                         {/* Option Mặc định */}
                         {(() => {
                           const defaultOpt = currentProc.durationOptions?.find(o => o.isDefault && !o.isDeleted) || currentProc.durationOptions?.find(o => !o.isDeleted);
@@ -1621,26 +1621,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 });
                                 setHasManuallySelectedEndTime(false);
                               }}
-                              className={`p-4 text-left border-2 rounded-2xl flex flex-col justify-between transition-all duration-200 active:scale-[0.98] cursor-pointer min-h-[92px] shadow-sm ${
+                              className={`p-2 text-left border-2 rounded-xl flex flex-col justify-between transition-all duration-200 active:scale-[0.98] cursor-pointer min-h-[58px] shadow-sm ${
                                 isDefaultSelected 
                                   ? 'bg-indigo-50/90 border-indigo-600 text-indigo-950 shadow-md shadow-indigo-100/50' 
                                   : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:border-indigo-300'
                               }`}
                             >
-                              <div className="flex items-start justify-between gap-3 w-full">
+                              <div className="flex items-start justify-between gap-2 w-full">
                                 <span className="font-black text-[15px] leading-tight whitespace-normal break-words text-slate-900">
                                   Mặc định
                                 </span>
-                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                                   isDefaultSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-350'
-                                }}`}>
-                                  {isDefaultSelected && <Check size={11} strokeWidth={4} />}
+                                }`}>
+                                  {isDefaultSelected && <Check size={10} strokeWidth={4} />}
                                 </div>
                               </div>
-                              <span className={`text-sm font-black font-mono px-3 py-1 rounded-lg inline-flex items-center gap-1.5 mt-2.5 w-fit ${
+                              <span className={`text-sm font-black font-mono px-2 py-0.5 rounded-lg inline-flex items-center gap-1 mt-1 w-fit ${
                                 isDefaultSelected ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-100 text-slate-700'
                               }`}>
-                                <Clock size={13} /> {currentProc.durationMinutes} phút
+                                <Clock size={12} /> {currentProc.durationMinutes} phút
                               </span>
                             </button>
                           );
@@ -1675,26 +1675,26 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   });
                                   setHasManuallySelectedEndTime(false);
                                 }}
-                                className={`p-4 text-left border-2 rounded-2xl flex flex-col justify-between transition-all duration-200 active:scale-[0.98] cursor-pointer min-h-[92px] shadow-sm ${
+                                className={`p-2 text-left border-2 rounded-xl flex flex-col justify-between transition-all duration-200 active:scale-[0.98] cursor-pointer min-h-[58px] shadow-sm ${
                                   isSelected 
                                     ? 'bg-indigo-50/90 border-indigo-600 text-indigo-950 shadow-md shadow-indigo-100/50' 
                                     : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:border-indigo-300'
                                 }`}
                               >
-                                <div className="flex items-start justify-between gap-3 w-full">
+                                <div className="flex items-start justify-between gap-2 w-full">
                                   <span className="font-black text-[15px] uppercase leading-tight whitespace-normal break-words text-slate-900">
                                     {opt.name}
                                   </span>
-                                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
                                     isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-350'
                                   }`}>
-                                    {isSelected && <Check size={11} strokeWidth={4} />}
+                                    {isSelected && <Check size={10} strokeWidth={4} />}
                                   </div>
                                 </div>
-                                <span className={`text-sm font-black font-mono px-3 py-1 rounded-lg inline-flex items-center gap-1.5 mt-2.5 w-fit ${
+                                <span className={`text-sm font-black font-mono px-2 py-0.5 rounded-lg inline-flex items-center gap-1 mt-1 w-fit ${
                                   isSelected ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-100 text-slate-700'
-                                }}`}>
-                                  <Clock size={13} /> {opt.durationMinutes} phút
+                                }`}>
+                                  <Clock size={12} /> {opt.durationMinutes} phút
                                 </span>
                               </button>
                             );
@@ -1704,21 +1704,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   )}
 
                   {/* Nhóm 2: Đội ngũ thực hiện */}
-                  <div className="pt-8 border-t border-slate-100 space-y-6">
+                  <div className="pt-2.5 border-t border-slate-100 space-y-2">
                     <div className="flex items-center justify-between">
                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Đội ngũ thực hiện</h4>
                       <div className="h-px flex-1 bg-slate-100 ml-4"></div>
                     </div>
                     
-                    <div className="space-y-5">
-                      <div className="space-y-2">
+                    <div className="space-y-2">
+                      <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
                           <Stethoscope size={14} className="text-primary" /> Người thực hiện chính
                         </label>
                         <div className="relative group">
                           <select 
                             required 
-                            className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-50 transition-all hover:border-slate-300 appearance-none shadow-sm" 
+                            className="w-full py-1.5 px-3.5 pr-10 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-50 transition-all hover:border-slate-300 appearance-none shadow-sm" 
                             value={formData.staffId || ''} 
                             onChange={e => setFormData({ ...formData, staffId: e.target.value })} 
                             disabled={!formData.procedureId || !!lockedStaff?.staffId || isMachineShiftRequired}
@@ -1726,15 +1726,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             <option value="">-- Chọn nhân sự --</option>
                             {sortedEligibleStaff.map(s => {
                               const hasNoConflict = mainStaffStatusMap.get(s.id);
-                              let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
+                              let label = `${s.name} (${getRoleShortLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                               return <option key={s.id} value={s.id}>{label}</option>;
                             })}
                           </select>
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors">
+                          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors">
                             <Stethoscope size={18} />
                           </div>
                           {(lockedStaff?.staffId || isMachineShiftRequired) && (
-                            <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
+                            <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
                           )}
                         </div>
                         {renderFieldWarnings(['người thực hiện', 'staff', 'nhân sự chính', 'ns chính'])}
@@ -1746,16 +1746,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="grid grid-cols-2 gap-5 overflow-hidden mt-4"
+                          className="grid grid-cols-2 gap-3 overflow-hidden mt-1.5"
                         >
                           {needsAssistant1 && (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
                                 <User size={14} className="text-primary" /> Người phụ 1
                               </label>
                               <div className="relative group">
                                 <select 
-                                  className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-50 transition-all hover:border-slate-300 appearance-none shadow-sm" 
+                                  className="w-full py-1.5 px-3.5 pr-10 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-50 transition-all hover:border-slate-300 appearance-none shadow-sm" 
                                   value={formData.assistant1Id || ''} 
                                   onChange={e => {
                                     const val = e.target.value;
@@ -1770,21 +1770,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   <option value="">-- Chọn người phụ 1 --</option>
                                   {sortedAssistants1.map(s => {
                                     const hasNoConflict = assistant1StatusMap.get(s.id);
-                                    let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
+                                    let label = `${s.name} (${getRoleShortLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}
                                 </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors">
+                                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors">
                                   <User size={18} />
                                 </div>
                                 {(lockedStaff?.assistant1Id || isMachineShiftRequired) && (
-                                  <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
+                                  <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
                                 )}
                               </div>
                               {needsAssistant2 && (
                                 <div className="pt-0.5">
                                   <label 
-                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-2.5 py-1 rounded-lg border border-amber-200/80 cursor-pointer select-none transition-colors"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-2 py-0.5 rounded-lg border border-amber-200/80 cursor-pointer select-none transition-colors"
                                     title="Cho phép người phụ 1 kiêm nhiệm luôn người phụ 2"
                                   >
                                     <input 
@@ -1809,14 +1809,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             </div>
                           )}
                           {needsAssistant2 && (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
                                 <span className="flex items-center gap-1.5"><User size={14} className="text-primary" /> Người phụ 2</span>
-                                {allowSameAsst && <span className="text-amber-600 font-bold lowercase tracking-normal text-[11px]">(Đồng bộ theo Phụ 1)</span>}
+                                {allowSameAsst && <span className="text-amber-600 font-bold lowercase tracking-normal text-[11px]">(Đồng bộ Phụ 1)</span>}
                               </label>
                               <div className="relative group">
                                 <select 
-                                  className={`w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed transition-all hover:border-slate-300 appearance-none shadow-sm ${allowSameAsst ? 'bg-amber-50/50 border-amber-200' : ''}`}
+                                  className={`w-full py-1.5 px-3.5 pr-10 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed transition-all hover:border-slate-300 appearance-none shadow-sm ${allowSameAsst ? 'bg-amber-50/50 border-amber-200' : ''}`}
                                   value={allowSameAsst ? (formData.assistant1Id || '') : (formData.assistant2Id || '')} 
                                   onChange={e => setFormData({ ...formData, assistant2Id: e.target.value })} 
                                   disabled={!formData.procedureId || !!lockedStaff?.assistant2Id || isMachineShiftRequired || allowSameAsst}
@@ -1824,17 +1824,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   <option value="">{allowSameAsst ? '-- Tự động đồng bộ Người phụ 1 --' : '-- Chọn người phụ 2 --'}</option>
                                   {sortedAssistants2.map(s => {
                                     const hasNoConflict = assistant2StatusMap.get(s.id);
-                                    let label = `${s.name} (${getRoleLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
+                                    let label = `${s.name} (${getRoleShortLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}
                                 </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors">
+                                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors">
                                   <User size={18} />
                                 </div>
                                 {allowSameAsst ? (
-                                  <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md text-[9px] font-black tracking-tight border border-amber-300">Đồng bộ Phụ 1 (Khóa)</div>
+                                  <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md text-[9px] font-black tracking-tight border border-amber-300">Đồng bộ Phụ 1 (Khóa)</div>
                                 ) : (lockedStaff?.assistant2Id || isMachineShiftRequired) ? (
-                                  <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
+                                  <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
                                 ) : null}
                               </div>
                               {renderFieldWarnings(['người phụ 2', 'phụ 2', 'assistant 2', 'phụ 1 & 2'])}
@@ -1850,27 +1850,27 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
               {/* CỘT 3: THỜI GIAN THỰC HIỆN */}
               <div className="flex flex-col overflow-hidden bg-slate-50/50">
-                <div className="p-6 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
+                <div className="px-5 py-2.5 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <Clock size={16} className="text-primary" /> Thời gian thực hiện
                   </h3>
                 </div>
-                <div className="p-6 pb-32 space-y-8 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
-                  <div className="space-y-2">
+                <div className="px-5 py-2.5 space-y-2 overflow-y-auto flex-1 scrollbar-thin scroll-smooth">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Ngày thực hiện</label>
                     <DateInput 
-                      className="w-full p-4 border border-slate-200 rounded-2xl bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm transition-all hover:border-slate-300" 
+                      className="w-full py-1.5 px-3.5 border border-slate-200 rounded-xl bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm transition-all hover:border-slate-300" 
                       value={formData.date} 
                       onChange={val => setFormData({ ...formData, date: val })} 
                     />
                   </div>
 
                   {/* Khung giờ trống */}
-                  <div className="space-y-4">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-                      <Zap size={16} className="text-emerald-500" /> {isMachineShiftRequired ? 'Ca máy trống gợi ý' : 'Khung giờ trống gợi ý'}
+                      <Zap size={15} className="text-emerald-500" /> {isMachineShiftRequired ? 'Ca máy trống gợi ý' : 'Khung giờ trống gợi ý'}
                     </label>
-                    <div className="p-5 bg-white border border-emerald-100 rounded-2xl shadow-sm min-h-[76px] flex flex-col justify-center">
+                    <div className="p-2 bg-white border border-emerald-100 rounded-xl shadow-sm min-h-[40px] max-h-[110px] overflow-y-auto scrollbar-thin flex flex-col justify-center">
                       <AnimatePresence mode="wait">
                         {!hasAnyStaff ? (
                           <motion.p
@@ -1890,7 +1890,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -5 }}
                             transition={{ duration: 0.15 }}
-                            className="flex flex-wrap gap-2.5"
+                            className="flex flex-wrap gap-1.5"
                           >
                             {isMachineShiftRequired ? (
                               availableShifts.slice(0, 12).map((shift) => {
@@ -1932,7 +1932,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                       }));
                                       setHasManuallySelectedShift(true);
                                     }} 
-                                    className={`px-4 py-2 min-w-[75px] border rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 flex flex-col items-center gap-0.5 ${
+                                    className={`px-2.5 py-1 min-w-[65px] border rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex flex-col items-center gap-0.5 ${
                                       isSelected 
                                         ? 'bg-primary border-primary text-white ring-2 ring-primary/20' 
                                         : isValid 
@@ -1949,17 +1949,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               })
                             ) : (
                               availableTimeBlocks.map((block, idx) => {
-                                let currentDuration = currentProc?.durationMinutes || 25;
-                                if (formData.selectedDurationOptionId && currentProc?.durationOptions) {
-                                  const opt = currentProc.durationOptions.find(o => o.id === formData.selectedDurationOptionId);
-                                  if (opt) currentDuration = opt.durationMinutes;
-                                }
-                                const end = addMinutesToTime(block.start, currentDuration);
-                                const isSelected = formData.startTime === block.start || (
-                                  Boolean(formData.startTime) &&
-                                  timeStringToMinutes(formData.startTime) >= timeStringToMinutes(block.start) &&
-                                  timeStringToMinutes(formData.endTime || formData.startTime) <= timeStringToMinutes(block.end)
-                                );
+                                const isSelected = formData.startTime === block.start && formData.endTime === block.end;
 
                                 return (
                                   <button 
@@ -1970,7 +1960,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                         const nextData = { 
                                           ...prev, 
                                           startTime: block.start, 
-                                          endTime: end 
+                                          endTime: block.end 
                                         };
                                         if (!prev.staffId) {
                                           const suggestedStaff = sortedEligibleStaff.find(s => mainStaffStatusMap.get(s.id));
@@ -1978,11 +1968,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                             nextData.staffId = suggestedStaff.id;
                                           }
                                         }
+                                        if (needsAssistant1 && !prev.assistant1Id) {
+                                          const chosenMain = nextData.staffId || prev.staffId;
+                                          const suggestedAsst1 = sortedAssistants1.find(s => assistant1StatusMap.get(s.id) && s.id !== chosenMain);
+                                          if (suggestedAsst1) {
+                                            nextData.assistant1Id = suggestedAsst1.id;
+                                          }
+                                        }
+                                        if (needsAssistant2 && !prev.assistant2Id) {
+                                          const chosenMain = nextData.staffId || prev.staffId;
+                                          const chosenAsst1 = nextData.assistant1Id || prev.assistant1Id;
+                                          const suggestedAsst2 = sortedAssistants2.find(s => 
+                                            assistant2StatusMap.get(s.id) && 
+                                            s.id !== chosenMain && 
+                                            (allowSameAsst || s.id !== chosenAsst1)
+                                          );
+                                          if (suggestedAsst2) {
+                                            nextData.assistant2Id = suggestedAsst2.id;
+                                          }
+                                        }
                                         return nextData;
                                       });
                                       setHasManuallySelectedTime(true);
                                     }} 
-                                    className={`px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 ${
+                                    className={`px-2 py-1 border rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 ${
                                       isSelected 
                                         ? 'bg-primary border-primary text-white ring-2 ring-primary/20' 
                                         : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600'
@@ -2012,13 +2021,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                   {/* Máy thực hiện */}
                   {currentProc?.requireMachine && (
-                    <div className="space-y-4">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
                         <Monitor size={14} className="text-primary" /> Máy thực hiện
                       </label>
                       <div className="relative group">
                         <select 
-                          className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all hover:border-slate-300 appearance-none shadow-sm disabled:bg-slate-50 relative z-10" 
+                          className="w-full py-1.5 px-3.5 pr-10 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all hover:border-slate-300 appearance-none shadow-sm disabled:bg-slate-50 relative z-10" 
                           value={formData.assignedMachineId || ''} 
                           onChange={e => setFormData({ ...formData, assignedMachineId: e.target.value })}
                           disabled={isMachineShiftRequired}
@@ -2037,18 +2046,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             <option value="" disabled>Vui lòng chọn lịch trình trước</option>
                           )}
                         </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors z-20">
+                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors z-20">
                           <Monitor size={18} />
                         </div>
                         {isMachineShiftRequired && (
-                          <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200 z-20">Theo ca máy</div>
+                          <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200 z-20">Theo ca máy</div>
                         )}
                       </div>
                       {formData.procedureId && currentProc?.requireMachine && availableMachines.length > 0 && availableMachines.every(m => m.isFull) && (
                         <motion.div
                           initial={{ opacity: 0, y: -5 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-rose-600 uppercase tracking-tight bg-rose-50 p-2.5 rounded-xl border border-rose-100 overflow-hidden"
+                          className="mt-1 flex items-center gap-1.5 text-[10px] font-bold text-rose-600 uppercase tracking-tight bg-rose-50 p-2 rounded-lg border border-rose-100 overflow-hidden"
                         >
                            <AlertTriangle size={14} className="text-rose-500" /> Tất cả máy thực hiện đều đã đầy hoặc không phù hợp khung giờ đã chọn.
                         </motion.div>
@@ -2058,12 +2067,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
                   {/* Ca máy */}
                   {isMachineShiftRequired && (
-                    <div className="space-y-4">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-indigo-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-                        <Monitor size={16} className="text-indigo-500" /> Ca làm việc của máy
+                        <Monitor size={15} className="text-indigo-500" /> Ca làm việc của máy
                       </label>
-                      <div className="p-5 bg-white border border-indigo-100 rounded-2xl shadow-sm flex items-center justify-between">
-                        <div className="flex flex-col gap-1">
+                      <div className="p-2.5 bg-white border border-indigo-100 rounded-xl shadow-sm flex items-center justify-between">
+                        <div className="flex flex-col gap-0.5">
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Trạng thái ca</p>
                           <div className="flex items-center gap-2">
                             {formData.machineShiftId ? (
@@ -2084,21 +2093,21 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         <button 
                           type="button"
                           onClick={() => setIsShiftModalOpen(true)}
-                          className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center gap-2"
+                          className="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 flex items-center gap-1.5"
                         >
-                          <Monitor size={14} /> Quản lý ca máy
+                          <Monitor size={13} /> Quản lý ca máy
                         </button>
                       </div>
                     </div>
                   )}
 
                   {!isMachineShiftRequired && formData.assignedMachineId && selectedMachineActiveSlots.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-indigo-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-                        <Monitor size={16} className="text-indigo-500" /> Ca làm việc của máy
+                        <Monitor size={15} className="text-indigo-500" /> Ca làm việc của máy
                       </label>
-                      <div className="p-5 bg-white border border-indigo-100 rounded-2xl shadow-sm">
-                        <div className="flex flex-wrap gap-2.5">
+                      <div className="p-2.5 bg-white border border-indigo-100 rounded-xl shadow-sm">
+                        <div className="flex flex-wrap gap-1.5">
                           {selectedMachineActiveSlots.map((slot, idx) => {
                             const isFull = slot.count >= (currentProc?.machineCapacity || 1);
                             const isSelected = formData.startTime + ' - ' + formData.endTime === slot.time;
@@ -2113,7 +2122,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   setFormData(prev => ({ ...prev, startTime: start, endTime: end, ...(existingAppt ? { staffId: existingAppt.staffId, assistant1Id: existingAppt.assistant1Id, assistant2Id: existingAppt.assistant2Id } : {}) }));
                                   setHasManuallySelectedTime(true);
                                 }} 
-                                className={`px-4 py-2 border rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : isFull ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600'}`}
+                                className={`px-2.5 py-1 border rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : isFull ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600'}`}
                               >
                                 {slot.time} <span className="opacity-60 ml-1">({slot.count}/{currentProc?.machineCapacity})</span>
                               </button>
@@ -2124,11 +2133,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-5">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Giờ bắt đầu</label>
                       <TimeInput 
-                        className={`w-full p-4 border border-slate-200 rounded-2xl bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm transition-all hover:border-slate-300 ${isMachineShiftRequired ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`} 
+                        className={`w-full py-1.5 px-3.5 border border-slate-200 rounded-xl bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm transition-all hover:border-slate-300 ${isMachineShiftRequired ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`} 
                         value={formData.startTime} 
                         onChange={val => {
                           if (!isMachineShiftRequired) {
@@ -2139,10 +2148,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         }} 
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Giờ kết thúc</label>
                       <TimeInput 
-                        className={`w-full p-4 border border-slate-200 rounded-2xl bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm transition-all hover:border-slate-300 ${isMachineShiftRequired ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`} 
+                        className={`w-full py-1.5 px-3.5 border border-slate-200 rounded-xl bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm shadow-sm transition-all hover:border-slate-300 ${isMachineShiftRequired ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`} 
                         value={formData.endTime} 
                         onChange={val => {
                           if (!isMachineShiftRequired) {
@@ -2155,84 +2164,84 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Thời gian nghỉ sau TT (phút)</label>
                     <input 
                       type="number" 
-                      className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm shadow-sm transition-all hover:border-slate-300" 
+                      className="w-full py-1.5 px-3.5 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm shadow-sm transition-all hover:border-slate-300" 
                       value={formData.restMinutes ?? currentProc?.restMinutes ?? 0} 
                       onChange={e => setFormData({...formData, restMinutes: Number(e.target.value)})} 
                     />
                   </div>
 
                   {currentProc && (
-                    <div className="space-y-6 pt-8 border-t border-slate-100">
+                    <div className="space-y-1.5 pt-1.5 border-t border-slate-100">
                       <div className="flex items-center justify-between">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Thời gian bận nhân sự (phút)</label>
                         <div className="h-px flex-1 bg-slate-100 ml-4"></div>
                       </div>
                       
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-[84px] shrink-0 space-y-1">
-                            <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">CHÍNH:</span>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-[80px] shrink-0 space-y-0.5">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">CHÍNH:</span>
                             {formData.startTime && (
-                              <p className="text-[10.5px] font-bold text-primary uppercase whitespace-nowrap bg-primary/10 px-1.5 py-0.5 rounded leading-none text-center">
+                              <p className="text-[10px] font-bold text-primary uppercase whitespace-nowrap bg-primary/10 px-1.5 py-0.5 rounded leading-none text-center">
                                 {addMinutesToTime(formData.startTime, formData.mainBusyStart ?? currentProc.mainBusyStart ?? 0)} - {addMinutesToTime(formData.startTime, formData.mainBusyEnd ?? currentProc.mainBusyEnd ?? currentProc.busyMinutes ?? currentProc.durationMinutes)}
                               </p>
                             )}
                           </div>
-                          <div className="flex-1 flex gap-4">
-                            <div className="flex-1 space-y-1.5">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
-                              <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.mainBusyStart ?? currentProc.mainBusyStart ?? 0} onChange={e => setFormData({...formData, mainBusyStart: Number(e.target.value)})} />
+                          <div className="flex-1 flex gap-2">
+                            <div className="flex-1 space-y-0.5">
+                              <p className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">Từ (phút)</p>
+                              <input type="number" className="w-full py-0.5 px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.mainBusyStart ?? currentProc.mainBusyStart ?? 0} onChange={e => setFormData({...formData, mainBusyStart: Number(e.target.value)})} />
                             </div>
-                            <div className="flex-1 space-y-1.5">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
-                              <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="30" value={formData.mainBusyEnd ?? currentProc.mainBusyEnd ?? currentProc.busyMinutes ?? currentProc.durationMinutes} onChange={e => setFormData({...formData, mainBusyEnd: Number(e.target.value)})} />
+                            <div className="flex-1 space-y-0.5">
+                              <p className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">Đến (phút)</p>
+                              <input type="number" className="w-full py-0.5 px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="30" value={formData.mainBusyEnd ?? currentProc.mainBusyEnd ?? currentProc.busyMinutes ?? currentProc.durationMinutes} onChange={e => setFormData({...formData, mainBusyEnd: Number(e.target.value)})} />
                             </div>
                           </div>
                         </div>
                         {needsAssistant1 && (
-                          <div className="flex items-center gap-4">
-                            <div className="w-[84px] shrink-0 space-y-1">
-                              <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">PHỤ 1:</span>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-[80px] shrink-0 space-y-0.5">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">PHỤ 1:</span>
                               {formData.startTime && (
-                                <p className="text-[10.5px] font-bold text-indigo-600 uppercase whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded leading-none text-center">
+                                <p className="text-[10px] font-bold text-indigo-600 uppercase whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded leading-none text-center">
                                   {addMinutesToTime(formData.startTime, formData.asst1BusyStart ?? currentProc.asst1BusyStart ?? 0)} - {addMinutesToTime(formData.startTime, formData.asst1BusyEnd ?? currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0)}
                                 </p>
                               )}
                             </div>
-                            <div className="flex-1 flex gap-4">
-                              <div className="flex-1 space-y-1.5">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
-                                <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst1BusyStart ?? currentProc.asst1BusyStart ?? 0} onChange={e => setFormData({...formData, asst1BusyStart: Number(e.target.value)})} />
+                            <div className="flex-1 flex gap-2">
+                              <div className="flex-1 space-y-0.5">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">Từ (phút)</p>
+                                <input type="number" className="w-full py-0.5 px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst1BusyStart ?? currentProc.asst1BusyStart ?? 0} onChange={e => setFormData({...formData, asst1BusyStart: Number(e.target.value)})} />
                               </div>
-                              <div className="flex-1 space-y-1.5">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
-                                <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst1BusyEnd ?? currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0} onChange={e => setFormData({...formData, asst1BusyEnd: Number(e.target.value)})} />
+                              <div className="flex-1 space-y-0.5">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">Đến (phút)</p>
+                                <input type="number" className="w-full py-0.5 px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst1BusyEnd ?? currentProc.asst1BusyEnd ?? currentProc.assistant1BusyMinutes ?? 0} onChange={e => setFormData({...formData, asst1BusyEnd: Number(e.target.value)})} />
                               </div>
                             </div>
                           </div>
                         )}
                         {needsAssistant2 && (
-                          <div className="flex items-center gap-4">
-                            <div className="w-[84px] shrink-0 space-y-1">
-                              <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">PHỤ 2:</span>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-[80px] shrink-0 space-y-0.5">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">PHỤ 2:</span>
                               {formData.startTime && (
-                                <p className="text-[10.5px] font-bold text-rose-600 uppercase whitespace-nowrap bg-rose-50 px-1.5 py-0.5 rounded leading-none text-center">
+                                <p className="text-[10px] font-bold text-rose-600 uppercase whitespace-nowrap bg-rose-50 px-1.5 py-0.5 rounded leading-none text-center">
                                   {addMinutesToTime(formData.startTime, formData.asst2BusyStart ?? currentProc.asst2BusyStart ?? 0)} - {addMinutesToTime(formData.startTime, formData.asst2BusyEnd ?? currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0)}
                                 </p>
                               )}
                             </div>
-                            <div className="flex-1 flex gap-4">
-                              <div className="flex-1 space-y-1.5">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Từ (phút thứ)</p>
-                                <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst2BusyStart ?? currentProc.asst2BusyStart ?? 0} onChange={e => setFormData({...formData, asst2BusyStart: Number(e.target.value)})} />
+                            <div className="flex-1 flex gap-2">
+                              <div className="flex-1 space-y-0.5">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">Từ (phút)</p>
+                                <input type="number" className="w-full py-0.5 px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst2BusyStart ?? currentProc.asst2BusyStart ?? 0} onChange={e => setFormData({...formData, asst2BusyStart: Number(e.target.value)})} />
                               </div>
-                              <div className="flex-1 space-y-1.5">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase ml-1">Đến (phút thứ)</p>
-                                <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst2BusyEnd ?? currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0} onChange={e => setFormData({...formData, asst2BusyEnd: Number(e.target.value)})} />
+                              <div className="flex-1 space-y-0.5">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase ml-0.5">Đến (phút)</p>
+                                <input type="number" className="w-full py-0.5 px-2 border border-slate-200 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none shadow-sm transition-all hover:border-slate-300" placeholder="0" value={formData.asst2BusyEnd ?? currentProc.asst2BusyEnd ?? currentProc.assistant2BusyMinutes ?? 0} onChange={e => setFormData({...formData, asst2BusyEnd: Number(e.target.value)})} />
                               </div>
                             </div>
                           </div>
@@ -2245,7 +2254,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-white flex gap-4 justify-between shrink-0 shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
+            <div className="px-6 py-2.5 border-t border-slate-100 bg-white flex gap-3 justify-between items-center shrink-0 shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
               {formData.id && onDelete ? (
                 <button
                   type="button"
@@ -2255,18 +2264,18 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       onClose();
                     }
                   }}
-                  className="px-6 py-3 text-rose-500 font-bold text-xs hover:text-white transition-all uppercase tracking-widest hover:bg-rose-500 border border-rose-200 hover:border-rose-500 rounded-xl flex items-center gap-2"
+                  className="px-4 py-2 text-rose-500 font-bold text-xs hover:text-white transition-all uppercase tracking-widest hover:bg-rose-500 border border-rose-200 hover:border-rose-500 rounded-xl flex items-center gap-1.5"
                 >
-                  <Trash2 size={16} /> XÓA LỊCH TRÌNH
+                  <Trash2 size={15} /> XÓA LỊCH TRÌNH
                 </button>
               ) : (
                 <div />
               )}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 <button 
                   type="button" 
                   onClick={onClose} 
-                  className="px-8 py-3.5 text-slate-500 font-bold text-xs hover:text-slate-800 transition-all uppercase tracking-widest hover:bg-slate-50 rounded-xl"
+                  className="px-5 py-2 text-slate-500 font-bold text-xs hover:text-slate-800 transition-all uppercase tracking-widest hover:bg-slate-50 rounded-xl"
                 >
                   HỦY BỎ
                 </button>
@@ -2317,7 +2326,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   }} 
                   disabled={!!disabledReason} 
                   title={disabledReason || undefined}
-                  className={`px-12 h-14 rounded-2xl shadow-xl text-sm font-bold uppercase tracking-widest transition-all ${disabledReason ? 'opacity-50 grayscale bg-slate-200 text-slate-500 shadow-none cursor-not-allowed' : 'shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]'}`}
+                  className={`px-8 h-11 rounded-xl shadow-lg text-xs font-bold uppercase tracking-widest transition-all ${disabledReason ? 'opacity-50 grayscale bg-slate-200 text-slate-500 shadow-none cursor-not-allowed' : 'shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]'}`}
                 >
                   {formData.id ? 'Cập nhật chỉ định' : 'Xác nhận chỉ định'}
                 </Button>

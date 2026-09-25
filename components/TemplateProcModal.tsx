@@ -4,7 +4,7 @@ import { Staff, Procedure, Department, TemplateProcedure } from '../types';
 import { Button } from './Button';
 import { TimeInput } from './TimeInput';
 import { User, Search, Monitor, Clock, X, Save, AlertTriangle } from 'lucide-react';
-import { timeStringToMinutes, minutesToTimeString, addMinutesToTime, getRoleLabel } from '../utils/timeUtils';
+import { timeStringToMinutes, minutesToTimeString, addMinutesToTime, getRoleLabel, getRoleShortLabel } from '../utils/timeUtils';
 
 interface TemplateProcModalProps {
   isOpen: boolean;
@@ -126,7 +126,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5"><User size={14} className="text-primary" /> Người thực hiện chính</label>
                       <select className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all" value={formData.staffId || ''} onChange={e => setFormData({ ...formData, staffId: e.target.value })}>
                         <option value="">-- Chọn bác sĩ/KTV --</option>
-                        {eligibleMainStaff.map(s => <option key={s.id} value={s.id}>{s.name} ({getRoleLabel(s.role)})</option>)}
+                        {eligibleMainStaff.map(s => <option key={s.id} value={s.id}>{s.name} ({getRoleShortLabel(s.role)})</option>)}
                       </select>
                     </div>
                     {currentProc?.requireMachine && (
@@ -146,7 +146,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5"><User size={14} className="text-primary" /> Người phụ 1</label>
                         <select className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all" value={formData.assistant1Id || ''} onChange={e => setFormData({ ...formData, assistant1Id: e.target.value })}>
                           <option value="">-- Chọn người phụ 1 --</option>
-                          {eligibleAssistants.filter(s => s.id !== formData.staffId && s.id !== formData.assistant2Id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          {eligibleAssistants.filter(s => s.id !== formData.staffId && s.id !== formData.assistant2Id).map(s => <option key={s.id} value={s.id}>{s.name} ({getRoleShortLabel(s.role)})</option>)}
                         </select>
                       </div>
                     )}
@@ -155,7 +155,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5"><User size={14} className="text-primary" /> Người phụ 2</label>
                         <select className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all" value={formData.assistant2Id || ''} onChange={e => setFormData({ ...formData, assistant2Id: e.target.value })}>
                           <option value="">-- Chọn người phụ 2 --</option>
-                          {eligibleAssistants.filter(s => s.id !== formData.staffId && s.id !== formData.assistant1Id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          {eligibleAssistants.filter(s => s.id !== formData.staffId && s.id !== formData.assistant1Id).map(s => <option key={s.id} value={s.id}>{s.name} ({getRoleShortLabel(s.role)})</option>)}
                         </select>
                       </div>
                     )}

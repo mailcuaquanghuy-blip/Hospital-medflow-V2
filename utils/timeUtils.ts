@@ -47,7 +47,39 @@ export const isInsideOfficeHours = (startMin: number, endMin: number): boolean =
 
 // ConflictDetail is now imported from types.ts
 
-export const getRoleLabel = (role: string) => {
+export const getRoleShortLabel = (role: string): string => {
+    if (!role) return '';
+    switch(role) {
+        case 'Doctor':
+        case 'Bác sĩ':
+        case 'Bác sỹ':
+        case 'BS':
+            return 'BS';
+        case 'Technician':
+        case 'Kỹ thuật viên':
+        case 'KTV':
+            return 'KTV';
+        case 'Nurse':
+        case 'Điều dưỡng':
+        case 'ĐD':
+            return 'ĐD';
+        case 'PhysicianAssistant':
+        case 'Y sĩ':
+        case 'Y sỹ':
+        case 'YS':
+            return 'YS';
+        case 'Pharmacist':
+        case 'Dược sĩ':
+        case 'Dược sỹ':
+        case 'DS':
+            return 'DS';
+        default:
+            return role;
+    }
+};
+
+export const getRoleLabel = (role: string, short = false) => {
+    if (short) return getRoleShortLabel(role);
     switch(role) {
         case 'Doctor': return 'Bác sĩ';
         case 'Technician': return 'KTV';
@@ -1015,9 +1047,6 @@ export const getAvailableTimeBlocks = (
     }
 
     for (const shift of OFFICE_SHIFTS) {
-        let currentBlockStart: string | null = null;
-        let currentBlockEnd: string | null = null;
-        
         let currentMin = timeStringToMinutes(shift.start);
         const endLimit = timeStringToMinutes(shift.end);
 
@@ -1064,32 +1093,19 @@ export const getAvailableTimeBlocks = (
             );
             
             if (!res.hasConflict) {
-                if (!currentBlockStart) {
-                    currentBlockStart = start;
-                    currentBlockEnd = end;
-                } else {
-                    currentBlockEnd = end;
-                }
+                blocks.push({ start, end });
+                currentMin += Math.max(1, duration);
             } else {
                 if (!firstConflictReason && res.conflictDetails.length > 0) {
                     const level1Conflict = res.conflictDetails.find(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
                     if (level1Conflict) firstConflictReason = level1Conflict.message;
                 }
-                if (currentBlockStart && currentBlockEnd) {
-                    blocks.push({ start: currentBlockStart, end: currentBlockEnd });
-                    currentBlockStart = null;
-                    currentBlockEnd = null;
-                }
                 if (res.conflictUntilMin && res.conflictUntilMin > currentMin) {
                     currentMin = res.conflictUntilMin;
                     continue;
                 }
+                currentMin += 1;
             }
-            currentMin += 1;
-        }
-
-        if (currentBlockStart && currentBlockEnd) {
-            blocks.push({ start: currentBlockStart, end: currentBlockEnd });
         }
     }
 
