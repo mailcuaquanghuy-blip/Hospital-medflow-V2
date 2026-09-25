@@ -483,7 +483,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         formData.assistant2Id, 
         { ...basePayload, staffId: s.id }
       );
-      map.set(s.id, !res.hasConflict);
+      const hasRealConflict = res.conflictDetails.some(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
+      map.set(s.id, !hasRealConflict);
     }
     return map;
   }, [eligibleStaff, formData.startTime, formData.endTime, formData.date, formData.procedureId, formData.patientId, formData.id, formData.assistant1Id, formData.assistant2Id, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients]);
@@ -521,7 +522,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         asst2ToCheck, 
         basePayload
       );
-      map.set(s.id, !res.hasConflict);
+      const hasRealConflict = res.conflictDetails.some(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
+      map.set(s.id, !hasRealConflict);
     }
     return map;
   }, [eligibleAssistants, formData.staffId, formData.assistant2Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients, formData.patientId, formData.id]);
@@ -559,7 +561,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         s.id, 
         basePayload
       );
-      map.set(s.id, !res.hasConflict);
+      const hasRealConflict = res.conflictDetails.some(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
+      map.set(s.id, !hasRealConflict);
     }
     return map;
   }, [eligibleAssistants, formData.staffId, formData.assistant1Id, formData.startTime, formData.endTime, formData.date, formData.procedureId, allowSameAsst, appointments, staff, procedures, attendanceRecords, patients, formData.patientId, formData.id]);
@@ -672,23 +675,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     
     if (existingAppt) {
       return {
-        staffId: existingAppt.staffId,
-        assistant1Id: existingAppt.assistant1Id,
-        assistant2Id: existingAppt.assistant2Id
+        staffId: existingAppt.staffId
       };
     }
     return null;
   }, [formData.assignedMachineId, formData.date, formData.startTime, formData.endTime, currentProc, appointments, formData.id]);
 
   useEffect(() => {
-    if (lockedStaff) {
+    if (lockedStaff?.staffId) {
       setFormData(prev => {
-        if (prev.staffId !== lockedStaff.staffId || prev.assistant1Id !== lockedStaff.assistant1Id || prev.assistant2Id !== lockedStaff.assistant2Id) {
+        if (prev.staffId !== lockedStaff.staffId) {
           return {
             ...prev,
-            staffId: lockedStaff.staffId,
-            assistant1Id: lockedStaff.assistant1Id,
-            assistant2Id: lockedStaff.assistant2Id
+            staffId: lockedStaff.staffId
           };
         }
         return prev;
@@ -1765,7 +1764,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                       ...(allowSameAsst ? { assistant2Id: val } : {})
                                     }));
                                   }} 
-                                  disabled={!formData.procedureId || !!lockedStaff?.assistant1Id || isMachineShiftRequired}
+                                  disabled={!formData.procedureId || isMachineShiftRequired}
                                 >
                                   <option value="">-- Chọn người phụ 1 --</option>
                                   {sortedAssistants1.map(s => {
@@ -1777,7 +1776,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-primary transition-colors">
                                   <User size={18} />
                                 </div>
-                                {(lockedStaff?.assistant1Id || isMachineShiftRequired) && (
+                                {isMachineShiftRequired && (
                                   <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
                                 )}
                               </div>
@@ -1819,7 +1818,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   className={`w-full py-1.5 px-3.5 pr-10 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm disabled:bg-slate-100 disabled:text-slate-600 disabled:cursor-not-allowed transition-all hover:border-slate-300 appearance-none shadow-sm ${allowSameAsst ? 'bg-amber-50/50 border-amber-200' : ''}`}
                                   value={allowSameAsst ? (formData.assistant1Id || '') : (formData.assistant2Id || '')} 
                                   onChange={e => setFormData({ ...formData, assistant2Id: e.target.value })} 
-                                  disabled={!formData.procedureId || !!lockedStaff?.assistant2Id || isMachineShiftRequired || allowSameAsst}
+                                  disabled={!formData.procedureId || isMachineShiftRequired || allowSameAsst}
                                 >
                                   <option value="">{allowSameAsst ? '-- Tự động đồng bộ Người phụ 1 --' : '-- Chọn người phụ 2 --'}</option>
                                   {sortedAssistants2.map(s => {
@@ -1833,7 +1832,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 </div>
                                 {allowSameAsst ? (
                                   <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md text-[9px] font-black tracking-tight border border-amber-300">Đồng bộ Phụ 1 (Khóa)</div>
-                                ) : (lockedStaff?.assistant2Id || isMachineShiftRequired) ? (
+                                ) : isMachineShiftRequired ? (
                                   <div className="absolute right-10 top-1/2 -translate-y-1/2 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tight border border-amber-200">Đã khóa</div>
                                 ) : null}
                               </div>
@@ -1956,39 +1955,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                     key={idx} 
                                     type="button" 
                                     onClick={() => {
-                                      setFormData(prev => {
-                                        const nextData = { 
-                                          ...prev, 
-                                          startTime: block.start, 
-                                          endTime: block.end 
-                                        };
-                                        if (!prev.staffId) {
-                                          const suggestedStaff = sortedEligibleStaff.find(s => mainStaffStatusMap.get(s.id));
-                                          if (suggestedStaff) {
-                                            nextData.staffId = suggestedStaff.id;
-                                          }
-                                        }
-                                        if (needsAssistant1 && !prev.assistant1Id) {
-                                          const chosenMain = nextData.staffId || prev.staffId;
-                                          const suggestedAsst1 = sortedAssistants1.find(s => assistant1StatusMap.get(s.id) && s.id !== chosenMain);
-                                          if (suggestedAsst1) {
-                                            nextData.assistant1Id = suggestedAsst1.id;
-                                          }
-                                        }
-                                        if (needsAssistant2 && !prev.assistant2Id) {
-                                          const chosenMain = nextData.staffId || prev.staffId;
-                                          const chosenAsst1 = nextData.assistant1Id || prev.assistant1Id;
-                                          const suggestedAsst2 = sortedAssistants2.find(s => 
-                                            assistant2StatusMap.get(s.id) && 
-                                            s.id !== chosenMain && 
-                                            (allowSameAsst || s.id !== chosenAsst1)
-                                          );
-                                          if (suggestedAsst2) {
-                                            nextData.assistant2Id = suggestedAsst2.id;
-                                          }
-                                        }
-                                        return nextData;
-                                      });
+                                      setFormData(prev => ({ 
+                                        ...prev, 
+                                        startTime: block.start, 
+                                        endTime: block.end 
+                                      }));
                                       setHasManuallySelectedTime(true);
                                     }} 
                                     className={`px-2 py-1 border rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 ${
@@ -2119,7 +2090,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 onClick={() => {
                                   const [start, end] = slot.time.split(' - ');
                                   const existingAppt = appointments.find(a => a.date === formData.date && a.assignedMachineId === formData.assignedMachineId && a.startTime === start && a.endTime === end && a.id !== formData.id);
-                                  setFormData(prev => ({ ...prev, startTime: start, endTime: end, ...(existingAppt ? { staffId: existingAppt.staffId, assistant1Id: existingAppt.assistant1Id, assistant2Id: existingAppt.assistant2Id } : {}) }));
+                                  setFormData(prev => ({ ...prev, startTime: start, endTime: end, ...(existingAppt ? { staffId: existingAppt.staffId } : {}) }));
                                   setHasManuallySelectedTime(true);
                                 }} 
                                 className={`px-2.5 py-1 border rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : isFull ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600'}`}

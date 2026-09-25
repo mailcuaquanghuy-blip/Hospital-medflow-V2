@@ -1092,7 +1092,8 @@ export const getAvailableTimeBlocks = (
                 }
             );
             
-            if (!res.hasConflict) {
+            const hasRealConflict = res.conflictDetails.some(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
+            if (!hasRealConflict) {
                 blocks.push({ start, end });
                 currentMin += Math.max(1, duration);
             } else {
