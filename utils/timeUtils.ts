@@ -842,6 +842,7 @@ export const checkConflict = (
                 message: `${label} bận "${apptProc?.name || 'khác'}" - BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(aInt.start)}-${minutesToTimeString(aInt.end)})`, 
                 level: 1 
               });
+              conflictUntilMin = Math.max(conflictUntilMin || 0, isFromSept5 ? aInt.end + 1 : aInt.end);
               return;
             }
           }

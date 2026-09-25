@@ -597,7 +597,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       formData.id,
       formData
     );
-  }, [formData.date, currentProc, hasAnyStaff, formData.staffId, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData.assignedMachineId]);
+  }, [formData.date, currentProc, hasAnyStaff, formData.staffId, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData.assignedMachineId, formData.selectedDurationOptionId]);
 
   const needsAssistant1 = useMemo(() => {
     if (formData.needsAssistant1 !== undefined) return formData.needsAssistant1;
@@ -1869,7 +1869,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     <label className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest ml-1 flex items-center gap-1.5">
                       <Zap size={15} className="text-emerald-500" /> {isMachineShiftRequired ? 'Ca máy trống gợi ý' : 'Khung giờ trống gợi ý'}
                     </label>
-                    <div className="p-2 bg-white border border-emerald-100 rounded-xl shadow-sm min-h-[40px] max-h-[110px] overflow-y-auto scrollbar-thin flex flex-col justify-center">
+                    <div className="p-2.5 bg-white border border-emerald-100 rounded-xl shadow-sm min-h-[46px] max-h-[280px] overflow-y-auto scrollbar-thin">
                       <AnimatePresence mode="wait">
                         {!hasAnyStaff ? (
                           <motion.p
@@ -1878,7 +1878,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -5 }}
                             transition={{ duration: 0.15 }}
-                            className="text-xs text-amber-600 font-medium italic flex items-center gap-2"
+                            className="text-xs text-amber-600 font-medium italic flex items-center gap-2 py-1.5"
                           >
                             <Info size={14} /> Chọn nhân sự để xem gợi ý...
                           </motion.p>
@@ -1892,7 +1892,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             className="flex flex-wrap gap-1.5"
                           >
                             {isMachineShiftRequired ? (
-                              availableShifts.slice(0, 12).map((shift) => {
+                              availableShifts.map((shift) => {
                                 const conflicts = getShiftConflicts(shift);
                                 const shiftAppts = appointments.filter(a => a.machineShiftId === shift.id && a.id !== formData.id);
                                 const capacity = currentProc?.machineCapacity || 1;
