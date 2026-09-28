@@ -595,9 +595,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       formData.assistant1Id || undefined,
       formData.assistant2Id || undefined,
       formData.id,
-      formData
+      { ...formData, assignedMachineId: undefined }
     );
-  }, [formData.date, currentProc, hasAnyStaff, formData.staffId, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData.assignedMachineId, formData.selectedDurationOptionId]);
+  }, [formData.date, currentProc, hasAnyStaff, formData.staffId, formData.patientId, appointments, staff, procedures, attendanceRecords, patients, formData.assistant1Id, formData.assistant2Id, formData.id, formData.selectedDurationOptionId, formData.mainBusyStart, formData.mainBusyEnd, formData.asst1BusyStart, formData.asst1BusyEnd, formData.asst2BusyStart, formData.asst2BusyEnd]);
 
   const needsAssistant1 = useMemo(() => {
     if (formData.needsAssistant1 !== undefined) return formData.needsAssistant1;
@@ -1948,19 +1948,31 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                               })
                             ) : (
                               availableTimeBlocks.map((block, idx) => {
-                                const isSelected = formData.startTime === block.start && formData.endTime === block.end;
+                                const startMin = formData.startTime ? timeStringToMinutes(formData.startTime) : -1;
+                                const endMin = formData.endTime ? timeStringToMinutes(formData.endTime) : -1;
+                                const bStartMin = timeStringToMinutes(block.start);
+                                const bEndMin = timeStringToMinutes(block.end);
+                                const isSelected = isCurrentTimeValid && startMin >= bStartMin && endMin <= bEndMin && startMin < endMin;
 
                                 return (
                                   <button 
                                     key={idx} 
                                     type="button" 
                                     onClick={() => {
+                                      const optId = formData.selectedDurationOptionId;
+                                      let selectedOpt = currentProc?.durationOptions?.find(o => o.id === optId);
+                                      if (!selectedOpt && (!optId || optId === 'default')) {
+                                        selectedOpt = currentProc?.durationOptions?.find(o => o.isDefault);
+                                      }
+                                      const duration = selectedOpt ? selectedOpt.durationMinutes : (currentProc?.durationMinutes || 25);
+                                      const calcEnd = addMinutesToTime(block.start, duration);
                                       setFormData(prev => ({ 
                                         ...prev, 
                                         startTime: block.start, 
-                                        endTime: block.end 
+                                        endTime: calcEnd 
                                       }));
                                       setHasManuallySelectedTime(true);
+                                      setHasManuallySelectedEndTime(false);
                                     }} 
                                     className={`px-2 py-1 border rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 ${
                                       isSelected 

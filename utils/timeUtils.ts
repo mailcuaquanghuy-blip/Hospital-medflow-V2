@@ -842,7 +842,11 @@ export const checkConflict = (
                 message: `${label} bận "${apptProc?.name || 'khác'}" - BN "${otherPatient?.name || 'khác'}" (${minutesToTimeString(aInt.start)}-${minutesToTimeString(aInt.end)})`, 
                 level: 1 
               });
-              conflictUntilMin = Math.max(conflictUntilMin || 0, isFromSept5 ? aInt.end + 1 : aInt.end);
+              const offset = Math.max(0, cInt.start - startMin);
+              const resolvedMin = (isFromSept5 ? aInt.end + 1 : aInt.end) - offset;
+              if (resolvedMin > startMin) {
+                conflictUntilMin = Math.max(conflictUntilMin || 0, resolvedMin);
+              }
               return;
             }
           }
@@ -1033,12 +1037,13 @@ export const getAvailableTimeBlocks = (
 
     // Determine duration based on newApptData or fall back to procedure default
     let duration = procedure.durationMinutes;
+    let selectedOpt = procedure.durationOptions?.find(o => o.id === newApptData?.selectedDurationOptionId);
+    if (!selectedOpt && (!newApptData?.selectedDurationOptionId || newApptData?.selectedDurationOptionId === 'default')) {
+      selectedOpt = procedure.durationOptions?.find(o => o.isDefault);
+    }
     if (newApptData) {
-      if (newApptData.selectedDurationOptionId && newApptData.selectedDurationOptionId !== 'default') {
-        const opt = procedure.durationOptions?.find(o => o.id === newApptData.selectedDurationOptionId);
-        if (opt) {
-          duration = opt.durationMinutes;
-        }
+      if (selectedOpt) {
+        duration = selectedOpt.durationMinutes;
       } else if (newApptData.id && newApptData.startTime && newApptData.endTime) {
         duration = timeStringToMinutes(newApptData.endTime) - timeStringToMinutes(newApptData.startTime);
       }
@@ -1064,6 +1069,9 @@ export const getAvailableTimeBlocks = (
             }
           }
         }
+
+        let blockStartMin: number | null = null;
+        let blockEndMin: number | null = null;
 
         while (currentMin + duration <= endLimit) {
             const start = minutesToTimeString(currentMin);
@@ -1095,9 +1103,20 @@ export const getAvailableTimeBlocks = (
             
             const hasRealConflict = res.conflictDetails.some(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
             if (!hasRealConflict) {
-                blocks.push({ start, end });
-                currentMin += Math.max(1, duration);
+                if (blockStartMin === null) {
+                    blockStartMin = currentMin;
+                }
+                blockEndMin = currentMin + duration;
+                currentMin += 1;
             } else {
+                if (blockStartMin !== null && blockEndMin !== null) {
+                    blocks.push({
+                        start: minutesToTimeString(blockStartMin),
+                        end: minutesToTimeString(blockEndMin)
+                    });
+                    blockStartMin = null;
+                    blockEndMin = null;
+                }
                 if (!firstConflictReason && res.conflictDetails.length > 0) {
                     const level1Conflict = res.conflictDetails.find(c => c.level === 1 && !c.message.toLowerCase().includes('chưa chọn'));
                     if (level1Conflict) firstConflictReason = level1Conflict.message;
@@ -1108,6 +1127,13 @@ export const getAvailableTimeBlocks = (
                 }
                 currentMin += 1;
             }
+        }
+
+        if (blockStartMin !== null && blockEndMin !== null) {
+            blocks.push({
+                start: minutesToTimeString(blockStartMin),
+                end: minutesToTimeString(blockEndMin)
+            });
         }
     }
 
