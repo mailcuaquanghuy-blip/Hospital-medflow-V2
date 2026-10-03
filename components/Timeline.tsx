@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, UserAccount, UserRole, ScheduleSnapshot, AttendanceRecord, ConflictDetail } from '../types';
+import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, DepartmentType, UserAccount, UserRole, ScheduleSnapshot, AttendanceRecord, ConflictDetail } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString, checkConflict, getLocalDateString } from '../utils/timeUtils';
 import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X } from 'lucide-react';
@@ -261,8 +261,15 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [headerDeptFilters, setHeaderDeptFilters] = useState<string[]>(() => {
     const defaultVal = (initialFilters?.deptIds && initialFilters.deptIds.length > 0)
       ? initialFilters.deptIds
-      : (currentDept ? [currentDept.id] : []);
-    return getSavedArray(`medflow_tl_dept_${deptKey}`, defaultVal);
+      : [];
+    const saved = getSavedArray(`medflow_tl_dept_${deptKey}`, defaultVal);
+    // Sanitize saved against allowed departments for currentDept
+    if (!currentDept) return saved;
+    const isSupport = currentDept.type === DepartmentType.SUPPORT;
+    const allowed = isSupport
+      ? DEPARTMENTS.filter(d => d.type === DepartmentType.CLINICAL || d.id === currentDept.id).map(d => d.id)
+      : DEPARTMENTS.filter(d => d.type === DepartmentType.SUPPORT || d.id === currentDept.id).map(d => d.id);
+    return saved.filter(id => allowed.includes(id));
   });
   const [headerProcedureStatusFilters, setHeaderProcedureStatusFilters] = useState<string[]>(() =>
     getSavedArray(`medflow_tl_procStatus_${deptKey}`, [])
@@ -396,32 +403,68 @@ export const Timeline: React.FC<TimelineProps> = ({
     return appointments.filter(a => a.date === date);
   }, [appointments, date]);
 
-  // Patients actually having appointments today
+  // Patients actually having appointments today in this department / related specialties
   const activePatients = useMemo(() => {
     const activePatientIds = new Set(dayAppointments.map(a => a.patientId));
     return patients
-      .filter(p => activePatientIds.has(p.id))
+      .filter(p => {
+        if (!activePatientIds.has(p.id)) return false;
+        if (currentDept?.type === DepartmentType.CLINICAL) {
+          return p.admittedByDeptId === currentDept.id;
+        }
+        return true;
+      })
       .sort((a, b) => compareNamesByFirstName(a.name, b.name));
-  }, [dayAppointments, patients]);
+  }, [dayAppointments, patients, currentDept]);
 
-  // Departments actually operating today
+  // Departments actually relevant today for currentDept
   const activeDepartments = useMemo(() => {
-    const todayDeptIds = new Set();
+    if (!currentDept) return [];
+    const relevantDeptIds = new Set<string>();
+    relevantDeptIds.add(currentDept.id);
+
     dayAppointments.forEach(a => {
       const proc = procedures.find(p => p.id === a.procedureId);
       const procedureDeptId = proc?.deptId || a.deptId;
-      if (procedureDeptId) todayDeptIds.add(procedureDeptId);
-    });
-    return DEPARTMENTS.filter(d => todayDeptIds.has(d.id));
-  }, [dayAppointments, procedures]);
+      const patient = patients.find(p => p.id === a.patientId);
 
-  // Procedures actually performed today
+      if (currentDept.type === DepartmentType.CLINICAL) {
+        // Trong khoa lâm sàng: chỉ thêm chính khoa này và các chuyên khoa hỗ trợ (SUPPORT) có lịch trình cho bệnh nhân khoa này
+        const pDept = DEPARTMENTS.find(d => d.id === procedureDeptId);
+        if (procedureDeptId === currentDept.id || pDept?.type === DepartmentType.SUPPORT) {
+          relevantDeptIds.add(procedureDeptId);
+        }
+      } else {
+        // Trong khoa chuyên khoa (SUPPORT): thêm chính khoa này và các khoa lâm sàng gửi bệnh nhân đến
+        if (patient?.admittedByDeptId) {
+          relevantDeptIds.add(patient.admittedByDeptId);
+        }
+        if (procedureDeptId) {
+          relevantDeptIds.add(procedureDeptId);
+        }
+      }
+    });
+
+    return DEPARTMENTS.filter(d => relevantDeptIds.has(d.id));
+  }, [dayAppointments, procedures, patients, currentDept]);
+
+  // Procedures actually performed today for currentDept and related specialties
   const activeProcedures = useMemo(() => {
     const todayProcIds = new Set(dayAppointments.map(a => a.procedureId));
     return procedures
-      .filter(p => todayProcIds.has(p.id))
+      .filter(p => {
+        if (!todayProcIds.has(p.id)) return false;
+        if (currentDept?.type === DepartmentType.CLINICAL) {
+          const procDept = DEPARTMENTS.find(d => d.id === p.deptId);
+          // Chỉ hiển thị thủ thuật của chính khoa này hoặc của chuyên khoa hỗ trợ (SUPPORT)
+          return !p.deptId || p.deptId === currentDept.id || procDept?.type === DepartmentType.SUPPORT;
+        } else if (currentDept?.type === DepartmentType.SUPPORT) {
+          return !p.deptId || p.deptId === currentDept.id;
+        }
+        return true;
+      })
       .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-  }, [dayAppointments, procedures]);
+  }, [dayAppointments, procedures, currentDept]);
 
   // Staff actually working today
   const activeStaff = useMemo(() => {
@@ -449,6 +492,16 @@ export const Timeline: React.FC<TimelineProps> = ({
     switch (viewMode) {
       case 'PROCEDURE':
         return [...procedures]
+          .filter(p => {
+            if (!currentDept) return true;
+            if (currentDept.type === DepartmentType.CLINICAL) {
+              const procDept = DEPARTMENTS.find(d => d.id === p.deptId);
+              return !p.deptId || p.deptId === currentDept.id || procDept?.type === DepartmentType.SUPPORT;
+            } else if (currentDept.type === DepartmentType.SUPPORT) {
+              return !p.deptId || p.deptId === currentDept.id;
+            }
+            return true;
+          })
           .sort((a, b) => {
             const aIsCurrent = !currentDept || a.deptId === currentDept.id;
             const bIsCurrent = !currentDept || b.deptId === currentDept.id;
@@ -503,6 +556,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           });
       case 'PATIENT': 
         return patients.filter(p => {
+          if (currentDept?.type === DepartmentType.CLINICAL && p.admittedByDeptId !== currentDept.id) return false;
           if (p.status !== 'TREATING' && p.status !== 'DISCHARGED') return false;
           const admissionDateStr = getLocalDateString(p.admissionDate);
           if (admissionDateStr && date < admissionDateStr) return false;
@@ -579,8 +633,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   }, [dayAppts, staff, procedures, attendanceRecords, patients]);
 
   const filteredAppointments = useMemo(() => {
-    // Only process appointments for the current active date
-    let result = appointments === targetAppointmentsPool ? dayAppts : appointments.filter(a => a.date === date);
+    // Only process appointments for the current active date that belong to currentDept or related specialties
+    let result = dayAppointments;
     
     // Quick pre-indexing for O(1) lookup
     const patMap = new Map<string, Patient>();
@@ -589,6 +643,31 @@ export const Timeline: React.FC<TimelineProps> = ({
     staff.forEach(s => staffMap.set(s.id, s));
     const procMap = new Map<string, Procedure>();
     procedures.forEach(pr => procMap.set(pr.id, pr));
+
+    // Đảm bảo chỉ xử lý đúng các lịch trình thuộc khoa hiện tại hoặc chuyên khoa liên quan
+    if (currentDept) {
+      const isSupport = currentDept.type === DepartmentType.SUPPORT;
+      result = result.filter(a => {
+        const proc = procMap.get(a.procedureId);
+        const procedureDeptId = proc?.deptId || a.deptId;
+        const patient = patMap.get(a.patientId);
+        const performingDept = DEPARTMENTS.find(d => d.id === procedureDeptId);
+
+        if (isSupport) {
+          // Khoa cận lâm sàng / chuyên khoa: chỉ nhận các lịch trình do chính khoa thực hiện
+          return procedureDeptId === currentDept.id || a.deptId === currentDept.id;
+        } else {
+          // Khoa lâm sàng:
+          // 1. Do chính khoa thực hiện
+          if (a.deptId === currentDept.id || procedureDeptId === currentDept.id) return true;
+          // 2. Chuyên khoa hỗ trợ (SUPPORT) thực hiện cho bệnh nhân của khoa này
+          if (patient && patient.admittedByDeptId === currentDept.id) {
+            return performingDept?.type === DepartmentType.SUPPORT || !performingDept;
+          }
+          return false;
+        }
+      });
+    }
 
     // Lọc các lịch trình có biến động so với bản chốt
     if (filterModifiedOnly) {
@@ -659,7 +738,20 @@ export const Timeline: React.FC<TimelineProps> = ({
             result = result.filter(a => {
                 const proc = procMap.get(a.procedureId);
                 const procedureDeptId = proc?.deptId || a.deptId;
-                return headerDeptFilters.includes(procedureDeptId);
+                const patient = patMap.get(a.patientId);
+
+                if (currentDept?.type === DepartmentType.SUPPORT) {
+                    // Trong khoa chuyên khoa (SUPPORT):
+                    // Khớp procedureDeptId hoặc khoa lâm sàng gửi đến (patient.admittedByDeptId)
+                    return headerDeptFilters.some(filterId => 
+                        filterId === procedureDeptId || 
+                        filterId === a.deptId || 
+                        patient?.admittedByDeptId === filterId
+                    );
+                } else {
+                    // Trong khoa lâm sàng:
+                    return headerDeptFilters.includes(procedureDeptId);
+                }
             });
         }
 
@@ -1623,6 +1715,11 @@ export const Timeline: React.FC<TimelineProps> = ({
                     <td className={`p-3 sticky left-[360px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[140px] min-w-[140px] max-w-[140px]`}>
                         <div className="flex flex-col">
                             <span className="font-black text-xs text-primary uppercase leading-tight">{performingDept?.name || '-'}</span>
+                            {patient && patient.admittedByDeptId && patient.admittedByDeptId !== procedureDeptId && (
+                              <span className="text-[10px] font-bold text-slate-500 mt-0.5 truncate" title={`Khoa tiếp nhận BN: ${DEPARTMENTS.find(d => d.id === patient.admittedByDeptId)?.name || patient.admittedByDeptId}`}>
+                                Từ: {DEPARTMENTS.find(d => d.id === patient.admittedByDeptId)?.name || patient.admittedByDeptId}
+                              </span>
+                            )}
                         </div>
                     </td>
                     <td 

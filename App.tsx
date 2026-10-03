@@ -27,7 +27,7 @@ import { BatchLoadOptions } from './components/BatchLoadModal';
 import { Button } from './components/Button';
 import { DateTimePicker } from './components/DateTimePicker';
 import { DateInput } from './components/DateInput';
-import { Home, Building2, Table2, FileText, CalendarPlus, AlertCircle, LogOut, ShieldCheck, User, UserCog, X, Briefcase, Check, Save, PieChart, Database, Clock, CalendarCheck } from 'lucide-react';
+import { Home, Building2, Table2, FileText, CalendarPlus, AlertCircle, LogOut, ShieldCheck, User, UserCog, X, Briefcase, Check, Save, PieChart, Database, Clock, CalendarCheck, ChevronDown } from 'lucide-react';
 
 // Database operations via Firestore
 import { 
@@ -147,6 +147,29 @@ const App: React.FC = () => {
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Partial<Staff> | null>(null);
   const [isDeptBackupModalOpen, setIsDeptBackupModalOpen] = useState(false);
+
+  // Department quick switcher dropdown in header
+  const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
+  const deptDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(event.target as Node)) {
+        setIsDeptDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const authorizedDepartments = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === UserRole.ADMIN) return DEPARTMENTS;
+    return DEPARTMENTS.filter(d => 
+      currentUser.viewableDeptIds?.includes(d.id) || 
+      currentUser.editableDeptIds?.includes(d.id)
+    );
+  }, [currentUser]);
 
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(isQuotaExceededState);
 
@@ -615,11 +638,49 @@ const App: React.FC = () => {
 
   const deptStaff = currentDept ? staff.filter(s => s.deptId === currentDept.id) : [];
 
-  // Logic Timeline Liên khoa
+  // Logic Timeline Khoa: Chỉ hiển thị các lịch trình thuộc khoa hiện tại và các chuyên khoa liên quan
   const deptAppointments = useMemo(() => {
     if (!currentDept) return [];
-    return appointments.filter(a => a.date === activeDate);
-  }, [appointments, currentDept, activeDate]);
+
+    const patMap = new Map<string, Patient>();
+    patients.forEach(p => patMap.set(p.id, p));
+    const procMap = new Map<string, Procedure>();
+    procedures.forEach(pr => procMap.set(pr.id, pr));
+    const deptMap = new Map<string, Department>();
+    DEPARTMENTS.forEach(d => deptMap.set(d.id, d));
+
+    const isCurrentDeptSupport = currentDept.type === DepartmentType.SUPPORT;
+
+    return appointments.filter(a => {
+      if (a.date !== activeDate) return false;
+
+      const proc = procMap.get(a.procedureId);
+      const procedureDeptId = proc?.deptId || a.deptId;
+      const patient = patMap.get(a.patientId);
+
+      if (isCurrentDeptSupport) {
+        // Khoa cận lâm sàng / chuyên khoa hỗ trợ (SUPPORT):
+        // Chỉ lấy các lịch trình do chính chuyên khoa này thực hiện (hoặc đặt cho chuyên khoa này)
+        return procedureDeptId === currentDept.id || a.deptId === currentDept.id;
+      } else {
+        // Khoa lâm sàng (CLINICAL):
+        // 1. Lịch trình do chính khoa lâm sàng này thực hiện
+        if (a.deptId === currentDept.id || procedureDeptId === currentDept.id) {
+          return true;
+        }
+        // 2. Các lịch trình của CHUYÊN KHOA (SUPPORT) liên quan đến bệnh nhân thuộc khoa lâm sàng này:
+        // Bệnh nhân do khoa này tiếp nhận (admittedByDeptId === currentDept.id) và thực hiện tại chuyên khoa hỗ trợ (SUPPORT)
+        if (patient && patient.admittedByDeptId === currentDept.id) {
+          const performingDept = deptMap.get(procedureDeptId);
+          // Chỉ lấy nếu khoa thực hiện là khoa chuyên khoa / cận lâm sàng (SUPPORT)
+          if (performingDept?.type === DepartmentType.SUPPORT || !performingDept) {
+            return true;
+          }
+        }
+        return false;
+      }
+    });
+  }, [appointments, currentDept, activeDate, patients, procedures]);
 
   const handleSavePatient = async (patient: Patient) => {
     try {
@@ -2195,7 +2256,7 @@ const App: React.FC = () => {
   if (!currentDept && activeTab !== 'ACCOUNT_MANAGER' && activeTab !== 'ACCOUNT_BACKUP') {
     return (
       <Dashboard 
-        departments={DEPARTMENTS.filter(d => currentUser.viewableDeptIds.includes(d.id) || currentUser.editableDeptIds.includes(d.id) || currentUser.role === UserRole.ADMIN)} 
+        departments={authorizedDepartments} 
         onSelectDepartment={setCurrentDept} 
         onLogout={handleLogout}
         currentUser={currentUser}
@@ -2346,7 +2407,67 @@ const App: React.FC = () => {
                   </button>
                   <div className="h-6 w-px bg-slate-200"></div>
                   {currentDept ? (
-                    <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{currentDept.name}</h2>
+                    <div className="relative" ref={deptDropdownRef}>
+                      {authorizedDepartments.length > 1 ? (
+                        <button
+                          type="button"
+                          disabled={isAnyModalOpen}
+                          onClick={() => setIsDeptDropdownOpen(prev => !prev)}
+                          className="flex items-center gap-2 px-3 py-1.5 -ml-2 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer group text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                          title="Bấm để chuyển sang khoa khác đã được phân quyền"
+                        >
+                          <Building2 size={20} className="text-sky-600 shrink-0" />
+                          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight group-hover:text-sky-600 transition-colors">
+                            {currentDept.name}
+                          </h2>
+                          <ChevronDown size={18} className={`text-slate-400 group-hover:text-sky-600 transition-transform ${isDeptDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Building2 size={20} className="text-sky-600 shrink-0" />
+                          <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{currentDept.name}</h2>
+                        </div>
+                      )}
+
+                      {isDeptDropdownOpen && (
+                        <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[300] py-2 animate-in fade-in duration-100">
+                          <div className="px-3 py-1.5 border-b border-slate-100 mb-1">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Chọn khoa làm việc (Được phân quyền)</p>
+                          </div>
+                          <div className="max-h-80 overflow-y-auto space-y-0.5 px-1.5">
+                            {authorizedDepartments.map(d => {
+                              const isSelected = d.id === currentDept.id;
+                              return (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setCurrentDept(d);
+                                    setIsDeptDropdownOpen(false);
+                                  }}
+                                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
+                                    isSelected 
+                                      ? 'bg-sky-50 text-sky-600 font-black' 
+                                      : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-sky-500' : 'bg-slate-300'}`} />
+                                    <div>
+                                      <span className="block">{d.name}</span>
+                                      <span className="text-[10px] text-slate-400 font-normal uppercase tracking-wider">
+                                        {d.type === DepartmentType.CLINICAL ? 'Khoa lâm sàng' : 'Chuyên khoa / Cận lâm sàng'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {isSelected && <Check size={16} className="text-sky-600 shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
                       {activeTab === 'ACCOUNT_MANAGER' ? 'Quản lý Tài khoản' : activeTab === 'ACCOUNT_BACKUP' ? 'Quản lý Sao lưu' : 'Quản trị Hệ thống'}
@@ -2577,6 +2698,7 @@ const App: React.FC = () => {
 
          {activeTab === 'GENERAL_TIMELINE' && currentDept && (
            <Timeline 
+             key={currentDept.id}
              date={activeDate} 
              onChangeDate={handleDateChange} 
              staff={staff} 
