@@ -17,6 +17,7 @@ import { StaffTimelineModal } from './StaffTimelineModal';
 import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { DEPARTMENTS, OFFICE_SHIFTS } from '../constants';
 import { db, doc, collection, setDoc, deleteDoc } from '../utils/dbService';
+import { TemplateProcModal } from './TemplateProcModal';
 
 
 const getLocalDateString = (isoStr: string | null | undefined): string => {
@@ -304,6 +305,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const [editingTemplate, setEditingTemplate] = useState<AppointmentTemplate | null>(null);
   const [includeStaffInTemplate, setIncludeStaffInTemplate] = useState(true);
   const [loadMode, setLoadMode] = useState<'REPLACE' | 'APPEND'>('APPEND');
+  const [isTplProcModalOpen, setIsTplProcModalOpen] = useState(false);
+  const [editingTplProcIndex, setEditingTplProcIndex] = useState<number | null>(null);
+
+  const handleSaveTplProc = (proc: TemplateProcedure) => {
+    if (!editingTemplate) return;
+    const newProcs = [...(editingTemplate.procedures || [])];
+    if (editingTplProcIndex !== null) {
+      newProcs[editingTplProcIndex] = proc;
+    } else {
+      newProcs.push(proc);
+    }
+    setEditingTemplate({ ...editingTemplate, procedures: newProcs });
+    setIsTplProcModalOpen(false);
+  };
 
   useEffect(() => {
     if (isLoadTemplateModalOpen) {
@@ -752,43 +767,46 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
   const templateDifferences = useMemo(() => {
     const differences: { templateId: string; templateName: string, appointments: Appointment[], mismatch: boolean }[] = [];
-    const groupedByTemplate = new Map<string, Appointment[]>();
-    const seenAppts = new Set<string>();
+    const usedTemplateIds = new Set<string>();
+    
+    // Find all templates associated with this patient's appointments today in currentDept
     for (const appt of patientAppointments) {
-         if (appt.templateId && appt.deptId === currentDept.id && !seenAppts.has(appt.id)) {
-             seenAppts.add(appt.id);
-             if (!groupedByTemplate.has(appt.templateId)) groupedByTemplate.set(appt.templateId, []);
-             groupedByTemplate.get(appt.templateId)!.push(appt);
-         }
+      if (appt.templateId && appt.deptId === currentDept.id) {
+        usedTemplateIds.add(appt.templateId);
+      }
     }
-    groupedByTemplate.forEach((appts, tid) => {
-         const tmpl = templates.find(t => t.id === tid);
-         if (!tmpl) return;
-         
-         const sortedAppts = [...appts].sort((a,b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime));
-         const sortedTmplProcs = [...(tmpl.procedures || [])].sort((a,b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime));
-         
-         let isMismatch = false;
-         if (sortedAppts.length !== sortedTmplProcs.length) {
+
+    // Full set of appointments for this patient today in current department
+    const currentDeptAppts = patientAppointments.filter(a => a.deptId === currentDept.id);
+    const sortedDeptAppts = [...currentDeptAppts].sort((a, b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime));
+
+    usedTemplateIds.forEach((tid) => {
+      const tmpl = templates.find(t => t.id === tid);
+      if (!tmpl) return;
+      
+      const sortedTmplProcs = [...(tmpl.procedures || [])].sort((a, b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime));
+      
+      let isMismatch = false;
+      if (sortedDeptAppts.length !== sortedTmplProcs.length) {
+        isMismatch = true;
+      } else {
+        for (let i = 0; i < sortedDeptAppts.length; i++) {
+          const a = sortedDeptAppts[i];
+          const t = sortedTmplProcs[i];
+          if (a.procedureId !== t.procedureId || a.startTime !== t.startTime || a.endTime !== t.endTime) {
             isMismatch = true;
-         } else {
-             for (let i = 0; i < sortedAppts.length; i++) {
-                 const a = sortedAppts[i];
-                 const t = sortedTmplProcs[i];
-                 if (a.procedureId !== t.procedureId || a.startTime !== t.startTime || a.endTime !== t.endTime) {
-                     isMismatch = true;
-                     break;
-                 }
-                 if (t.staffId && t.staffId !== a.staffId) { isMismatch = true; break; }
-                 if (t.assistant1Id && t.assistant1Id !== a.assistant1Id) { isMismatch = true; break; }
-                 if (t.assistant2Id && t.assistant2Id !== a.assistant2Id) { isMismatch = true; break; }
-                 if (t.assignedMachineId && t.assignedMachineId !== a.assignedMachineId) { isMismatch = true; break; }
-             }
-         }
-         
-         if (isMismatch) {
-             differences.push({ templateId: tid, templateName: tmpl.name, appointments: sortedAppts, mismatch: true });
-         }
+            break;
+          }
+          if (t.staffId && t.staffId !== a.staffId) { isMismatch = true; break; }
+          if (t.assistant1Id && t.assistant1Id !== a.assistant1Id) { isMismatch = true; break; }
+          if (t.assistant2Id && t.assistant2Id !== a.assistant2Id) { isMismatch = true; break; }
+          if (t.assignedMachineId && t.assignedMachineId !== a.assignedMachineId) { isMismatch = true; break; }
+        }
+      }
+      
+      if (isMismatch) {
+        differences.push({ templateId: tid, templateName: tmpl.name, appointments: sortedDeptAppts, mismatch: true });
+      }
     });
     return differences;
   }, [patientAppointments, templates, currentDept.id]);
@@ -898,6 +916,11 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     }
   };
 
+  const handleSelectTemplate = (template: AppointmentTemplate) => {
+    setSelectedTemplateId(template.id);
+    setEditingTemplate(JSON.parse(JSON.stringify(template)));
+  };
+
   /** Recursive component for nested template groups */
   const renderTemplateItems = (path: string, items: any[], level: number = 0) => {
     const groupName = path.split('/').pop()?.trim() || 'Khác';
@@ -929,21 +952,24 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
               const template = item.template;
               const templateProcIds = (template.procedures || []).map((p: TemplateProcedure) => `${p.procedureId}_${p.startTime}_${p.endTime}`).sort();
               const templateKey = templateProcIds.join('|');
-              const allApptsForTemplate = appointments.filter(a => a.date === currentDate && a.deptId === currentDept.id && a.templateId === template.id);
               
-              const patientApptsMap = new Map<string, Appointment[]>();
-              allApptsForTemplate.forEach(a => {
-                if (!patientApptsMap.has(a.patientId)) patientApptsMap.set(a.patientId, []);
-                patientApptsMap.get(a.patientId)!.push(a);
+              const patientIdsWithThisTpl = new Set<string>();
+              appointments.forEach(a => {
+                if (a.date === currentDate && a.deptId === currentDept.id && a.templateId === template.id) {
+                  patientIdsWithThisTpl.add(a.patientId);
+                }
               });
 
               const usedPatients: {id: string, name: string, age: string | number, bed: string, isModified: boolean, appts: Appointment[]}[] = [];
-              patientApptsMap.forEach((appts, pId) => {
+              patientIdsWithThisTpl.forEach((pId) => {
                 const p = patients.find(pat => pat.id === pId);
                 if (p) {
-                  const patientProcIds = appts.map(a => `${a.procedureId}_${a.startTime}_${a.endTime}`).sort();
+                  const patDeptAppts = appointments
+                    .filter(a => a.patientId === pId && a.date === currentDate && a.deptId === currentDept.id)
+                    .sort((a, b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime));
+                  const patientProcIds = patDeptAppts.map(a => `${a.procedureId}_${a.startTime}_${a.endTime}`).sort();
                   const isModified = patientProcIds.join('|') !== templateKey;
-                  usedPatients.push({ id: pId, name: p.name, age: calculateAge(p.dob), bed: p.bedNumber, isModified, appts });
+                  usedPatients.push({ id: pId, name: p.name, age: calculateAge(p.dob), bed: p.bedNumber, isModified, appts: patDeptAppts });
                 }
               });
 
@@ -964,7 +990,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                           ? 'bg-emerald-50/30 border-emerald-100 hover:bg-emerald-50/50'
                           : 'bg-white border-slate-100 hover:bg-slate-50'
                   }`}
-                  onClick={() => setSelectedTemplateId(template.id)}
+                  onClick={() => handleSelectTemplate(template)}
                   style={{ marginLeft: `${indent + 20}px` }}
                 >
                   <div className="flex justify-between items-start group/item">
@@ -1409,7 +1435,29 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
 
       const cleanTemplate = JSON.parse(JSON.stringify(updatedTemplate, (key, value) => value === undefined ? null : value));
       await setDoc(doc(db, "templates", cleanTemplate.id), cleanTemplate);
-      onUpdateTemplates?.(prev => prev.map(t => t.id === cleanTemplate.id ? cleanTemplate : t));
+      onUpdateTemplates?.(prev => {
+        const exists = prev.some(t => t.id === cleanTemplate.id);
+        if (exists) return prev.map(t => t.id === cleanTemplate.id ? cleanTemplate : t);
+        return [...prev, cleanTemplate];
+      });
+
+      if (editingTemplate && editingTemplate.id === cleanTemplate.id) {
+        setEditingTemplate(cleanTemplate);
+      }
+
+      // Link any appointments that do not yet have this templateId
+      const apptsNeedingLink = sortedAppts.filter(a => a.templateId !== cleanTemplate.id);
+      if (apptsNeedingLink.length > 0) {
+        for (const appt of apptsNeedingLink) {
+          const updatedAppt = { ...appt, templateId: cleanTemplate.id };
+          await setDoc(doc(db, "appointments", appt.id), updatedAppt);
+        }
+        onUpdateAppointments?.(prev => prev.map(a => {
+          const matched = apptsNeedingLink.find(u => u.id === a.id);
+          return matched ? { ...a, templateId: cleanTemplate.id } : a;
+        }));
+      }
+
       alert('Đã lưu các thay đổi vào mẫu!');
     } catch (error) {
        console.error("Error syncing to template:", error);
@@ -2792,9 +2840,22 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                 type="text"
                                 value={editingTemplate.name}
                                 onChange={(e) => setEditingTemplate({...editingTemplate, name: e.target.value})}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-medium"
                               />
                             </div>
+                            
+                            <div className="flex items-center justify-between pt-1">
+                              <label className="block text-xs font-bold text-slate-700">Danh sách lịch trình ({editingTemplate.procedures?.length || 0})</label>
+                              <Button 
+                                size="sm" 
+                                variant="secondary"
+                                onClick={() => { setEditingTplProcIndex(null); setIsTplProcModalOpen(true); }}
+                                className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none py-1 px-2.5 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Plus size={13} /> Thêm thủ thuật vào mẫu
+                              </Button>
+                            </div>
+
                             <div className="space-y-3">
                               {(editingTemplate.procedures || []).map((tProc, idx) => {
                                 const proc = procedures.find(p => p.id === tProc.procedureId);
@@ -3041,6 +3102,18 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                   </div>
                 </div>
               </div>
+            )}
+
+            {isTplProcModalOpen && editingTemplate && (
+              <TemplateProcModal
+                isOpen={isTplProcModalOpen}
+                onClose={() => { setIsTplProcModalOpen(false); setEditingTplProcIndex(null); }}
+                onSave={handleSaveTplProc}
+                staff={staff}
+                procedures={procedures}
+                currentDept={currentDept}
+                initialData={editingTplProcIndex !== null ? editingTemplate.procedures?.[editingTplProcIndex] : undefined}
+              />
             )}
           </>
         ) : (
