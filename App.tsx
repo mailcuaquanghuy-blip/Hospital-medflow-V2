@@ -3,10 +3,10 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, TimelineViewMode, AttendanceRecord, AttendanceStatus, PatientStatus, PatientReferral, UserAccount, UserRole, AppointmentTemplate, MachineShift, Backup, ScheduleSnapshot } from './types';
 import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN, MOCK_TEMPLATES } from './constants';
 
-import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation } from './utils/timeUtils';
+import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation, getLocalDateString } from './utils/timeUtils';
 import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments, clearAllSessionBaselines, formatDateVi } from './utils/scheduleHistoryUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
-import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase, saveScheduleSnapshotToSupabase } from './utils/supabaseService';
+import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, deleteSupabaseBatch, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase, saveScheduleSnapshotToSupabase } from './utils/supabaseService';
 import { supabase } from './supabaseClient';
 import { Timeline } from './components/Timeline';
 import { DailyReport } from './components/DailyReport';
@@ -129,6 +129,10 @@ const App: React.FC = () => {
   
   // Ref to throttle rapid database reloads (preventing lag & state overwrites during focus events)
   const lastFetchTimeRef = React.useRef<number>(0);
+  const recentlyDeletedApptIdsRef = useRef<Map<string, number>>(new Map());
+  const recentlyUpdatedApptsRef = useRef<Map<string, { appt: Appointment; timestamp: number }>>(new Map());
+  const recentlyUpdatedPatientsRef = useRef<Map<string, { patient: Patient; timestamp: number }>>(new Map());
+  const lastUserActionTimeRef = useRef<number>(0);
   
   // Verification State
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
@@ -198,6 +202,11 @@ const App: React.FC = () => {
           });
           break;
         case 'appointments':
+          if (action === 'delete') {
+            recentlyDeletedApptIdsRef.current.set(docId, Date.now());
+          } else if (data) {
+            recentlyUpdatedApptsRef.current.set(docId, { appt: data, timestamp: Date.now() });
+          }
           setAppointments(prev => {
             if (action === 'delete') return prev.filter(item => item.id !== docId);
             const idx = prev.findIndex(item => item.id === docId);
@@ -235,6 +244,9 @@ const App: React.FC = () => {
           });
           break;
         case 'patients':
+          if (data && action === 'set') {
+            recentlyUpdatedPatientsRef.current.set(docId, { patient: data, timestamp: Date.now() });
+          }
           setPatients(prev => {
             if (action === 'delete') return prev.filter(item => item.id !== docId);
             const idx = prev.findIndex(item => item.id === docId);
@@ -422,6 +434,11 @@ const App: React.FC = () => {
     
     const loadAppData = async (force = false) => {
       const now = Date.now();
+      // If user performed an action recently (< 8s ago), skip background reload to prevent race conditions
+      if (!force && now - lastUserActionTimeRef.current < 8000) {
+        console.log("[loadAppData] User action recently in progress (< 8s ago). Skipping fetch to protect local state.");
+        return;
+      }
       // Throttle reloads to maximum once every 20 seconds, unless forced
       if (!force && now - lastFetchTimeRef.current < 20000) {
         console.log("[loadAppData] Throttled (last sync was < 20s ago). Skipping fetch to preserve UI state.");
@@ -460,13 +477,52 @@ const App: React.FC = () => {
           if (!bkps || bkps.length === 0) bkps = await fetchCollectionFromFirestore<Backup>('backups');
         }
 
-        if (pats && pats.length > 0) setPatients(pats);
+        if (pats && pats.length > 0) {
+          setPatients(prev => {
+            if (!prev || prev.length === 0) return pats;
+            const currentTime = Date.now();
+            return pats.map(serverP => {
+              const recent = recentlyUpdatedPatientsRef.current.get(serverP.id);
+              if (recent && currentTime - recent.timestamp < 45000) {
+                return recent.patient;
+              }
+              return serverP;
+            });
+          });
+        }
         if (appts && appts.length > 0) {
           setAppointments(prev => {
             if (!prev || prev.length === 0) return appts;
-            const serverIds = new Set(appts.map(a => a.id));
-            const localOnly = prev.filter(local => !serverIds.has(local.id));
-            return [...appts, ...localOnly];
+            const currentTime = Date.now();
+            
+            // 1. Exclude appointments recently deleted locally
+            const validServerAppts = appts.filter(a => {
+              const delTime = recentlyDeletedApptIdsRef.current.get(a.id);
+              if (delTime && currentTime - delTime < 45000) {
+                return false;
+              }
+              return true;
+            });
+
+            // 2. Override with locally modified version if recently updated
+            const mergedServerAppts = validServerAppts.map(serverA => {
+              const recent = recentlyUpdatedApptsRef.current.get(serverA.id);
+              if (recent && currentTime - recent.timestamp < 45000) {
+                return recent.appt;
+              }
+              return serverA;
+            });
+
+            // 3. Keep newly created local appointments not yet returned by server
+            const serverIdSet = new Set(mergedServerAppts.map(a => a.id));
+            const newLocalAppts = prev.filter(localA => {
+              if (serverIdSet.has(localA.id)) return false;
+              const delTime = recentlyDeletedApptIdsRef.current.get(localA.id);
+              if (delTime && currentTime - delTime < 45000) return false;
+              return true;
+            });
+
+            return [...mergedServerAppts, ...newLocalAppts];
           });
         }
         if (stf && stf.length > 0) setStaff(stf);
@@ -566,7 +622,7 @@ const App: React.FC = () => {
     // Background periodic sync (every 60s) when page is visible as a fallback
     const pollInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        loadAppData(true);
+        loadAppData(false);
       }
     }, 60000);
 
@@ -697,7 +753,7 @@ const App: React.FC = () => {
             return;
           }
 
-          const dischargeDayOnly = patient.dischargeDate.split('T')[0];
+          const dischargeDayOnly = getLocalDateString(patient.dischargeDate);
           const dischargeLimit = new Date(patient.dischargeDate).getTime();
           apptsToDelete = appointments.filter(appt => {
             if (appt.patientId !== patient.id) return false;
@@ -717,6 +773,10 @@ const App: React.FC = () => {
       setIsPatientEditModalOpen(false);
       setEditingPatient(null);
 
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+      recentlyUpdatedPatientsRef.current.set(patient.id, { patient, timestamp: now });
+
       // Optimistic state updates
       setPatients(prev => {
         const exists = prev.some(oldP => oldP.id === patient.id);
@@ -725,30 +785,17 @@ const App: React.FC = () => {
       });
 
       if (apptsToDelete.length > 0) {
+        apptsToDelete.forEach(a => recentlyDeletedApptIdsRef.current.set(a.id, now));
         const apptIdsToDelete = new Set(apptsToDelete.map(a => a.id));
         setAppointments(prev => prev.filter(a => !apptIdsToDelete.has(a.id)));
       }
 
-      // Save to Supabase and Firestore
+      // Save to Supabase and database
       const cleanPatient = JSON.parse(JSON.stringify(patient, (key, value) => value === undefined ? null : value));
-      
-      if (isSupabaseConfigured()) {
-        await saveSupabaseItem('patients', patient.id, cleanPatient);
-        if (apptsToDelete.length > 0) {
-          for (const appt of apptsToDelete) {
-            await deleteSupabaseItem('appointments', appt.id);
-          }
-        }
-      }
-
-      if (db) {
-        const dbPromises: Promise<any>[] = [setDoc(doc(db, "patients", patient.id), cleanPatient)];
-        if (apptsToDelete.length > 0) {
-          apptsToDelete.forEach(appt => {
-            dbPromises.push(deleteDoc(doc(db, "appointments", appt.id)));
-          });
-        }
-        await Promise.all(dbPromises);
+      await setDoc(doc(db, "patients", patient.id), cleanPatient);
+      if (apptsToDelete.length > 0) {
+        const ids = apptsToDelete.map(a => a.id);
+        await deleteSupabaseBatch('appointments', ids);
       }
     } catch (error) { 
       console.error("Error saving patient:", error);
@@ -765,32 +812,20 @@ const App: React.FC = () => {
         return;
       }
 
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+
       // Khi xóa hồ sơ bệnh nhân bằng tài khoản quản trị thì các thủ thuật của bệnh nhân đó sẽ tự động xóa hết
       if (isAdmin && patientAppointments.length > 0) {
+        patientAppointments.forEach(a => recentlyDeletedApptIdsRef.current.set(a.id, now));
         setAppointments(prev => prev.filter(appt => appt.patientId !== patientId));
-
-        if (isSupabaseConfigured()) {
-          for (const appt of patientAppointments) {
-            await deleteSupabaseItem('appointments', appt.id);
-          }
-        }
-        if (db) {
-          const apptDeletePromises = patientAppointments.map(appt =>
-            deleteDoc(doc(db, "appointments", appt.id))
-          );
-          await Promise.all(apptDeletePromises);
-        }
+        await deleteSupabaseBatch('appointments', patientAppointments.map(a => a.id));
       }
 
       // Optimistic update bệnh nhân
       setPatients(prev => prev.filter(p => p.id !== patientId));
+      await deleteDoc(doc(db, "patients", patientId));
 
-      if (isSupabaseConfigured()) {
-        await deleteSupabaseItem('patients', patientId);
-      }
-      if (db) {
-        await deleteDoc(doc(db, "patients", patientId));
-      }
       console.log(`Đã xóa hồ sơ bệnh nhân ${patientId}${isAdmin && patientAppointments.length > 0 ? ` cùng ${patientAppointments.length} thủ thuật` : ''}`);
     } catch (error) { 
       console.error("Error deleting patient:", error);
@@ -839,6 +874,10 @@ const App: React.FC = () => {
     // Close modal and reset editing appointment state immediately for instant local UI responsiveness
     setIsModalOpen(false);
     setEditingAppt(undefined);
+
+    const now = Date.now();
+    lastUserActionTimeRef.current = now;
+    recentlyUpdatedApptsRef.current.set(id, { appt: baseAppt as Appointment, timestamp: now });
 
     // Optimistic local state update for zero latency responsiveness
     setAppointments(prev => {
@@ -1080,6 +1119,10 @@ const App: React.FC = () => {
       }
     });
 
+    const now = Date.now();
+    lastUserActionTimeRef.current = now;
+    recentlyUpdatedApptsRef.current.set(updatedAppt.id, { appt: finalAppt as Appointment, timestamp: now });
+
     // Optimistic local state update for zero-delay UI response
     setAppointments(prev => prev.map(a => a.id === updatedAppt.id ? (finalAppt as Appointment) : a));
 
@@ -1106,6 +1149,10 @@ const App: React.FC = () => {
 
     // Save to deleted session storage so deletion can be undone in ScheduleHistoryModal
     saveDeletedSessionAppointment(appt);
+
+    const now = Date.now();
+    lastUserActionTimeRef.current = now;
+    recentlyDeletedApptIdsRef.current.set(apptId, now);
 
     // Optimistic local state update for instant zero-delay deletion UI response
     setAppointments(prev => prev.filter(a => a.id !== apptId));
@@ -1299,6 +1346,11 @@ const App: React.FC = () => {
     });
 
     if (newAppts.length > 0) {
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+      toDeleteApptIds.forEach(id => recentlyDeletedApptIdsRef.current.set(id, now));
+      newAppts.forEach(a => recentlyUpdatedApptsRef.current.set(a.id, { appt: a, timestamp: now }));
+
       // Cập nhật ngay lập tức giao diện local
       setAppointments(prev => {
         const filtered = prev.filter(a => !toDeleteApptIds.includes(a.id));
@@ -1487,6 +1539,10 @@ const App: React.FC = () => {
       }
 
       // Lưu hàng loạt
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+      newAppointments.forEach(a => recentlyUpdatedApptsRef.current.set(a.id, { appt: a, timestamp: now }));
+
       console.log(`Saving ${newAppointments.length} new appointments...`);
       const savePromises = newAppointments.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
       await Promise.all(savePromises);
@@ -2324,7 +2380,7 @@ const App: React.FC = () => {
           return false;
         }
 
-        const dischargeDayOnly = dischargeDateIso.split('T')[0];
+        const dischargeDayOnly = getLocalDateString(dischargeDateIso);
         const dischargeLimit = new Date(dischargeDateIso).getTime();
         apptsToDelete = appointments.filter(appt => {
           if (appt.patientId !== p.id) return false;
@@ -2340,32 +2396,23 @@ const App: React.FC = () => {
       }
 
       const updatedPatient = { ...p, status, dischargeDate: dischargeDateIso };
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+      recentlyUpdatedPatientsRef.current.set(p.id, { patient: updatedPatient, timestamp: now });
 
       // Optimistic local state update for zero latency response
       setPatients(prev => prev.map(item => item.id === p.id ? updatedPatient : item));
 
       if (apptsToDelete.length > 0) {
+        apptsToDelete.forEach(a => recentlyDeletedApptIdsRef.current.set(a.id, now));
         const apptIdsToDelete = new Set(apptsToDelete.map(a => a.id));
         setAppointments(prev => prev.filter(a => !apptIdsToDelete.has(a.id)));
       }
 
-      if (isSupabaseConfigured()) {
-        await saveSupabaseItem('patients', p.id, updatedPatient);
-        if (apptsToDelete.length > 0) {
-          for (const appt of apptsToDelete) {
-            await deleteSupabaseItem('appointments', appt.id);
-          }
-        }
-      }
-
-      if (db) {
-        const promises: Promise<any>[] = [setDoc(doc(db, "patients", p.id), updatedPatient)];
-        if (apptsToDelete.length > 0) {
-          apptsToDelete.forEach(appt => {
-            promises.push(deleteDoc(doc(db, "appointments", appt.id)));
-          });
-        }
-        await Promise.all(promises);
+      await setDoc(doc(db, "patients", p.id), updatedPatient);
+      if (apptsToDelete.length > 0) {
+        const ids = apptsToDelete.map(a => a.id);
+        await deleteSupabaseBatch('appointments', ids);
       }
       return true;
     } catch (e) { 

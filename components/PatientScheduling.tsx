@@ -16,7 +16,7 @@ import { ScheduleHistoryModal } from './ScheduleHistoryModal';
 import { StaffTimelineModal } from './StaffTimelineModal';
 import { getBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { DEPARTMENTS, OFFICE_SHIFTS } from '../constants';
-import { db, doc, collection, setDoc, deleteDoc } from '../utils/dbService';
+import { db, doc, collection, setDoc, deleteDoc, writeBatch } from '../utils/dbService';
 import { TemplateProcModal } from './TemplateProcModal';
 
 
@@ -1143,12 +1143,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       const existingAppts = appointments.filter(
         a => a.patientId === targetPatientId && a.date === currentDate && a.deptId === currentDept.id
       );
-      if (existingAppts.length > 0) {
-        await Promise.all(existingAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id))));
-      }
 
-      const createdAppts: Appointment[] = [];
-      const createPromises = (templateObj.procedures || []).map(async (tProc) => {
+      const createdAppts: Appointment[] = (templateObj.procedures || []).map((tProc) => {
         let staffId: string | null = null;
         let assistant1Id: string | null = null;
         let assistant2Id: string | null = null;
@@ -1198,19 +1194,22 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
           needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
         };
-        const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
-        createdAppts.push(cleanAppt);
-        await setDoc(doc(db, "appointments", apptId), cleanAppt);
+        return JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
       });
 
-      await Promise.all(createPromises);
-
+      // 1. Optimistic state update immediately (0ms delay)
       const existingIds = new Set(existingAppts.map(a => a.id));
       const createdIds = new Set(createdAppts.map(a => a.id));
       onUpdateAppointments?.(prev => {
         const filtered = prev.filter(a => !existingIds.has(a.id) && !createdIds.has(a.id));
         return [...filtered, ...createdAppts];
       });
+
+      // 2. Batch commit to persistent database
+      const batch = writeBatch();
+      existingAppts.forEach(appt => batch.delete(doc(db, "appointments", appt.id)));
+      createdAppts.forEach(appt => batch.set(doc(db, "appointments", appt.id), appt));
+      await batch.commit();
 
       setSelectedPatientId(targetPatientId);
       
@@ -1248,13 +1247,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     try {
       const tmpl = templates.find(t => t.id === templateId);
       if (!tmpl) return;
-      
-      // Delete associated appointments in parallel
-      await Promise.all(associatedAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id))));
 
-      const createdAppts: Appointment[] = [];
-      // Re-create from template in parallel
-      const createPromises = (tmpl.procedures || []).map(async (tProc) => {
+      const createdAppts: Appointment[] = (tmpl.procedures || []).map((tProc) => {
         let staffId = tProc.staffId;
         let assistant1Id = tProc.assistant1Id;
         let assistant2Id = tProc.assistant2Id;
@@ -1287,19 +1281,22 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
           needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
         };
-        const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
-        createdAppts.push(cleanAppt);
-        await setDoc(doc(db, "appointments", apptId), cleanAppt);
+        return JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
       });
 
-      await Promise.all(createPromises);
-
+      // 1. Optimistic update
       const deletedIds = new Set(associatedAppts.map(a => a.id));
       const createdIds = new Set(createdAppts.map(a => a.id));
       onUpdateAppointments?.(prev => {
         const filtered = prev.filter(a => !deletedIds.has(a.id) && !createdIds.has(a.id));
         return [...filtered, ...createdAppts];
       });
+
+      // 2. Batch commit
+      const batch = writeBatch();
+      associatedAppts.forEach(appt => batch.delete(doc(db, "appointments", appt.id)));
+      createdAppts.forEach(appt => batch.set(doc(db, "appointments", appt.id), appt));
+      await batch.commit();
 
       alert('Đã cập nhật lại lịch bệnh nhân từ mẫu!');
     } catch (error) {
@@ -1336,12 +1333,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     try {
       // Clear existing appointments for target patient on currentDate in currentDept
       const existingAppts = appointments.filter(a => a.patientId === targetPatientId && a.date === currentDate && a.deptId === currentDept.id);
-      if (existingAppts.length > 0) {
-        await Promise.all(existingAppts.map(a => deleteDoc(doc(db, "appointments", a.id))));
-      }
 
-      const createdAppts: Appointment[] = [];
-      const createPromises = (template.procedures || []).map(async (tProc) => {
+      const createdAppts: Appointment[] = (template.procedures || []).map((tProc) => {
         const proc = procedures.find(p => p.id === tProc.procedureId);
         let machineId = tProc.assignedMachineId || null;
         if (!machineId && proc?.requireMachine && proc.availableMachines && proc.availableMachines.length > 0) {
@@ -1375,19 +1368,22 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
           needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
         };
-        const cleanAppt = JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
-        createdAppts.push(cleanAppt);
-        await setDoc(doc(db, "appointments", apptId), cleanAppt);
+        return JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
       });
 
-      await Promise.all(createPromises);
-
+      // 1. Optimistic update
       const existingIds = new Set(existingAppts.map(a => a.id));
       const createdIds = new Set(createdAppts.map(a => a.id));
       onUpdateAppointments?.(prev => {
         const filtered = prev.filter(a => !existingIds.has(a.id) && !createdIds.has(a.id));
         return [...filtered, ...createdAppts];
       });
+
+      // 2. Batch commit
+      const batch = writeBatch();
+      existingAppts.forEach(a => batch.delete(doc(db, "appointments", a.id)));
+      createdAppts.forEach(a => batch.set(doc(db, "appointments", a.id), a));
+      await batch.commit();
       
       onRecheckConflicts?.();
       const patient = patients.find(p => p.id === targetPatientId);

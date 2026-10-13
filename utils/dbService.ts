@@ -299,24 +299,27 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
     } catch (e) {}
   }
 
-  // 3. Persist to Supabase (Primary)
+  // 3. Persist to Supabase (Primary) - Await to guarantee persistence
   try {
     const sbTable = getSupabaseTableName(collectionName);
-    saveSupabaseItem(sbTable, docId, cleanData).catch(err => {
-      console.warn(`[Supabase setDoc] Note on saving ${sbTable}/${docId}:`, err);
-    });
+    await saveSupabaseItem(sbTable, docId, cleanData);
   } catch (err) {
     console.warn(`[Supabase setDoc] Error saving ${collectionName}/${docId}:`, err);
   }
 
-  // 4. Persist to Firestore (Mirror/Backup)
-  try {
-    await ensureAuthReady();
-    const fDocRef = firestoreDoc(db, collectionName, docId);
-    await firestoreSetDoc(fDocRef, cleanData, { merge: true });
-  } catch (err) {
-    console.warn(`[Firestore setDoc] Error saving ${collectionName}/${docId}:`, err);
-  }
+  // 4. Persist to Firestore (Mirror/Backup) in non-blocking background with timeout
+  (async () => {
+    try {
+      await ensureAuthReady();
+      const fDocRef = firestoreDoc(db, collectionName, docId);
+      await Promise.race([
+        firestoreSetDoc(fDocRef, cleanData, { merge: true }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500))
+      ]);
+    } catch (err) {
+      // Background mirror warning only, does not block application
+    }
+  })();
 };
 
 export const updateDoc = async (docRef: any, data: any) => {
@@ -343,24 +346,25 @@ export const updateDoc = async (docRef: any, data: any) => {
     } catch (e) {}
   }
 
-  // 3. Update in Supabase
+  // 3. Update in Supabase - Await to guarantee persistence
   try {
     const sbTable = getSupabaseTableName(collectionName);
-    saveSupabaseItem(sbTable, docId, cleanData).catch(err => {
-      console.warn(`[Supabase updateDoc] Note on updating ${sbTable}/${docId}:`, err);
-    });
+    await saveSupabaseItem(sbTable, docId, cleanData);
   } catch (err) {
     console.warn(`[Supabase updateDoc] Error updating ${collectionName}/${docId}:`, err);
   }
 
-  // 4. Update in Firestore
-  try {
-    await ensureAuthReady();
-    const fDocRef = firestoreDoc(db, collectionName, docId);
-    await firestoreSetDoc(fDocRef, cleanData, { merge: true });
-  } catch (err) {
-    console.warn(`[Firestore updateDoc] Error updating ${collectionName}/${docId}:`, err);
-  }
+  // 4. Update in Firestore background
+  (async () => {
+    try {
+      await ensureAuthReady();
+      const fDocRef = firestoreDoc(db, collectionName, docId);
+      await Promise.race([
+        firestoreSetDoc(fDocRef, cleanData, { merge: true }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500))
+      ]);
+    } catch (err) {}
+  })();
 };
 
 export const deleteDoc = async (docRef: any) => {
@@ -382,24 +386,25 @@ export const deleteDoc = async (docRef: any) => {
     } catch (e) {}
   }
 
-  // 3. Delete from Supabase
+  // 3. Delete from Supabase - Await to guarantee persistence
   try {
     const sbTable = getSupabaseTableName(collectionName);
-    deleteSupabaseItem(sbTable, docId).catch(err => {
-      console.warn(`[Supabase deleteDoc] Note on deleting ${sbTable}/${docId}:`, err);
-    });
+    await deleteSupabaseItem(sbTable, docId);
   } catch (err) {
     console.warn(`[Supabase deleteDoc] Error deleting ${collectionName}/${docId}:`, err);
   }
 
-  // 4. Delete from Firestore
-  try {
-    await ensureAuthReady();
-    const fDocRef = firestoreDoc(db, collectionName, docId);
-    await firestoreDeleteDoc(fDocRef);
-  } catch (err) {
-    console.warn(`[Firestore deleteDoc] Error deleting ${collectionName}/${docId}:`, err);
-  }
+  // 4. Delete from Firestore in background
+  (async () => {
+    try {
+      await ensureAuthReady();
+      const fDocRef = firestoreDoc(db, collectionName, docId);
+      await Promise.race([
+        firestoreDeleteDoc(fDocRef),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore timeout')), 2500))
+      ]);
+    } catch (err) {}
+  })();
 };
 
 export const writeBatch = (firestoreDb?: any) => {
@@ -429,7 +434,7 @@ export const writeBatch = (firestoreDb?: any) => {
         }
       }
 
-      // 2. Perform chunked Supabase batch upsert / delete
+      // 2. Perform chunked Supabase batch upsert / delete AND AWAIT
       try {
         const setsByTable: Record<string, Array<{ id: string; data: any }>> = {};
         const deletesByTable: Record<string, string[]> = {};
@@ -447,40 +452,45 @@ export const writeBatch = (firestoreDb?: any) => {
           }
         }
 
+        const sbPromises: Promise<any>[] = [];
         for (const [table, items] of Object.entries(setsByTable)) {
-          saveSupabaseBatch(table, items).catch(err => console.warn(`Supabase batch save note on ${table}:`, err));
+          sbPromises.push(saveSupabaseBatch(table, items));
         }
         for (const [table, ids] of Object.entries(deletesByTable)) {
-          deleteSupabaseBatch(table, ids).catch(err => console.warn(`Supabase batch delete note on ${table}:`, err));
+          sbPromises.push(deleteSupabaseBatch(table, ids));
         }
+        await Promise.all(sbPromises);
       } catch (err) {
         console.warn("[Supabase writeBatch] Error executing batch write:", err);
       }
 
-      // 3. Perform chunked Firestore batch commit (max 450 ops per batch)
-      try {
-        await ensureAuthReady();
-        const BATCH_SIZE = 450;
-        for (let i = 0; i < operations.length; i += BATCH_SIZE) {
-          const chunk = operations.slice(i, i + BATCH_SIZE);
-          const batch = firestoreWriteBatch(db);
+      // 3. Mirror to Firestore in background
+      (async () => {
+        try {
+          await ensureAuthReady();
+          const BATCH_SIZE = 450;
+          for (let i = 0; i < operations.length; i += BATCH_SIZE) {
+            const chunk = operations.slice(i, i + BATCH_SIZE);
+            const batch = firestoreWriteBatch(db);
 
-          for (const op of chunk) {
-            const { collectionName, docId } = getRefDetails(op.docRef);
-            const fDocRef = firestoreDoc(db, collectionName, docId);
-            if (op.type === 'set' || op.type === 'update') {
-              const cleanData = JSON.parse(JSON.stringify(op.data, (key, value) => value === undefined ? null : value));
-              batch.set(fDocRef, cleanData, { merge: true });
-            } else if (op.type === 'delete') {
-              batch.delete(fDocRef);
+            for (const op of chunk) {
+              const { collectionName, docId } = getRefDetails(op.docRef);
+              const fDocRef = firestoreDoc(db, collectionName, docId);
+              if (op.type === 'set' || op.type === 'update') {
+                const cleanData = JSON.parse(JSON.stringify(op.data, (key, value) => value === undefined ? null : value));
+                batch.set(fDocRef, cleanData, { merge: true });
+              } else if (op.type === 'delete') {
+                batch.delete(fDocRef);
+              }
             }
-          }
 
-          await batch.commit();
-        }
-      } catch (err) {
-        console.warn("[Firestore writeBatch] Error executing batch write:", err);
-      }
+            await Promise.race([
+              batch.commit(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore batch timeout')), 3000))
+            ]);
+          }
+        } catch (err) {}
+      })();
     }
   } as any;
 };

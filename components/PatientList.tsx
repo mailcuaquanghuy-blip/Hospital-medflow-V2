@@ -119,6 +119,7 @@ export const PatientList: React.FC<PatientListProps> = ({
   
   // States cho Modal kết thúc
   const [dischargeDateInput, setDischargeDateInput] = useState('');
+  const [isSubmittingDischarge, setIsSubmittingDischarge] = useState(false);
 
   // States & Helpers cho nhập CSV bệnh nhân
   const [isCsvImportModalOpen, setIsCsvImportModalOpen] = useState(false);
@@ -758,10 +759,17 @@ export const PatientList: React.FC<PatientListProps> = ({
   }, [patients, activeDate, filterStatus, searchTerm, bedTypeFilter, insuranceFilter, referringDeptFilter, currentDept, sortConfig, hasSearched, appliedSearchFromDate, appliedSearchToDate, appliedSearchDateType]);
 
   const handleConfirmDischarge = async () => {
-    if (dischargingPatient) {
-      const result = await onUpdateStatus(dischargingPatient, PatientStatus.DISCHARGED, dischargeDateInput);
-      if (result !== false) {
-        setDischargingPatient(null);
+    if (dischargingPatient && !isSubmittingDischarge) {
+      setIsSubmittingDischarge(true);
+      try {
+        const result = await onUpdateStatus(dischargingPatient, PatientStatus.DISCHARGED, dischargeDateInput);
+        if (result !== false) {
+          setDischargingPatient(null);
+        }
+      } catch (err) {
+        console.error("Lỗi khi cho bệnh nhân ra viện:", err);
+      } finally {
+        setIsSubmittingDischarge(false);
       }
     }
   };
@@ -1910,6 +1918,15 @@ export const PatientList: React.FC<PatientListProps> = ({
                                 type="button"
                                 onClick={() => {
                                   setOpenActionsMenuPatientId(null);
+                                  if (p.dischargeDate) {
+                                    const d = new Date(p.dischargeDate);
+                                    setDischargeDateInput(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                                  } else {
+                                    const now = new Date();
+                                    const hours = String(now.getHours()).padStart(2, '0');
+                                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                                    setDischargeDateInput(`${activeDate}T${hours}:${minutes}`);
+                                  }
                                   setDischargingPatient(p);
                                 }}
                                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-colors text-left group"
@@ -2134,9 +2151,9 @@ export const PatientList: React.FC<PatientListProps> = ({
               </div>
 
               <div className="flex gap-3 w-full pt-4">
-                <Button onClick={() => setDischargingPatient(null)} variant="secondary" className="flex-1">HỦY</Button>
-                <Button onClick={handleConfirmDischarge} className="flex-1 bg-rose-600 hover:bg-rose-700">
-                  {dischargingPatient.status === 'DISCHARGED' ? 'CẬP NHẬT' : 'RA VIỆN'}
+                <Button onClick={() => setDischargingPatient(null)} disabled={isSubmittingDischarge} variant="secondary" className="flex-1">HỦY</Button>
+                <Button onClick={handleConfirmDischarge} disabled={isSubmittingDischarge} className="flex-1 bg-rose-600 hover:bg-rose-700">
+                  {isSubmittingDischarge ? 'ĐANG LƯU...' : (dischargingPatient.status === 'DISCHARGED' ? 'CẬP NHẬT' : 'RA VIỆN')}
                 </Button>
               </div>
             </div>
