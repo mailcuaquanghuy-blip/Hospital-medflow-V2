@@ -113,11 +113,16 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   const [activeTab, setActiveTab] = useState<'SCHEDULING' | 'TEMPLATES'>('SCHEDULING');
   const [pixelsPerMinute, setPixelsPerMinute] = useState(6.5);
   const deptKey = currentDept?.id || 'default';
+  const canEditCurrentDept = currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(currentDept.id));
 
   const [dischargingPatient, setDischargingPatient] = useState<Patient | null>(null);
   const [dischargeDateInput, setDischargeDateInput] = useState<string>('');
 
   const handleConfirmDischarge = async () => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền thay đổi trạng thái bệnh nhân ở khoa này.");
+      return;
+    }
     if (dischargingPatient && onUpdateStatus) {
       const result = await onUpdateStatus(dischargingPatient, PatientStatus.DISCHARGED, dischargeDateInput);
       if (result !== false) {
@@ -127,6 +132,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const openDischargeModal = (p: Patient) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền ra viện bệnh nhân ở khoa này.");
+      return;
+    }
     const currentDischargeDate = p.dischargeDate 
       ? p.dischargeDate.slice(0, 16) 
       : `${currentDate}T${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
@@ -135,6 +144,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleCancelDischarge = async (p: Patient) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền thay đổi trạng thái bệnh nhân ở khoa này.");
+      return;
+    }
     if (window.confirm(`Bạn có chắc chắn muốn hủy ra viện cho bệnh nhân ${p.name} không?`)) {
       if (onUpdateStatus) {
         await onUpdateStatus(p, PatientStatus.TREATING);
@@ -669,6 +682,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleSaveNote = async () => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền chỉnh sửa ghi chú bệnh nhân ở khoa này.");
+      return;
+    }
     if (!selectedPatient) return;
     try {
       setIsSavingNote(true);
@@ -693,6 +710,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleDeleteNote = async () => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền xóa ghi chú bệnh nhân ở khoa này.");
+      return;
+    }
     if (!selectedPatient || !selectedPatient.note) return;
     if (!window.confirm("Bạn có chắc chắn muốn xóa ghi chú của bệnh nhân này?")) return;
     try {
@@ -1106,6 +1127,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleApplyTemplate = async (templateIdOverride?: string) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền áp dụng mẫu hoặc chỉnh sửa lịch trình ở khoa này.");
+      return;
+    }
     const activePatientId = selectedPatientId;
     if (!activePatientId) {
       alert("Vui lòng chọn một bệnh nhân ở danh sách bên trái trước khi áp dụng mẫu!");
@@ -1133,6 +1158,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const executeApplyTemplateForPatient = async (targetPatientId: string, templateObj: AppointmentTemplate) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền áp dụng mẫu ở khoa này.");
+      return;
+    }
     if (!targetPatientId || !templateObj) return;
     if (isApplyingRef.current) return;
     isApplyingRef.current = true;
@@ -1162,6 +1191,24 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           ));
         const effectiveProcId = proc ? proc.id : tProc.procedureId;
 
+        // Lấy phương án thời lượng và khung giờ bận mới nhất từ danh mục thủ thuật
+        const defaultOpt = proc?.durationOptions?.find(o => o.isDefault && !o.isDeleted) || proc?.durationOptions?.find(o => !o.isDeleted) || proc?.durationOptions?.[0];
+        const targetOpt = (tProc.selectedDurationOptionId ? proc?.durationOptions?.find(o => o.id === tProc.selectedDurationOptionId && !o.isDeleted) : null) || defaultOpt;
+
+        const mainBusyStart = targetOpt ? (targetOpt.mainBusyStart ?? 0) : (proc?.mainBusyStart ?? (tProc.mainBusyStart ?? 0));
+        const mainBusyEnd = targetOpt ? (targetOpt.mainBusyEnd ?? targetOpt.durationMinutes) : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? (proc?.durationMinutes ?? (tProc.mainBusyEnd ?? 0)));
+        const asst1BusyStart = targetOpt ? (targetOpt.asst1BusyStart ?? 0) : (proc?.asst1BusyStart ?? (tProc.asst1BusyStart ?? 0));
+        const asst1BusyEnd = targetOpt ? (targetOpt.asst1BusyEnd ?? 0) : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? (tProc.asst1BusyEnd ?? 0));
+        const asst2BusyStart = targetOpt ? (targetOpt.asst2BusyStart ?? 0) : (proc?.asst2BusyStart ?? (tProc.asst2BusyStart ?? 0));
+        const asst2BusyEnd = targetOpt ? (targetOpt.asst2BusyEnd ?? 0) : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? (tProc.asst2BusyEnd ?? 0));
+        const restMinutes = targetOpt ? (targetOpt.restMinutes ?? 0) : (proc?.restMinutes ?? (tProc.restMinutes || 0));
+        const allowSameAssistant = targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? (tProc.allowSameAssistant ?? false));
+        const needsAssistant1 = targetOpt ? ((targetOpt.asst1BusyEnd ?? 0) > 0) : ((asst1BusyEnd ?? 0) > 0);
+        const needsAssistant2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+
+        const optDur = targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 0);
+        const calculatedEndTime = (optDur > 0 && tProc.startTime) ? addMinutesToTime(tProc.startTime, optDur) : tProc.endTime;
+
         let machineId = tProc.assignedMachineId || null;
         if (!machineId && proc?.requireMachine && proc.availableMachines && proc.availableMachines.length > 0) {
           machineId = proc.availableMachines[0];
@@ -1178,21 +1225,22 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           assistant2Id: assistant2Id || null,
           date: currentDate,
           startTime: tProc.startTime,
-          endTime: tProc.endTime,
+          endTime: calculatedEndTime,
           deptId: currentDept.id,
           status: AppointmentStatus.PENDING,
           notes: tProc.notes || '',
           assignedMachineId: machineId,
-          mainBusyStart: tProc.mainBusyStart !== undefined && tProc.mainBusyStart !== null ? tProc.mainBusyStart : (proc?.mainBusyStart ?? 0),
-          mainBusyEnd: tProc.mainBusyEnd !== undefined && tProc.mainBusyEnd !== null ? tProc.mainBusyEnd : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? proc?.durationMinutes ?? 0),
-          asst1BusyStart: tProc.asst1BusyStart !== undefined && tProc.asst1BusyStart !== null ? tProc.asst1BusyStart : (proc?.asst1BusyStart ?? 0),
-          asst1BusyEnd: tProc.asst1BusyEnd !== undefined && tProc.asst1BusyEnd !== null ? tProc.asst1BusyEnd : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0),
-          asst2BusyStart: tProc.asst2BusyStart !== undefined && tProc.asst2BusyStart !== null ? tProc.asst2BusyStart : (proc?.asst2BusyStart ?? 0),
-          asst2BusyEnd: tProc.asst2BusyEnd !== undefined && tProc.asst2BusyEnd !== null ? tProc.asst2BusyEnd : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0),
-          restMinutes: tProc.restMinutes || 0,
-          allowSameAssistant: tProc.allowSameAssistant !== undefined ? tProc.allowSameAssistant : (proc?.allowSameAssistant ?? false),
-          needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
-          needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
+          selectedDurationOptionId: targetOpt ? targetOpt.id : (tProc.selectedDurationOptionId || null),
+          mainBusyStart,
+          mainBusyEnd,
+          asst1BusyStart,
+          asst1BusyEnd,
+          asst2BusyStart,
+          asst2BusyEnd,
+          restMinutes,
+          allowSameAssistant,
+          needsAssistant1,
+          needsAssistant2
         };
         return JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
       });
@@ -1230,6 +1278,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleSyncFromTemplate = async (templateId: string, associatedAppts: Appointment[]) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền đồng bộ mẫu hoặc chỉnh sửa lịch trình ở khoa này.");
+      return;
+    }
     if (!db || !selectedPatientId) return;
 
     if (onVerifyAction) {
@@ -1240,6 +1292,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const executeSyncFromTemplate = async (templateId: string, associatedAppts: Appointment[]) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền đồng bộ mẫu ở khoa này.");
+      return;
+    }
     if (isApplyingRef.current) return;
     isApplyingRef.current = true;
     setIsApplyingTemplate(true);
@@ -1254,6 +1310,24 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         let assistant2Id = tProc.assistant2Id;
         const proc = procedures.find(p => p.id === tProc.procedureId);
 
+        // Lấy phương án thời lượng và khung giờ bận mới nhất từ danh mục thủ thuật
+        const defaultOpt = proc?.durationOptions?.find(o => o.isDefault && !o.isDeleted) || proc?.durationOptions?.find(o => !o.isDeleted) || proc?.durationOptions?.[0];
+        const targetOpt = (tProc.selectedDurationOptionId ? proc?.durationOptions?.find(o => o.id === tProc.selectedDurationOptionId && !o.isDeleted) : null) || defaultOpt;
+
+        const mainBusyStart = targetOpt ? (targetOpt.mainBusyStart ?? 0) : (proc?.mainBusyStart ?? (tProc.mainBusyStart ?? 0));
+        const mainBusyEnd = targetOpt ? (targetOpt.mainBusyEnd ?? targetOpt.durationMinutes) : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? (proc?.durationMinutes ?? (tProc.mainBusyEnd ?? 0)));
+        const asst1BusyStart = targetOpt ? (targetOpt.asst1BusyStart ?? 0) : (proc?.asst1BusyStart ?? (tProc.asst1BusyStart ?? 0));
+        const asst1BusyEnd = targetOpt ? (targetOpt.asst1BusyEnd ?? 0) : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? (tProc.asst1BusyEnd ?? 0));
+        const asst2BusyStart = targetOpt ? (targetOpt.asst2BusyStart ?? 0) : (proc?.asst2BusyStart ?? (tProc.asst2BusyStart ?? 0));
+        const asst2BusyEnd = targetOpt ? (targetOpt.asst2BusyEnd ?? 0) : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? (tProc.asst2BusyEnd ?? 0));
+        const restMinutes = targetOpt ? (targetOpt.restMinutes ?? 0) : (proc?.restMinutes ?? (tProc.restMinutes || 0));
+        const allowSameAssistant = targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? (tProc.allowSameAssistant ?? false));
+        const needsAssistant1 = targetOpt ? ((targetOpt.asst1BusyEnd ?? 0) > 0) : ((asst1BusyEnd ?? 0) > 0);
+        const needsAssistant2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+
+        const optDur = targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 0);
+        const calculatedEndTime = (optDur > 0 && tProc.startTime) ? addMinutesToTime(tProc.startTime, optDur) : tProc.endTime;
+
         const apptId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newAppt: Appointment = {
           id: apptId,
@@ -1265,21 +1339,22 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           assistant2Id: assistant2Id || null,
           date: currentDate,
           startTime: tProc.startTime,
-          endTime: tProc.endTime,
+          endTime: calculatedEndTime,
           deptId: currentDept.id,
           status: AppointmentStatus.PENDING,
           notes: tProc.notes,
           assignedMachineId: tProc.assignedMachineId,
-          mainBusyStart: tProc.mainBusyStart !== undefined && tProc.mainBusyStart !== null ? tProc.mainBusyStart : (proc?.mainBusyStart ?? 0),
-          mainBusyEnd: tProc.mainBusyEnd !== undefined && tProc.mainBusyEnd !== null ? tProc.mainBusyEnd : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? proc?.durationMinutes ?? 0),
-          asst1BusyStart: tProc.asst1BusyStart !== undefined && tProc.asst1BusyStart !== null ? tProc.asst1BusyStart : (proc?.asst1BusyStart ?? 0),
-          asst1BusyEnd: tProc.asst1BusyEnd !== undefined && tProc.asst1BusyEnd !== null ? tProc.asst1BusyEnd : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0),
-          asst2BusyStart: tProc.asst2BusyStart !== undefined && tProc.asst2BusyStart !== null ? tProc.asst2BusyStart : (proc?.asst2BusyStart ?? 0),
-          asst2BusyEnd: tProc.asst2BusyEnd !== undefined && tProc.asst2BusyEnd !== null ? tProc.asst2BusyEnd : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0),
-          restMinutes: tProc.restMinutes || 0,
-          allowSameAssistant: tProc.allowSameAssistant !== undefined ? tProc.allowSameAssistant : (proc?.allowSameAssistant ?? false),
-          needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
-          needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
+          selectedDurationOptionId: targetOpt ? targetOpt.id : (tProc.selectedDurationOptionId || null),
+          mainBusyStart,
+          mainBusyEnd,
+          asst1BusyStart,
+          asst1BusyEnd,
+          asst2BusyStart,
+          asst2BusyEnd,
+          restMinutes,
+          allowSameAssistant,
+          needsAssistant1,
+          needsAssistant2
         };
         return JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
       });
@@ -1309,6 +1384,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleApplyTemplateToPatient = async (targetPatientId: string, templateId: string) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền áp dụng mẫu hoặc chỉnh sửa lịch trình ở khoa này.");
+      return;
+    }
     if (!db) return;
 
     if (onVerifyAction) {
@@ -1319,6 +1398,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const executeApplyTemplateToPatient = async (targetPatientId: string, templateId: string) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền áp dụng mẫu ở khoa này.");
+      return;
+    }
     if (isApplyingRef.current) return;
     isApplyingRef.current = true;
     setIsApplyingTemplate(true);
@@ -1341,6 +1424,24 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           machineId = proc.availableMachines[0];
         }
 
+        // Lấy phương án thời lượng và khung giờ bận mới nhất từ danh mục thủ thuật
+        const defaultOpt = proc?.durationOptions?.find(o => o.isDefault && !o.isDeleted) || proc?.durationOptions?.find(o => !o.isDeleted) || proc?.durationOptions?.[0];
+        const targetOpt = (tProc.selectedDurationOptionId ? proc?.durationOptions?.find(o => o.id === tProc.selectedDurationOptionId && !o.isDeleted) : null) || defaultOpt;
+
+        const mainBusyStart = targetOpt ? (targetOpt.mainBusyStart ?? 0) : (proc?.mainBusyStart ?? (tProc.mainBusyStart ?? 0));
+        const mainBusyEnd = targetOpt ? (targetOpt.mainBusyEnd ?? targetOpt.durationMinutes) : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? (proc?.durationMinutes ?? (tProc.mainBusyEnd ?? 0)));
+        const asst1BusyStart = targetOpt ? (targetOpt.asst1BusyStart ?? 0) : (proc?.asst1BusyStart ?? (tProc.asst1BusyStart ?? 0));
+        const asst1BusyEnd = targetOpt ? (targetOpt.asst1BusyEnd ?? 0) : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? (tProc.asst1BusyEnd ?? 0));
+        const asst2BusyStart = targetOpt ? (targetOpt.asst2BusyStart ?? 0) : (proc?.asst2BusyStart ?? (tProc.asst2BusyStart ?? 0));
+        const asst2BusyEnd = targetOpt ? (targetOpt.asst2BusyEnd ?? 0) : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? (tProc.asst2BusyEnd ?? 0));
+        const restMinutes = targetOpt ? (targetOpt.restMinutes ?? 0) : (proc?.restMinutes ?? (tProc.restMinutes || 0));
+        const allowSameAssistant = targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? (tProc.allowSameAssistant ?? false));
+        const needsAssistant1 = targetOpt ? ((targetOpt.asst1BusyEnd ?? 0) > 0) : ((asst1BusyEnd ?? 0) > 0);
+        const needsAssistant2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+
+        const optDur = targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 0);
+        const calculatedEndTime = (optDur > 0 && tProc.startTime) ? addMinutesToTime(tProc.startTime, optDur) : tProc.endTime;
+
         const apptId = `appt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newAppt: Appointment = {
           id: apptId,
@@ -1352,21 +1453,22 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           assistant2Id: tProc.assistant2Id || null,
           date: currentDate,
           startTime: tProc.startTime,
-          endTime: tProc.endTime,
+          endTime: calculatedEndTime,
           deptId: currentDept.id,
           status: AppointmentStatus.PENDING,
           notes: tProc.notes || '',
           assignedMachineId: machineId,
-          mainBusyStart: tProc.mainBusyStart !== undefined && tProc.mainBusyStart !== null ? tProc.mainBusyStart : (proc?.mainBusyStart ?? 0),
-          mainBusyEnd: tProc.mainBusyEnd !== undefined && tProc.mainBusyEnd !== null ? tProc.mainBusyEnd : (proc?.mainBusyEnd ?? proc?.busyMinutes ?? proc?.durationMinutes ?? 0),
-          asst1BusyStart: tProc.asst1BusyStart !== undefined && tProc.asst1BusyStart !== null ? tProc.asst1BusyStart : (proc?.asst1BusyStart ?? 0),
-          asst1BusyEnd: tProc.asst1BusyEnd !== undefined && tProc.asst1BusyEnd !== null ? tProc.asst1BusyEnd : (proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0),
-          asst2BusyStart: tProc.asst2BusyStart !== undefined && tProc.asst2BusyStart !== null ? tProc.asst2BusyStart : (proc?.asst2BusyStart ?? 0),
-          asst2BusyEnd: tProc.asst2BusyEnd !== undefined && tProc.asst2BusyEnd !== null ? tProc.asst2BusyEnd : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0),
-          restMinutes: tProc.restMinutes || 0,
-          allowSameAssistant: tProc.allowSameAssistant !== undefined ? tProc.allowSameAssistant : (proc?.allowSameAssistant ?? false),
-          needsAssistant1: tProc.needsAssistant1 !== undefined ? tProc.needsAssistant1 : ((tProc.asst1BusyEnd ?? proc?.asst1BusyEnd ?? proc?.assistant1BusyMinutes ?? 0) > 0),
-          needsAssistant2: tProc.needsAssistant2 !== undefined ? tProc.needsAssistant2 : ((tProc.asst2BusyEnd ?? proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? 0) > 0)
+          selectedDurationOptionId: targetOpt ? targetOpt.id : (tProc.selectedDurationOptionId || null),
+          mainBusyStart,
+          mainBusyEnd,
+          asst1BusyStart,
+          asst1BusyEnd,
+          asst2BusyStart,
+          asst2BusyEnd,
+          restMinutes,
+          allowSameAssistant,
+          needsAssistant1,
+          needsAssistant2
         };
         return JSON.parse(JSON.stringify(newAppt, (key, value) => value === undefined ? null : value));
       });
@@ -1398,6 +1500,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleSyncToTemplate = async (templateId: string, sortedAppts: Appointment[]) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền chỉnh sửa mẫu ở khoa này.");
+      return;
+    }
     if (!db) return;
     try {
       const tmpl = templates.find(t => t.id === templateId);
@@ -1462,7 +1568,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
   };
 
   const handleDragStart = (e: React.MouseEvent, appt: Appointment) => {
-      const isAuthorizedToEdit = appt.deptId === currentDept.id || currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(appt.deptId));
+      const isAuthorizedToEdit = canEditCurrentDept && (currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(appt.deptId)));
       if (!isAuthorizedToEdit) return;
       e.preventDefault(); e.stopPropagation();
       const startMin = timeStringToMinutes(appt.startTime);
@@ -1571,8 +1677,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                 <button 
                   type="button"
                   onClick={() => setIsQuickScheduleModalOpen(true)} 
-                  className="flex items-center justify-center w-9 h-9 rounded-xl text-violet-600 hover:bg-violet-50 transition-all duration-200 cursor-pointer"
-                  title="Sắp xếp lịch nhanh (Tự động sắp xếp lịch thông minh cho khoa)"
+                  disabled={!canEditCurrentDept}
+                  className="flex items-center justify-center w-9 h-9 rounded-xl text-violet-600 hover:bg-violet-50 transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={!canEditCurrentDept ? "Tài khoản không có quyền sắp xếp lịch ở khoa này" : "Sắp xếp lịch nhanh (Tự động sắp xếp lịch thông minh cho khoa)"}
                 >
                   <Zap size={17} className="fill-violet-500 text-violet-500" />
                 </button>
@@ -1583,8 +1690,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           {hasUndoData && (
             <button 
               onClick={onUndoBatchLoad} 
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-2xs cursor-pointer"
-              title="Hoàn tác thao tác load hàng loạt vừa xong"
+              disabled={!canEditCurrentDept}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title={!canEditCurrentDept ? "Tài khoản không có quyền hoàn tác ở khoa này" : "Hoàn tác thao tác load hàng loạt vừa xong"}
             >
               <RotateCcw size={14} />
               <span>Hoàn tác Load</span>
@@ -1668,9 +1776,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
             <button 
               type="button"
               onClick={handleSaveSnapshot} 
-              disabled={isSavingVersion}
-              className="relative flex items-center justify-center w-9 h-9 rounded-xl text-sky-700 hover:bg-sky-100/90 transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50"
-              title="Lưu lại phiên bản chốt hiện tại làm mốc so sánh biến động"
+              disabled={isSavingVersion || !canEditCurrentDept}
+              className="relative flex items-center justify-center w-9 h-9 rounded-xl text-sky-700 hover:bg-sky-100/90 transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title={!canEditCurrentDept ? "Tài khoản không có quyền lưu phiên bản ở khoa này" : "Lưu lại phiên bản chốt hiện tại làm mốc so sánh biến động"}
             >
               {isSavingVersion ? <Loader2 size={16} className="animate-spin text-sky-600" /> : <BookmarkCheck size={16} className="text-sky-600" />}
             </button>
@@ -2184,28 +2292,30 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                             )}
 
                             {/* Nút Thêm / Sửa Ghi chú */}
-                            <button
-                              type="button"
-                              onClick={handleOpenNoteModal}
-                              className={`text-xs font-bold px-2.5 py-1 rounded-xl shadow-2xs whitespace-nowrap border flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
-                                selectedPatient.note 
-                                  ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-300' 
-                                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
-                              }`}
-                              title={selectedPatient.note ? "Chỉnh sửa ghi chú bệnh nhân" : "Thêm ghi chú cho bệnh nhân"}
-                            >
-                              {selectedPatient.note ? (
-                                <>
-                                  <StickyNote size={13} className="text-amber-600" />
-                                  <span>Sửa ghi chú</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Plus size={13} className="text-slate-600" />
-                                  <span>Thêm ghi chú</span>
-                                </>
-                              )}
-                            </button>
+                            {canEditCurrentDept && (
+                              <button
+                                type="button"
+                                onClick={handleOpenNoteModal}
+                                className={`text-xs font-bold px-2.5 py-1 rounded-xl shadow-2xs whitespace-nowrap border flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                                  selectedPatient.note 
+                                    ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-300' 
+                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
+                                }`}
+                                title={selectedPatient.note ? "Chỉnh sửa ghi chú bệnh nhân" : "Thêm ghi chú cho bệnh nhân"}
+                              >
+                                {selectedPatient.note ? (
+                                  <>
+                                    <StickyNote size={13} className="text-amber-600" />
+                                    <span>Sửa ghi chú</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus size={13} className="text-slate-600" />
+                                    <span>Thêm ghi chú</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -2213,9 +2323,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                 {/* Ghi chú bệnh nhân ở giữa nếu có */}
                 {selectedPatient.note ? (
                     <div 
-                      onClick={handleOpenNoteModal}
-                      className="flex-1 min-w-[240px] max-w-xl bg-amber-50/90 hover:bg-amber-100/90 border border-amber-200/90 rounded-2xl p-2.5 shadow-2xs flex items-center justify-between gap-3 cursor-pointer group transition-all"
-                      title="Nhấp để xem chi tiết hoặc chỉnh sửa ghi chú"
+                      onClick={() => { if (canEditCurrentDept) handleOpenNoteModal(); }}
+                      className={`flex-1 min-w-[240px] max-w-xl bg-amber-50/90 hover:bg-amber-100/90 border border-amber-200/90 rounded-2xl p-2.5 shadow-2xs flex items-center justify-between gap-3 ${canEditCurrentDept ? 'cursor-pointer group' : 'cursor-default'} transition-all`}
+                      title={canEditCurrentDept ? "Nhấp để xem chi tiết hoặc chỉnh sửa ghi chú" : "Ghi chú bệnh nhân"}
                     >
                         <div className="flex items-start gap-2.5 min-w-0 flex-1">
                             <div className="p-1.5 rounded-xl bg-amber-100 text-amber-800 shrink-0 mt-0.5">
@@ -2230,30 +2340,32 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenNoteModal();
-                                }}
-                                className="p-1.5 text-amber-700 hover:text-amber-900 hover:bg-amber-200/60 rounded-lg transition-colors cursor-pointer"
-                                title="Chỉnh sửa ghi chú"
-                            >
-                                <Edit3 size={13} />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteNote();
-                                }}
-                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
-                                title="Xóa ghi chú"
-                            >
-                                <Trash2 size={13} />
-                            </button>
-                        </div>
+                        {canEditCurrentDept && (
+                          <div className="flex items-center gap-1 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+                              <button
+                                  type="button"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenNoteModal();
+                                  }}
+                                  className="p-1.5 text-amber-700 hover:text-amber-900 hover:bg-amber-200/60 rounded-lg transition-colors cursor-pointer"
+                                  title="Chỉnh sửa ghi chú"
+                              >
+                                  <Edit3 size={13} />
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteNote();
+                                  }}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Xóa ghi chú"
+                              >
+                                  <Trash2 size={13} />
+                              </button>
+                          </div>
+                        )}
                     </div>
                 ) : (
                     <div className="hidden xl:block flex-1" />
@@ -2265,9 +2377,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                     <button 
                       type="button" 
                       onClick={() => setIsCopyModalOpen(true)} 
-                      disabled={isReferralFinished}
+                      disabled={isReferralFinished || !canEditCurrentDept}
                       className="flex items-center justify-center w-9 h-9 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 border border-indigo-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none shrink-0"
-                      title="Sao chép lịch trình sang ngày khác"
+                      title={!canEditCurrentDept ? "Tài khoản không có quyền sao chép lịch trình ở khoa này" : "Sao chép lịch trình sang ngày khác"}
                     >
                         <Copy size={16} />
                     </button>
@@ -2276,9 +2388,9 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                     <button 
                       type="button" 
                       onClick={() => setIsSaveTemplateModalOpen(true)} 
-                      disabled={isReferralFinished || patientAppointments.length === 0}
+                      disabled={isReferralFinished || patientAppointments.length === 0 || !canEditCurrentDept}
                       className="flex items-center justify-center w-9 h-9 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 border border-emerald-200 rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50 disabled:pointer-events-none shrink-0"
-                      title="Lưu lịch trình hiện tại thành mẫu"
+                      title={!canEditCurrentDept ? "Tài khoản không có quyền lưu mẫu ở khoa này" : "Lưu lịch trình hiện tại thành mẫu"}
                     >
                         <Save size={16} />
                     </button>
@@ -2338,8 +2450,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                     const restMinutes = proc?.restMinutes || 0;
                                     const restWidth = restMinutes * pixelsPerMinute;
                                     const top = appt.rowIndex * 190 + 20;
-                                    const canEdit = appt.deptId === currentDept.id || currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(appt.deptId));
-                                    const isAuthorizedCard = appt.deptId === currentDept.id || canEdit;
+                                    const canEdit = canEditCurrentDept && (currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(appt.deptId)));
+                                    const isAuthorizedCard = canEdit;
                                     
                                     return (
                                         <div key={appt.id} className="absolute flex items-start gap-3.5" style={{ top, left, zIndex: isDragging ? 50 : 20 }}>
@@ -2472,39 +2584,39 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                           <button 
                             type="button"
                             onClick={() => onBookAppointment(selectedPatient.id)} 
-                            disabled={isReferralFinished} 
+                            disabled={isReferralFinished || !canEditCurrentDept} 
                             className={`flex items-center gap-2 px-5 h-12 rounded-2xl shadow-xl hover:shadow-2xl transition-all active:scale-95 cursor-pointer font-bold text-sm select-none disabled:opacity-50 disabled:pointer-events-none ${
-                              isReferralFinished 
+                              isReferralFinished || !canEditCurrentDept 
                                 ? "bg-slate-200 text-slate-500 border border-slate-300 shadow-none" 
                                 : "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25 border border-amber-400"
                             }`}
-                            title={isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}
+                            title={!canEditCurrentDept ? "Tài khoản không có quyền thêm chỉ định ở khoa này" : (isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình')}
                           >
-                            {isReferralFinished ? <Lock size={18} /> : <Plus size={20} className="stroke-[2.5]" />}
-                            <span>{isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình'}</span>
+                            {isReferralFinished || !canEditCurrentDept ? <Lock size={18} /> : <Plus size={20} className="stroke-[2.5]" />}
+                            <span>{!canEditCurrentDept ? "Chỉ xem" : (isReferralFinished ? 'Đã khóa chỉ định' : 'Xếp lịch trình')}</span>
                           </button>
                         ) : (
                           <div className={`flex items-center rounded-2xl shadow-xl hover:shadow-2xl overflow-hidden border transition-all select-none ${
-                            isReferralFinished 
+                            isReferralFinished || !canEditCurrentDept 
                               ? "bg-slate-100 border-slate-200 opacity-60 shadow-none pointer-events-none" 
                               : "bg-primary border-primary/40 shadow-primary/25 hover:shadow-primary/35"
                           }`}>
                             <button 
-                              type="button"
+                              type="button" 
                               onClick={() => onBookAppointment(selectedPatient.id)} 
-                              disabled={isReferralFinished}
+                              disabled={isReferralFinished || !canEditCurrentDept}
                               className="flex items-center gap-2 px-5 h-12 bg-primary hover:bg-primary/90 text-white font-bold text-sm tracking-wide transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
-                              title="Thêm chỉ định điều trị mới"
+                              title={!canEditCurrentDept ? "Tài khoản không có quyền thêm chỉ định ở khoa này" : "Thêm chỉ định điều trị mới"}
                             >
                                 <Plus size={20} className="stroke-[2.5]" />
                                 <span>Thêm chỉ định</span>
                             </button>
                             <button 
-                              type="button"
+                              type="button" 
                               onClick={() => setIsLoadTemplateModalOpen(true)} 
-                              disabled={isReferralFinished}
+                              disabled={isReferralFinished || !canEditCurrentDept}
                               className="flex items-center justify-center w-11 h-12 bg-primary hover:bg-primary/90 text-white/90 hover:text-white border-l border-white/25 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:pointer-events-none" 
-                              title="Tải từ mẫu lịch trình có sẵn"
+                              title={!canEditCurrentDept ? "Tài khoản không có quyền tải mẫu ở khoa này" : "Tải từ mẫu lịch trình có sẵn"}
                             >
                                 <ChevronDown size={18} />
                             </button>
@@ -2531,13 +2643,15 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                          <div className="flex items-center gap-2 shrink-0">
                             <button 
                               onClick={() => handleSyncFromTemplate(diff.templateId, diff.appointments)}
-                              className="px-4 py-2 bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-xs font-bold transition-all shadow-sm"
+                              disabled={!canEditCurrentDept}
+                              className="px-4 py-2 bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50 disabled:pointer-events-none"
                             >
                               Cập nhật từ mẫu
                             </button>
                             <button 
                               onClick={() => handleSyncToTemplate(diff.templateId, diff.appointments)}
-                              className="px-4 py-2 bg-amber-500 text-white hover:bg-amber-600 rounded-xl text-xs font-bold shadow-lg shadow-amber-200 transition-all"
+                              disabled={!canEditCurrentDept}
+                              className="px-4 py-2 bg-amber-500 text-white hover:bg-amber-600 rounded-xl text-xs font-bold shadow-lg shadow-amber-200 transition-all disabled:opacity-50 disabled:pointer-events-none"
                             >
                               Lưu vào mẫu
                             </button>

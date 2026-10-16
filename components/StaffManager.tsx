@@ -122,6 +122,11 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     }
   }, [editingProcedure?.id]);
 
+  const canEdit = useMemo(() => {
+    if (!currentUser || !department) return false;
+    return currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(department.id));
+  }, [currentUser, department]);
+
   const departmentStaff = staff.filter(s => s.deptId === department.id);
 
   const sortedDepartmentStaff = useMemo(() => {
@@ -341,6 +346,10 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   };
 
   const handleCellClick = (staffId: string, day: number) => {
+    if (!canEdit) {
+      alert("Bạn không có quyền chỉnh sửa chấm công của khoa này.");
+      return;
+    }
     const dateStr = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     const holidayActive = isHoliday(day);
     const currentStatus = getAttendanceStatus(staffId, day);
@@ -376,6 +385,10 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
   };
 
   const handleStaffNameClick = (s: Staff) => {
+    if (!canEdit) {
+      alert("Bạn không có quyền chỉnh sửa chấm công của khoa này.");
+      return;
+    }
     // Collect the current state of days in the month
     const staffRecordsInMonth = attendanceRecords.filter(r => 
       r.staffId === s.id && 
@@ -695,7 +708,12 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                            </button>
                         </div>
                     </div>
-                    <Button onClick={() => onEditStaff()} className="shadow-sm">
+                    <Button 
+                        onClick={() => onEditStaff()} 
+                        disabled={!canEdit}
+                        title={!canEdit ? "Bạn không có quyền thêm nhân sự ở khoa này" : undefined}
+                        className={`shadow-sm ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
                         <UserPlus size={18} /> Thêm nhân sự
                     </Button>
                  </div>
@@ -704,28 +722,36 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                     {sortedDepartmentStaff.filter(s => s.name.toLowerCase().includes(personnelSearch.toLowerCase())).map(s => (
                         <div 
                             key={s.id} 
-                            onClick={() => onEditStaff(s)}
-                            className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl hover:border-primary/20 transition-all cursor-pointer group"
+                            onClick={() => {
+                                if (!canEdit) {
+                                    alert("Bạn không có quyền chỉnh sửa nhân sự của khoa này.");
+                                    return;
+                                }
+                                onEditStaff(s);
+                            }}
+                            className={`bg-white rounded-[2rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl hover:border-primary/20 transition-all ${canEdit ? 'cursor-pointer group' : 'cursor-default'}`}
                         >
                             <div className="flex items-start justify-between mb-6">
                                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black ${s.role === 'Doctor' ? 'bg-indigo-50 text-indigo-600' : s.role === 'Pharmacist' ? 'bg-emerald-50 text-emerald-600' : 'bg-teal-50 text-teal-600'}`}>
                                     {s.name.charAt(0)}
                                 </div>
-                                <div className="flex gap-2">
-                                    <div 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onDeleteStaff(s.id);
-                                        }}
-                                        className="p-3 bg-slate-50 rounded-2xl text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all"
-                                        title="Xóa nhân sự"
-                                    >
-                                        <Trash2 size={18} />
+                                {canEdit && (
+                                    <div className="flex gap-2">
+                                        <div 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDeleteStaff(s.id);
+                                            }}
+                                            className="p-3 bg-slate-50 rounded-2xl text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all cursor-pointer"
+                                            title="Xóa nhân sự"
+                                        >
+                                            <Trash2 size={18} />
+                                        </div>
+                                        <div className="p-3 bg-slate-50 rounded-2xl text-slate-300 group-hover:bg-primary/10 group-hover:text-primary transition-all cursor-pointer">
+                                            <Pencil size={18} />
+                                        </div>
                                     </div>
-                                    <div className="p-3 bg-slate-50 rounded-2xl text-slate-300 group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                                        <Pencil size={18} />
-                                    </div>
-                                </div>
+                                )}
                             </div>
                             <div>
                                 <h3 className="font-black text-slate-800 text-xl mb-1 tracking-tight">{s.name}</h3>
@@ -945,7 +971,11 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                             accept=".json" 
                             className="hidden" 
                         />
-                        <Button size="sm" variant="danger" onClick={() => {
+                        <Button size="sm" variant="danger" disabled={!canEdit} onClick={() => {
+                            if (!canEdit) {
+                                alert('Bạn không có quyền xóa lịch trình của khoa này.');
+                                return;
+                            }
                             if (window.confirm('Bạn có chắc chắn muốn xóa TẤT CẢ lịch trình của khoa này? Hành động này không thể hoàn tác.')) {
                                 onUpdateProcedures(procedures.filter(p => p.deptId !== department.id));
                             }
@@ -955,10 +985,22 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                         <Button size="sm" variant="secondary" onClick={handleExportProceduresBackup} className="border border-sky-200 text-sky-600 hover:bg-sky-50 shadow-sm font-bold bg-white" title="Tải xuống file JSON sao lưu danh mục lịch trình của khoa này">
                             <Download size={16} /> Sao lưu danh mục
                         </Button>
-                        <Button size="sm" variant="secondary" onClick={() => procFileInputRef.current?.click()} className="border border-emerald-200 text-emerald-600 hover:bg-emerald-50 shadow-sm font-bold bg-white" title="Khôi phục danh mục từ file JSON (có thể từ khoa này hoặc từ khoa khác)">
+                        <Button size="sm" variant="secondary" disabled={!canEdit} onClick={() => {
+                            if (!canEdit) {
+                                alert('Bạn không có quyền khôi phục lịch trình ở khoa này.');
+                                return;
+                            }
+                            procFileInputRef.current?.click();
+                        }} className="border border-emerald-200 text-emerald-600 hover:bg-emerald-50 shadow-sm font-bold bg-white disabled:opacity-50" title="Khôi phục danh mục từ file JSON (có thể từ khoa này hoặc từ khoa khác)">
                             <Upload size={16} /> Khôi phục danh mục
                         </Button>
-                        <Button size="sm" onClick={handleAddProcedure} className="shadow-sm font-bold">
+                        <Button size="sm" disabled={!canEdit} onClick={() => {
+                            if (!canEdit) {
+                                alert('Bạn không có quyền thêm lịch trình ở khoa này.');
+                                return;
+                            }
+                            handleAddProcedure();
+                        }} className="shadow-sm font-bold disabled:opacity-50">
                             <Plus size={16} /> Thêm lịch trình
                         </Button>
                     </div>
@@ -1043,6 +1085,10 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                             <div 
                                 key={proc.id} 
                                 onClick={() => {
+                                    if (!canEdit) {
+                                        alert("Bạn không có quyền chỉnh sửa danh mục lịch trình của khoa này.");
+                                        return;
+                                    }
                                     let updatedProc = { ...proc };
                                     if (!updatedProc.durationOptions || updatedProc.durationOptions.length === 0) {
                                         updatedProc.durationOptions = [{
@@ -1725,7 +1771,12 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                       <div className="flex gap-4">
                           <button onClick={() => setEditingProcedure(null)} className="px-6 py-3.5 text-slate-500 font-black text-sm uppercase tracking-wider hover:bg-slate-200 rounded-xl transition-colors">HỦY BỎ</button>
                           <Button onClick={() => {
+                              if (!canEdit) {
+                                  alert("Bạn không có quyền chỉnh sửa danh mục lịch trình của khoa này.");
+                                  return;
+                              }
                               let finalProc = { ...editingProcedure };
+                              finalProc.deptId = finalProc.deptId || department.id;
                               if (finalProc.durationOptions && finalProc.durationOptions.length > 0) {
                                   let hasDefault = finalProc.durationOptions.some(o => o.isDefault && !o.isDeleted);
                                   if (!hasDefault) {
@@ -1745,6 +1796,26 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                   finalProc.asst2BusyStart = defaultOpt.asst2BusyStart;
                                   finalProc.asst2BusyEnd = defaultOpt.asst2BusyEnd;
                                   finalProc.allowSameAssistant = defaultOpt.allowSameAssistant;
+                              } else {
+                                  const defaultOptId = `opt_${Math.random().toString(36).substr(2, 9)}`;
+                                  const dur = finalProc.durationMinutes || 30;
+                                  finalProc.durationMinutes = dur;
+                                  finalProc.mainBusyStart = finalProc.mainBusyStart ?? 0;
+                                  finalProc.mainBusyEnd = finalProc.mainBusyEnd ?? dur;
+                                  finalProc.durationOptions = [{
+                                      id: defaultOptId,
+                                      name: 'Mặc định',
+                                      durationMinutes: dur,
+                                      restMinutes: finalProc.restMinutes || 0,
+                                      mainBusyStart: finalProc.mainBusyStart,
+                                      mainBusyEnd: finalProc.mainBusyEnd,
+                                      asst1BusyStart: finalProc.asst1BusyStart,
+                                      asst1BusyEnd: finalProc.asst1BusyEnd,
+                                      asst2BusyStart: finalProc.asst2BusyStart,
+                                      asst2BusyEnd: finalProc.asst2BusyEnd,
+                                      allowSameAssistant: finalProc.allowSameAssistant,
+                                      isDefault: true
+                                  }];
                               }
                               finalProc.category = finalProc.category || 'Lâm sàng';
                               if (procedures.some(p => p.id === finalProc.id)) {

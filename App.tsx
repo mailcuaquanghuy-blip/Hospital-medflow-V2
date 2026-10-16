@@ -130,6 +130,7 @@ const App: React.FC = () => {
   // Ref to throttle rapid database reloads (preventing lag & state overwrites during focus events)
   const lastFetchTimeRef = React.useRef<number>(0);
   const recentlyDeletedApptIdsRef = useRef<Map<string, number>>(new Map());
+  const recentlyDeletedPatientIdsRef = useRef<Map<string, number>>(new Map());
   const recentlyUpdatedApptsRef = useRef<Map<string, { appt: Appointment; timestamp: number }>>(new Map());
   const recentlyUpdatedPatientsRef = useRef<Map<string, { patient: Patient; timestamp: number }>>(new Map());
   const lastUserActionTimeRef = useRef<number>(0);
@@ -187,6 +188,7 @@ const App: React.FC = () => {
     const handleDbChange = (e: Event) => {
       const { collectionName, docId, data, action } = (e as CustomEvent).detail;
       console.log(`[db-change event received] ${collectionName}/${docId} action: ${action}`, data);
+      lastUserActionTimeRef.current = Date.now();
       
       switch (collectionName) {
         case 'users':
@@ -244,7 +246,9 @@ const App: React.FC = () => {
           });
           break;
         case 'patients':
-          if (data && action === 'set') {
+          if (action === 'delete') {
+            recentlyDeletedPatientIdsRef.current.set(docId, Date.now());
+          } else if (data && action === 'set') {
             recentlyUpdatedPatientsRef.current.set(docId, { patient: data, timestamp: Date.now() });
           }
           setPatients(prev => {
@@ -481,13 +485,35 @@ const App: React.FC = () => {
           setPatients(prev => {
             if (!prev || prev.length === 0) return pats;
             const currentTime = Date.now();
-            return pats.map(serverP => {
+            
+            // 1. Exclude patients recently deleted locally
+            const validServerPats = pats.filter(p => {
+              const delTime = recentlyDeletedPatientIdsRef.current.get(p.id);
+              if (delTime && currentTime - delTime < 45000) {
+                return false;
+              }
+              return true;
+            });
+
+            // 2. Override with locally modified version if recently updated (e.g. discharged)
+            const mergedServerPats = validServerPats.map(serverP => {
               const recent = recentlyUpdatedPatientsRef.current.get(serverP.id);
               if (recent && currentTime - recent.timestamp < 45000) {
                 return recent.patient;
               }
               return serverP;
             });
+
+            // 3. Keep newly created local patients not yet returned by server
+            const serverIdSet = new Set(mergedServerPats.map(p => p.id));
+            const newLocalPats = prev.filter(localP => {
+              if (serverIdSet.has(localP.id)) return false;
+              const delTime = recentlyDeletedPatientIdsRef.current.get(localP.id);
+              if (delTime && currentTime - delTime < 45000) return false;
+              return true;
+            });
+
+            return [...mergedServerPats, ...newLocalPats];
           });
         }
         if (appts && appts.length > 0) {
@@ -739,6 +765,10 @@ const App: React.FC = () => {
   }, [appointments, currentDept, activeDate, patients, procedures]);
 
   const handleSavePatient = async (patient: Patient) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền chỉnh sửa hồ sơ bệnh nhân ở khoa này.");
+      return;
+    }
     try {
       let apptsToDelete: Appointment[] = [];
 
@@ -748,11 +778,6 @@ const App: React.FC = () => {
         const isDateChanged = originalPatient?.dischargeDate !== patient.dischargeDate;
 
         if (isNewDischarge || isDateChanged) {
-          const confirmDischarge = window.confirm("Khi cho bệnh nhân ra, các lịch trình sau thời gian ra viện sẽ bị xóa. Bạn có chắc chắn muốn tiếp tục?");
-          if (!confirmDischarge) {
-            return;
-          }
-
           const dischargeDayOnly = getLocalDateString(patient.dischargeDate);
           const dischargeLimit = new Date(patient.dischargeDate).getTime();
           apptsToDelete = appointments.filter(appt => {
@@ -796,6 +821,11 @@ const App: React.FC = () => {
       if (apptsToDelete.length > 0) {
         const ids = apptsToDelete.map(a => a.id);
         await deleteSupabaseBatch('appointments', ids);
+        if (db) {
+          for (const id of ids) {
+            deleteDoc(doc(db, "appointments", id)).catch(() => {});
+          }
+        }
       }
     } catch (error) { 
       console.error("Error saving patient:", error);
@@ -803,6 +833,10 @@ const App: React.FC = () => {
   };
 
   const handleDeletePatient = async (patientId: string) => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền xóa hồ sơ bệnh nhân ở khoa này.");
+      return;
+    }
     try {
       const isAdmin = currentUser?.role === UserRole.ADMIN;
       const patientAppointments = appointments.filter(appt => appt.patientId === patientId);
@@ -814,12 +848,18 @@ const App: React.FC = () => {
 
       const now = Date.now();
       lastUserActionTimeRef.current = now;
+      recentlyDeletedPatientIdsRef.current.set(patientId, now);
 
       // Khi xóa hồ sơ bệnh nhân bằng tài khoản quản trị thì các thủ thuật của bệnh nhân đó sẽ tự động xóa hết
       if (isAdmin && patientAppointments.length > 0) {
         patientAppointments.forEach(a => recentlyDeletedApptIdsRef.current.set(a.id, now));
         setAppointments(prev => prev.filter(appt => appt.patientId !== patientId));
         await deleteSupabaseBatch('appointments', patientAppointments.map(a => a.id));
+        if (db) {
+          for (const a of patientAppointments) {
+            deleteDoc(doc(db, "appointments", a.id)).catch(() => {});
+          }
+        }
       }
 
       // Optimistic update bệnh nhân
@@ -833,7 +873,10 @@ const App: React.FC = () => {
   };
 
   const handleSaveBooking = async (data: Partial<Appointment>, skipVerify = false) => {
-    if (!currentDept) return;
+    if (!currentDept || !canEditCurrentDept) {
+      alert("Bạn không có quyền chỉnh sửa ở khoa này.");
+      return;
+    }
     
     // Check if patient is discharged
     const patient = patients.find(p => p.id === data.patientId);
@@ -1095,6 +1138,13 @@ const App: React.FC = () => {
   };
 
   const handleUpdateAppointment = async (updatedAppt: Appointment, skipVerify = false) => {
+    const targetDeptId = updatedAppt.deptId || currentDept?.id;
+    const isAuthorized = currentUser?.role === UserRole.ADMIN || (currentUser?.editableDeptIds && currentUser.editableDeptIds.includes(targetDeptId));
+    if (!isAuthorized) {
+      alert("Bạn không có quyền chỉnh sửa lịch trình ở khoa này.");
+      return;
+    }
+
     // Check if patient is discharged
     const patient = patients.find(p => p.id === updatedAppt.patientId);
     if (!skipVerify && patient?.status === PatientStatus.DISCHARGED) {
@@ -1138,6 +1188,13 @@ const App: React.FC = () => {
   const handleDeleteAppointment = async (apptId: string, skipVerify = false) => {
     const appt = appointments.find(a => a.id === apptId);
     if (!appt) return;
+
+    const targetDeptId = appt.deptId;
+    const isAuthorized = currentUser?.role === UserRole.ADMIN || (currentUser?.editableDeptIds && currentUser.editableDeptIds.includes(targetDeptId));
+    if (!isAuthorized) {
+      alert("Bạn không có quyền xóa lịch trình ở khoa này.");
+      return;
+    }
 
     // Check if patient is discharged
     const patient = patients.find(p => p.id === appt.patientId);
@@ -1878,6 +1935,12 @@ const App: React.FC = () => {
 
   // Staff Modal handlers
   const openStaffModal = (s?: Staff) => {
+    const targetDeptId = s?.deptId || currentDept?.id || '';
+    const canEditTargetDept = currentUser?.role === UserRole.ADMIN || (targetDeptId && currentUser?.editableDeptIds?.includes(targetDeptId));
+    if (!canEditTargetDept) {
+      alert('Bạn không có quyền chỉnh sửa nhân sự của khoa này.');
+      return;
+    }
     if (s) {
         setEditingStaff({ ...s });
     } else {
@@ -1895,6 +1958,12 @@ const App: React.FC = () => {
 
   const handleSaveStaff = async () => {
     if (!editingStaff || !editingStaff.name) return;
+    const targetDeptId = editingStaff.deptId || currentDept?.id || '';
+    const canEditTargetDept = currentUser?.role === UserRole.ADMIN || (targetDeptId && currentUser?.editableDeptIds?.includes(targetDeptId));
+    if (!canEditTargetDept) {
+      alert('Bạn không có quyền chỉnh sửa nhân sự của khoa này.');
+      return;
+    }
     
     const mainIds = editingStaff.mainCapabilityIds || [];
     const asstIds = editingStaff.assistantCapabilityIds || [];
@@ -1935,6 +2004,13 @@ const App: React.FC = () => {
   };
 
   const handleDeleteStaff = async (staffId: string) => {
+    const targetStaff = staff.find(s => s.id === staffId);
+    const targetDeptId = targetStaff?.deptId || currentDept?.id || '';
+    const canEditTargetDept = currentUser?.role === UserRole.ADMIN || (targetDeptId && currentUser?.editableDeptIds?.includes(targetDeptId));
+    if (!canEditTargetDept) {
+      alert('Bạn không có quyền xóa nhân sự của khoa này.');
+      return;
+    }
     if (!window.confirm('Bạn có chắc chắn muốn xóa nhân sự này?')) return;
     
     setStaff(prev => prev.filter(s => s.id !== staffId));
@@ -2322,10 +2398,13 @@ const App: React.FC = () => {
   }
 
   const handleUpdateProcedures = async (updatedProcs: Procedure[]) => {
+    if (!currentDept || !canEditCurrentDept) {
+      alert("Bạn không có quyền chỉnh sửa danh mục ở khoa này.");
+      return;
+    }
+
     // 1. Optimistic update: instantly update local React state so UI changes are immediate (0ms latency)!
     setProcedures(updatedProcs);
-
-    if (!currentDept) return;
 
     try {
       // 2. Identify deleted procedures (only within current department)
@@ -2370,16 +2449,15 @@ const App: React.FC = () => {
   };
 
   const handleUpdateStatus = async (p: Patient, status: PatientStatus, dDate?: string): Promise<boolean> => {
+    if (!canEditCurrentDept) {
+      alert("Bạn không có quyền thay đổi trạng thái bệnh nhân ở khoa này.");
+      return false;
+    }
     try {
       const dischargeDateIso = status === PatientStatus.TREATING ? null : (dDate ? new Date(dDate).toISOString() : p.dischargeDate || null);
       let apptsToDelete: Appointment[] = [];
 
       if (status === PatientStatus.DISCHARGED && dischargeDateIso) {
-        const confirmDischarge = window.confirm("Khi cho bệnh nhân ra, các lịch trình sau thời gian ra viện sẽ bị xóa. Bạn có chắc chắn muốn tiếp tục?");
-        if (!confirmDischarge) {
-          return false;
-        }
-
         const dischargeDayOnly = getLocalDateString(dischargeDateIso);
         const dischargeLimit = new Date(dischargeDateIso).getTime();
         apptsToDelete = appointments.filter(appt => {
@@ -2413,6 +2491,11 @@ const App: React.FC = () => {
       if (apptsToDelete.length > 0) {
         const ids = apptsToDelete.map(a => a.id);
         await deleteSupabaseBatch('appointments', ids);
+        if (db) {
+          for (const id of ids) {
+            deleteDoc(doc(db, "appointments", id)).catch(() => {});
+          }
+        }
       }
       return true;
     } catch (e) { 
@@ -2865,6 +2948,8 @@ const App: React.FC = () => {
           machineShifts={machineShifts} 
           currentDept={currentDept} 
           initialData={editingAppt}
+          currentUser={currentUser || undefined}
+          canEdit={canEditCurrentDept}
           onDelete={handleDeleteAppointment}
           onAddShift={handleAddMachineShift}
           onUpdateShift={handleUpdateMachineShift}

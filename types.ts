@@ -169,6 +169,7 @@ export interface TemplateProcedure {
   allowSameAssistant?: boolean;
   needsAssistant1?: boolean;
   needsAssistant2?: boolean;
+  selectedDurationOptionId?: string | null;
 }
 
 export interface AppointmentTemplate {

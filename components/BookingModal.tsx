@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel, ProcedureCategory, PROCEDURE_CATEGORIES } from '../types';
+import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel, ProcedureCategory, PROCEDURE_CATEGORIES, UserAccount, UserRole } from '../types';
 import { Button } from './Button';
 
 import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, getRoleShortLabel, formatDate, getAbbreviation, getLocalDateString, getLocalTimeMinutes } from '../utils/timeUtils';
@@ -24,6 +24,8 @@ interface BookingModalProps {
   machineShifts: MachineShift[];
   currentDept: Department;
   initialData?: Partial<Appointment>;
+  currentUser?: UserAccount;
+  canEdit?: boolean;
   onAddShift: (shift: Omit<MachineShift, 'id'>) => void;
   onUpdateShift: (id: string, shift: Partial<MachineShift>, updateLinkedAppointments: boolean) => void;
   onDeleteShift: (id: string) => void;
@@ -99,11 +101,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   machineShifts,
   currentDept,
   initialData,
+  currentUser,
+  canEdit,
   onAddShift,
   onUpdateShift,
   onDeleteShift,
   onDelete
 }) => {
+  const hasEditPermission = canEdit !== undefined 
+    ? canEdit 
+    : (currentUser ? (currentUser.role === UserRole.ADMIN || (currentUser.editableDeptIds && currentUser.editableDeptIds.includes(currentDept.id))) : true);
+
   const [formData, setFormData] = useState<Partial<Appointment>>(() => {
     const patId = initialData?.patientId;
     const pat = patId ? patients.find(p => p.id === patId) : undefined;
@@ -119,13 +127,43 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         }
       }
     }
+
+    const isNew = !initialData?.id;
+    const initProcId = initialData?.procedureId;
+    const matchedProc = initProcId ? procedures.find(p => p.id === initProcId) : undefined;
+    const defaultOpt = matchedProc ? (matchedProc.durationOptions?.find(o => o.isDefault && !o.isDeleted) || matchedProc.durationOptions?.find(o => !o.isDeleted) || matchedProc.durationOptions?.[0]) : undefined;
+    const dur = defaultOpt ? defaultOpt.durationMinutes : (matchedProc?.durationMinutes || 25);
+    const startTime = initialData?.startTime || defaultStart;
+    const endTime = initialData?.endTime || addMinutesToTime(startTime, dur);
+
+    if (isNew && matchedProc) {
+      return {
+        date: apptDate,
+        startTime,
+        endTime,
+        status: AppointmentStatus.PENDING,
+        assignedMachineId: '',
+        selectedDurationOptionId: defaultOpt ? defaultOpt.id : 'default',
+        mainBusyStart: defaultOpt ? (defaultOpt.mainBusyStart ?? 0) : (matchedProc.mainBusyStart ?? 0),
+        mainBusyEnd: defaultOpt ? (defaultOpt.mainBusyEnd ?? defaultOpt.durationMinutes) : (matchedProc.mainBusyEnd ?? matchedProc.busyMinutes ?? dur),
+        asst1BusyStart: defaultOpt ? (defaultOpt.asst1BusyStart ?? 0) : (matchedProc.asst1BusyStart ?? 0),
+        asst1BusyEnd: defaultOpt ? (defaultOpt.asst1BusyEnd ?? 0) : (matchedProc.asst1BusyEnd ?? matchedProc.assistant1BusyMinutes ?? 0),
+        asst2BusyStart: defaultOpt ? (defaultOpt.asst2BusyStart ?? 0) : (matchedProc.asst2BusyStart ?? 0),
+        asst2BusyEnd: defaultOpt ? (defaultOpt.asst2BusyEnd ?? 0) : (matchedProc.asst2BusyEnd ?? matchedProc.assistant2BusyMinutes ?? 0),
+        restMinutes: defaultOpt ? (defaultOpt.restMinutes ?? 0) : (matchedProc.restMinutes ?? 0),
+        allowSameAssistant: defaultOpt ? (defaultOpt.allowSameAssistant ?? false) : (matchedProc.allowSameAssistant ?? false),
+        deptId: currentDept.id,
+        ...initialData,
+      };
+    }
     
     return {
       date: apptDate,
-      startTime: defaultStart,
-      endTime: addMinutesToTime(defaultStart, 25),
+      startTime,
+      endTime,
       status: AppointmentStatus.PENDING,
       assignedMachineId: '',
+      deptId: currentDept.id,
       ...initialData,
     };
   });
@@ -323,7 +361,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   }, [currentProc, formData.startTime, formData.endTime, formData.date, appointments, formData.id, conflictData.assignedMachineId]);
 
   const filteredProcedures = useMemo(() => {
-    let procs = [...procedures];
+    let procs = procedures.filter(p => p.deptId === currentDept.id);
 
     if (currentDept.type === DepartmentType.SUPPORT && selectedPatient) {
       const referral = selectedPatient.referrals?.find(r => {
@@ -1021,6 +1059,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const getDisabledReason = () => {
+    if (!hasEditPermission) return "Tài khoản không có quyền chỉnh sửa lịch trình ở khoa này (Chế độ xem)";
     if (!formData.patientId) return "Vui lòng chọn bệnh nhân";
     if (!formData.procedureId) return "Vui lòng chọn lịch trình";
     if (!formData.staffId) return "Vui lòng chọn người thực hiện";
@@ -1085,9 +1124,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <Activity className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">
-                  {formData.id ? 'Cập nhật chỉ định' : 'Chỉ định lịch trình'}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">
+                    {formData.id ? 'Cập nhật chỉ định' : 'Chỉ định lịch trình'}
+                  </h2>
+                  {!hasEditPermission && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1 border border-amber-200">
+                      <Shield size={12} className="text-amber-600" /> Chỉ xem
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs font-medium text-slate-500">Hệ thống quản lý lâm sàng Hospital medflow</p>
               </div>
             </div>
@@ -1107,7 +1153,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <User size={16} className="text-primary" /> Thông tin bệnh nhân
                   </h3>
-                  {!isAddingNewPatient && (
+                  {!isAddingNewPatient && hasEditPermission && (
                     <button 
                       type="button" 
                       onClick={() => setIsAddingNewPatient(true)} 
@@ -1532,23 +1578,34 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                       type="button"
                                       onClick={() => {
                                         if (formData.procedureId !== p.id) {
-                                          setFormData({ 
-                                            ...formData, 
-                                            procedureId: p.id, 
-                                            staffId: '', 
-                                            assistant1Id: '', 
-                                            assistant2Id: '', 
-                                            assignedMachineId: '', 
+                                          const defaultOpt = p.durationOptions?.find(o => o.isDefault && !o.isDeleted) || p.durationOptions?.find(o => !o.isDeleted) || p.durationOptions?.[0];
+                                          const dur = defaultOpt ? defaultOpt.durationMinutes : (p.durationMinutes || 25);
+                                          const newEndTime = formData.startTime ? addMinutesToTime(formData.startTime, dur) : formData.endTime;
+                                          const a1End = defaultOpt ? (defaultOpt.asst1BusyEnd ?? 0) : (p.asst1BusyEnd ?? p.assistant1BusyMinutes ?? 0);
+                                          const a2End = defaultOpt ? (defaultOpt.asst2BusyEnd ?? 0) : (p.asst2BusyEnd ?? p.assistant2BusyMinutes ?? 0);
+
+                                          setFormData({
+                                            ...formData,
+                                            procedureId: p.id,
+                                            staffId: "",
+                                            assistant1Id: "",
+                                            assistant2Id: "",
+                                            assignedMachineId: "",
                                             machineShiftId: undefined,
-                                            selectedDurationOptionId: 'default',
-                                            allowSameAssistant: p.allowSameAssistant,
-                                            mainBusyStart: undefined,
-                                            mainBusyEnd: undefined,
-                                            asst1BusyStart: undefined,
-                                            asst1BusyEnd: undefined,
-                                            asst2BusyStart: undefined,
-                                            asst2BusyEnd: undefined
+                                            endTime: newEndTime,
+                                            selectedDurationOptionId: defaultOpt ? defaultOpt.id : "default",
+                                            allowSameAssistant: defaultOpt ? (defaultOpt.allowSameAssistant ?? false) : (p.allowSameAssistant ?? false),
+                                            mainBusyStart: defaultOpt ? (defaultOpt.mainBusyStart ?? 0) : (p.mainBusyStart ?? 0),
+                                            mainBusyEnd: defaultOpt ? (defaultOpt.mainBusyEnd ?? defaultOpt.durationMinutes) : (p.mainBusyEnd ?? p.busyMinutes ?? dur),
+                                            asst1BusyStart: defaultOpt ? (defaultOpt.asst1BusyStart ?? 0) : (p.asst1BusyStart ?? 0),
+                                            asst1BusyEnd: defaultOpt ? (defaultOpt.asst1BusyEnd ?? 0) : (p.asst1BusyEnd ?? p.assistant1BusyMinutes ?? 0),
+                                            asst2BusyStart: defaultOpt ? (defaultOpt.asst2BusyStart ?? 0) : (p.asst2BusyStart ?? 0),
+                                            asst2BusyEnd: defaultOpt ? (defaultOpt.asst2BusyEnd ?? 0) : (p.asst2BusyEnd ?? p.assistant2BusyMinutes ?? 0),
+                                            restMinutes: defaultOpt ? (defaultOpt.restMinutes ?? 0) : (p.restMinutes ?? 0),
+                                            needsAssistant1: a1End > 0,
+                                            needsAssistant2: a2End > 0,
                                           });
+                                          setHasManuallySelectedEndTime(false);
                                         }
                                         setIsProcDropdownOpen(false);
                                         setProcSearchTerm('');
@@ -2238,7 +2295,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             <div className="px-6 py-2.5 border-t border-slate-100 bg-white flex gap-3 justify-between items-center shrink-0 shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
-              {formData.id && onDelete ? (
+              {formData.id && onDelete && hasEditPermission ? (
                 <button
                   type="button"
                   onClick={() => {

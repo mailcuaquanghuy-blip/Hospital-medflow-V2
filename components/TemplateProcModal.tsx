@@ -109,7 +109,28 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                       </div>
                       <div className="max-h-60 overflow-y-auto scrollbar-thin">
                         {procedures.filter(p => p.deptId === currentDept.id && p.name.toLowerCase().includes(procSearchTerm.toLowerCase())).map(p => (
-                          <button key={p.id} type="button" onClick={() => { setFormData({ ...formData, procedureId: p.id, staffId: '', assistant1Id: '', assistant2Id: '', assignedMachineId: '' }); setIsProcDropdownOpen(false); setProcSearchTerm(''); }} className={`w-full p-4 text-left hover:bg-primary/5 flex flex-col gap-1 transition-all ${formData.procedureId === p.id ? 'bg-primary/5 text-primary' : 'text-slate-700'}`}>
+                          <button key={p.id} type="button" onClick={() => {
+                            const defaultOpt = p.durationOptions?.find(o => o.isDefault && !o.isDeleted) || p.durationOptions?.find(o => !o.isDeleted) || p.durationOptions?.[0];
+                            const dur = defaultOpt ? defaultOpt.durationMinutes : (p.durationMinutes || 30);
+                            const newEndTime = formData.startTime ? addMinutesToTime(formData.startTime, dur) : formData.endTime;
+                            setFormData({ 
+                              ...formData, 
+                              procedureId: p.id, 
+                              staffId: '', 
+                              assistant1Id: '', 
+                              assistant2Id: '', 
+                              assignedMachineId: '',
+                              endTime: newEndTime,
+                              mainBusyStart: defaultOpt ? (defaultOpt.mainBusyStart ?? 0) : (p.mainBusyStart ?? 0),
+                              mainBusyEnd: defaultOpt ? (defaultOpt.mainBusyEnd ?? defaultOpt.durationMinutes) : (p.mainBusyEnd ?? dur),
+                              asst1BusyStart: defaultOpt ? defaultOpt.asst1BusyStart : p.asst1BusyStart,
+                              asst1BusyEnd: defaultOpt ? defaultOpt.asst1BusyEnd : p.asst1BusyEnd,
+                              asst2BusyStart: defaultOpt ? defaultOpt.asst2BusyStart : p.asst2BusyStart,
+                              asst2BusyEnd: defaultOpt ? defaultOpt.asst2BusyEnd : p.asst2BusyEnd,
+                            }); 
+                            setIsProcDropdownOpen(false); 
+                            setProcSearchTerm(''); 
+                          }} className={`w-full p-4 text-left hover:bg-primary/5 flex flex-col gap-1 transition-all ${formData.procedureId === p.id ? 'bg-primary/5 text-primary' : 'text-slate-700'}`}>
                             <span className="font-bold text-sm">{p.name}</span><span className="text-xs font-medium opacity-60">{p.durationMinutes} phút</span>
                           </button>
                         ))}
@@ -241,12 +262,13 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
           <Button disabled={!formData.procedureId || !formData.staffId || !formData.startTime || !formData.endTime} onClick={() => {
             if (currentProc) {
               const finalData = { ...formData };
-              if (finalData.mainBusyStart === undefined) finalData.mainBusyStart = currentProc.mainBusyStart ?? 0;
-              if (finalData.mainBusyEnd === undefined) finalData.mainBusyEnd = currentProc.mainBusyEnd ?? currentProc.durationMinutes;
-              if (finalData.asst1BusyStart === undefined) finalData.asst1BusyStart = currentProc.asst1BusyStart ?? 0;
-              if (finalData.asst1BusyEnd === undefined) finalData.asst1BusyEnd = currentProc.asst1BusyEnd ?? 0;
-              if (finalData.asst2BusyStart === undefined) finalData.asst2BusyStart = currentProc.asst2BusyStart ?? 0;
-              if (finalData.asst2BusyEnd === undefined) finalData.asst2BusyEnd = currentProc.asst2BusyEnd ?? 0;
+              const defaultOpt = currentProc.durationOptions?.find(o => o.isDefault && !o.isDeleted) || currentProc.durationOptions?.find(o => !o.isDeleted) || currentProc.durationOptions?.[0];
+              if (finalData.mainBusyStart === undefined) finalData.mainBusyStart = defaultOpt ? (defaultOpt.mainBusyStart ?? 0) : (currentProc.mainBusyStart ?? 0);
+              if (finalData.mainBusyEnd === undefined) finalData.mainBusyEnd = defaultOpt ? (defaultOpt.mainBusyEnd ?? defaultOpt.durationMinutes) : (currentProc.mainBusyEnd ?? currentProc.durationMinutes);
+              if (finalData.asst1BusyStart === undefined) finalData.asst1BusyStart = defaultOpt ? defaultOpt.asst1BusyStart : (currentProc.asst1BusyStart ?? 0);
+              if (finalData.asst1BusyEnd === undefined) finalData.asst1BusyEnd = defaultOpt ? defaultOpt.asst1BusyEnd : (currentProc.asst1BusyEnd ?? 0);
+              if (finalData.asst2BusyStart === undefined) finalData.asst2BusyStart = defaultOpt ? defaultOpt.asst2BusyStart : (currentProc.asst2BusyStart ?? 0);
+              if (finalData.asst2BusyEnd === undefined) finalData.asst2BusyEnd = defaultOpt ? defaultOpt.asst2BusyEnd : (currentProc.asst2BusyEnd ?? 0);
               onSave(finalData as TemplateProcedure);
             }
           }} className="px-8 h-12 rounded-xl text-sm font-bold shadow-lg shadow-primary/20">
