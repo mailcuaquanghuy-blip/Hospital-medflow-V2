@@ -42,6 +42,8 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
 }) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<Partial<AppointmentTemplate> | null>(null);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<AppointmentTemplate | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [patientSearchTerm, setPatientSearchTerm] = useState('');
   const [patientTab, setPatientTab] = useState<'NO_APPT' | 'ALL'>('NO_APPT');
@@ -501,13 +503,14 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
 
   const handleCreateNew = (groupName?: string) => {
     const newTemplate: Partial<AppointmentTemplate> = {
-      name: 'Mẫu mới',
+      name: '',
       group: typeof groupName === 'string' ? groupName : '',
       deptId: currentDept.id,
       procedures: []
     };
     setEditingTemplate(newTemplate);
     setSelectedTemplateId(null);
+    setIsTemplateModalOpen(true);
   };
 
   const [draggedItem, setDraggedItem] = useState<{type: 'group' | 'template' | 'patient', id: string, originGroup?: string} | null>(null);
@@ -780,27 +783,53 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
   };
 
   const handleSelectTemplate = (template: AppointmentTemplate) => {
+    handleEditTemplate(template);
+  };
+
+  const handleEditTemplate = (template: AppointmentTemplate, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setSelectedTemplateId(template.id);
     setEditingTemplate({
       ...template,
       procedures: JSON.parse(JSON.stringify(template.procedures || []))
     });
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleDeleteTemplateClick = (template: AppointmentTemplate, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTemplateToDelete(template);
+  };
+
+  const handleConfirmDelete = () => {
+    if (templateToDelete) {
+      onDeleteTemplate(templateToDelete.id);
+      if (selectedTemplateId === templateToDelete.id) {
+        setSelectedTemplateId(null);
+        setEditingTemplate(null);
+      }
+      setTemplateToDelete(null);
+    }
   };
 
   const handleSave = () => {
-    if (!editingTemplate || !editingTemplate.name) return;
+    if (!editingTemplate || !editingTemplate.name || !editingTemplate.name.trim()) {
+      alert("Vui lòng nhập tên mẫu.");
+      return;
+    }
     
     const templateToSave: AppointmentTemplate = {
       id: editingTemplate.id || 'tmpl_' + Math.random().toString(36).substr(2, 9),
-      name: editingTemplate.name,
-      group: editingTemplate.group || 'Khác',
+      name: editingTemplate.name.trim(),
+      group: editingTemplate.group?.trim() || 'Khác',
       deptId: currentDept.id,
       procedures: editingTemplate.procedures || []
     };
 
     onSaveTemplate(templateToSave);
     setSelectedTemplateId(templateToSave.id);
-    setEditingTemplate(templateToSave);
+    setEditingTemplate(null);
+    setIsTemplateModalOpen(false);
   };
 
   const [isProcModalOpen, setIsProcModalOpen] = useState(false);
@@ -1057,19 +1086,36 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                                 onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, 'template', t.id)}
                               >
-                                <div 
-                                  className="flex flex-col cursor-grab active:cursor-grabbing gap-0.5"
-                                  draggable
-                                  onDragStart={(e) => handleDragStart(e, 'template', t.id, group)}
-                                  onDragEnd={handleDragEnd}
-                                >
-                                  <span className={`font-bold text-base ${selectedTemplateId === t.id ? 'text-emerald-700' : 'text-slate-800'}`}>
-                                    {t.name}
-                                  </span>
-                                  <span className="text-xs text-slate-500 font-medium">{(t.procedures || []).length} lịch trình</span>
-                                </div>
-                                <div className="absolute right-2 top-3 opacity-0 group-hover/cell:opacity-100 transition-opacity flex gap-1">
-                                  <button onClick={(e) => { e.stopPropagation(); onDeleteTemplate(t.id); if (selectedTemplateId === t.id) setEditingTemplate(null); }} className="p-1.5 hover:bg-rose-100 text-rose-400 hover:text-rose-600 rounded-md shadow-xs bg-white border border-slate-200"><Trash2 size={13} /></button>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div 
+                                    className="flex flex-col cursor-grab active:cursor-grabbing gap-0.5 flex-1 min-w-0"
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, 'template', t.id, group)}
+                                    onDragEnd={handleDragEnd}
+                                  >
+                                    <span className={`font-bold text-base truncate ${selectedTemplateId === t.id ? 'text-emerald-700' : 'text-slate-800'}`}>
+                                      {t.name}
+                                    </span>
+                                    <span className="text-xs text-slate-500 font-medium">{(t.procedures || []).length} lịch trình</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button 
+                                      type="button"
+                                      onClick={(e) => handleEditTemplate(t, e)} 
+                                      className="p-1.5 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 rounded-lg shadow-2xs border border-slate-200 bg-white transition-all cursor-pointer"
+                                      title="Sửa mẫu"
+                                    >
+                                      <Edit3 size={14} />
+                                    </button>
+                                    <button 
+                                      type="button"
+                                      onClick={(e) => handleDeleteTemplateClick(t, e)} 
+                                      className="p-1.5 hover:bg-rose-50 text-slate-500 hover:text-rose-600 rounded-lg shadow-2xs border border-slate-200 bg-white transition-all cursor-pointer"
+                                      title="Xóa mẫu"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
                                 </div>
                               </td>
                               <td className={`p-3.5 px-4 align-top text-sm leading-relaxed ${isUsedGlobal ? 'font-bold text-emerald-700 bg-emerald-50/40' : 'text-slate-500'}`}>
@@ -1102,11 +1148,9 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
         </div>
       </div>
 
-      {/* Right Column: Patient Management (Top) + Template Details Editor (Bottom) */}
-      <div className="flex-[2] flex flex-col gap-4 min-w-[420px] h-full overflow-hidden shrink-0">
-        
-        {/* Top Panel: Quản lý bệnh nhân khoa */}
-        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden flex-1 min-h-[220px]">
+      {/* Right Column: Patient Management */}
+      <div className="flex-[2] flex flex-col min-w-[380px] max-w-[460px] h-full overflow-hidden shrink-0">
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col overflow-hidden h-full">
           {/* Header */}
           <div className="p-3 px-4 border-b border-slate-200 bg-white flex flex-col gap-2 shrink-0 shadow-2xs">
             <div className="flex items-center justify-between">
@@ -1229,132 +1273,249 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
             )}
           </div>
         </div>
+      </div>
 
-        {/* Bottom Panel: Chi tiết mẫu lịch trình */}
-        <div 
-          className={`bg-white rounded-3xl shadow-sm border flex flex-col overflow-hidden flex-1 min-h-[280px] transition-all ${dragOverTarget?.type === 'template' && dragOverTarget?.id === editingTemplate?.id && draggedItem?.type === 'patient' ? 'ring-2 ring-inset ring-blue-500 bg-blue-50 border-blue-500' : 'border-slate-200'}`}
-          onDragOver={(e) => editingTemplate && editingTemplate.id && handleDragOver(e, 'template', editingTemplate.id)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => editingTemplate && editingTemplate.id && handleDrop(e, 'template', editingTemplate.id)}
-        >
-          {editingTemplate ? (
-            <>
-              <div className="p-3 px-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                <h3 className="font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center gap-2">
-                  <Edit3 size={15} className="text-emerald-600" /> Chi tiết mẫu lịch trình
-                </h3>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="secondary" onClick={() => { setEditingTemplate(null); setSelectedTemplateId(null); }} className="py-1 px-3 text-xs">
-                    Hủy
-                  </Button>
-                  <Button size="sm" onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white py-1 px-3 text-xs">
-                    <Save size={14} className="mr-1.5" /> Lưu mẫu
-                  </Button>
+      {/* Cửa sổ Popup Chi tiết Mẫu */}
+      {isTemplateModalOpen && editingTemplate && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
+            onClick={() => {
+              setIsTemplateModalOpen(false);
+              setEditingTemplate(null);
+            }} 
+          />
+          <div className="relative bg-white w-full max-w-2xl max-h-[85vh] rounded-[2rem] shadow-2xl border border-slate-150 flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                  <Edit3 size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wide">
+                    {editingTemplate.id ? 'Chỉnh sửa mẫu lịch trình' : 'Thêm mẫu lịch trình mới'}
+                  </h3>
+                  <p className="text-[11px] font-medium text-slate-400">
+                    Cấu hình thông tin mẫu và danh sách lịch trình
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsTemplateModalOpen(false);
+                  setEditingTemplate(null);
+                }} 
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Tên mẫu <span className="text-rose-500">*</span>
+                  </label>
+                  <input 
+                    type="text"
+                    value={editingTemplate.name || ''}
+                    onChange={e => setEditingTemplate({...editingTemplate, name: e.target.value})}
+                    placeholder="VD: Khám nội soi định kỳ..."
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all text-xs font-semibold text-slate-800"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Nhóm mẫu</label>
+                  <div className="relative">
+                    <input 
+                      list="template-groups"
+                      value={editingTemplate.group || ''}
+                      onChange={e => setEditingTemplate({...editingTemplate, group: e.target.value})}
+                      placeholder="Chọn hoặc nhập nhóm..."
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all text-xs font-semibold text-slate-800"
+                    />
+                    <datalist id="template-groups">
+                      {Object.keys(groupedTemplates)
+                        .filter(g => g !== 'Khác')
+                        .sort((a, b) => a.localeCompare(b, 'vi'))
+                        .map(g => (
+                          <option key={g} value={g}>{g}</option>
+                      ))}
+                    </datalist>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Tên mẫu</label>
-                    <input 
-                      type="text"
-                      value={editingTemplate.name || ''}
-                      onChange={e => setEditingTemplate({...editingTemplate, name: e.target.value})}
-                      placeholder="VD: Khám nội soi định kỳ..."
-                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:bg-white transition-all text-xs font-medium"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Nhóm mẫu</label>
-                    <div className="relative">
-                      <input 
-                        list="template-groups"
-                        value={editingTemplate.group || ''}
-                        onChange={e => setEditingTemplate({...editingTemplate, group: e.target.value})}
-                        placeholder="Chọn hoặc nhập nhóm..."
-                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-400 focus:bg-white transition-all text-xs font-medium"
-                      />
-                      <datalist id="template-groups">
-                        {Object.keys(groupedTemplates)
-                          .filter(g => g !== 'Khác')
-                          .sort((a, b) => a.localeCompare(b, 'vi'))
-                          .map(g => (
-                            <option key={g} value={g}>{g}</option>
-                        ))}
-                      </datalist>
-                    </div>
-                  </div>
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                    Danh sách lịch trình ({editingTemplate.procedures?.length || 0})
+                  </label>
+                  <Button size="sm" onClick={addProcedure} className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-1.5 px-3 text-xs font-bold rounded-xl shadow-2xs">
+                    <Plus size={14} className="mr-1 text-emerald-600" /> Thêm dòng
+                  </Button>
                 </div>
+                
+                {editingTemplate.procedures && editingTemplate.procedures.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {editingTemplate.procedures.map((tProc, idx) => {
+                      const procInfo = procedures.find(p => p.id === tProc.procedureId);
+                      const staffInfo = staff.find(s => s.id === tProc.staffId);
+                      const asst1Info = tProc.assistant1Id ? staff.find(s => s.id === tProc.assistant1Id) : null;
+                      const asst2Info = tProc.assistant2Id ? staff.find(s => s.id === tProc.assistant2Id) : null;
+                      const selectedOpt = tProc.selectedDurationOptionId ? procInfo?.durationOptions?.find(o => o.id === tProc.selectedDurationOptionId && !o.isDeleted) : null;
 
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-xs font-bold text-slate-700">Danh sách lịch trình ({editingTemplate.procedures?.length || 0})</label>
-                    <Button size="sm" onClick={addProcedure} className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-none py-1 px-2.5 text-[11px]">
-                      <Plus size={13} className="mr-1" /> Thêm dòng
-                    </Button>
-                  </div>
-                  
-                  {editingTemplate.procedures && editingTemplate.procedures.length > 0 ? (
-                    <div className="space-y-2">
-                      {editingTemplate.procedures.map((tProc, idx) => {
-                        const procInfo = procedures.find(p => p.id === tProc.procedureId);
-                        const staffInfo = staff.find(s => s.id === tProc.staffId);
-                        return (
-                          <div key={idx} onClick={() => handleEditProc(idx)} className="p-3 rounded-xl border border-slate-200 bg-white hover:border-emerald-300 hover:shadow-xs cursor-pointer transition-all flex justify-between items-center group relative overflow-hidden">
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <div className="flex flex-col gap-1 flex-1 pl-1">
-                              <span className="font-bold text-slate-800 text-xs flex items-center gap-2">
+                      return (
+                        <div 
+                          key={idx} 
+                          onClick={() => handleEditProc(idx)} 
+                          className="p-3.5 rounded-2xl border border-slate-200 bg-white hover:border-emerald-400 hover:shadow-xs cursor-pointer transition-all flex justify-between items-center group relative overflow-hidden"
+                        >
+                          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                          <div className="flex flex-col gap-1.5 flex-1 pl-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-800 text-sm">
                                 {procInfo?.name || 'Lịch trình trống'}
-                                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{tProc.startTime} - {tProc.endTime}</span>
                               </span>
-                              <div className="flex items-center gap-3 text-[11px] font-medium text-slate-500">
-                                <span className="flex items-center gap-1"><User size={13} className="text-emerald-500" /> {staffInfo?.name || 'Trống'}</span>
-                                {tProc.assistant1Id && <span className="flex items-center gap-1 opacity-70"><User size={12} /> {staff.find(s => s.id === tProc.assistant1Id)?.name}</span>}
-                                {tProc.assistant2Id && <span className="flex items-center gap-1 opacity-70"><User size={12} /> {staff.find(s => s.id === tProc.assistant2Id)?.name}</span>}
-                                {tProc.assignedMachineId && <span className="flex items-center gap-1 opacity-70"><Monitor size={12} /> Máy: {tProc.assignedMachineId}</span>}
-                              </div>
+                              <span className="text-[10px] font-black tracking-wider text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md font-mono">
+                                {tProc.startTime} - {tProc.endTime}
+                              </span>
+                              {selectedOpt && (
+                                <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                                  {selectedOpt.name} ({selectedOpt.durationMinutes}p)
+                                </span>
+                              )}
                             </div>
+                            <div className="flex items-center gap-3 text-xs font-medium text-slate-500 flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <User size={13} className="text-emerald-600" /> {staffInfo?.name || 'Chưa chọn NV chính'}
+                              </span>
+                              {asst1Info && (
+                                <span className="flex items-center gap-1 text-slate-500">
+                                  <User size={12} className="text-amber-500" /> Phụ 1: {asst1Info.name}
+                                </span>
+                              )}
+                              {asst2Info && (
+                                <span className="flex items-center gap-1 text-slate-500">
+                                  <User size={12} className="text-amber-500" /> Phụ 2: {asst2Info.name}
+                                </span>
+                              )}
+                              {tProc.assignedMachineId && (
+                                <span className="flex items-center gap-1 text-slate-500">
+                                  <Monitor size={12} className="text-blue-500" /> Máy: {tProc.assignedMachineId}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
                             <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditProc(idx);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer"
+                              title="Chỉnh sửa dòng"
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                            <button 
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const newProcs = [...editingTemplate.procedures!];
                                 newProcs.splice(idx, 1);
                                 setEditingTemplate({...editingTemplate, procedures: newProcs});
                               }}
-                              className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
                               title="Xóa lịch trình"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={15} />
                             </button>
                           </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/80 flex flex-col items-center justify-center gap-1.5">
-                       <FolderOpen size={24} className="text-slate-300" />
-                       <p className="text-slate-500 text-xs font-medium">Chưa có lịch trình nào trong mẫu này.</p>
-                       <Button size="sm" onClick={addProcedure} variant="secondary" className="mt-1 text-[11px] py-1 px-3">Thêm dòng lịch trình</Button>
-                    </div>
-                  )}
-                </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/70 flex flex-col items-center justify-center gap-2">
+                     <FolderOpen size={28} className="text-slate-300" />
+                     <p className="text-slate-500 text-xs font-medium">Chưa có lịch trình nào trong mẫu này.</p>
+                     <Button size="sm" onClick={addProcedure} variant="secondary" className="mt-1 text-xs py-1.5 px-3.5 font-bold">
+                       <Plus size={14} className="mr-1" /> Thêm dòng lịch trình
+                     </Button>
+                  </div>
+                )}
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-300 p-6 text-center bg-slate-50/50">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-100 mb-3 rotate-2">
-                <FolderOpen size={24} className="text-slate-300" />
-              </div>
-              <p className="font-bold text-xs text-slate-500 tracking-tight uppercase">Chi tiết mẫu lịch trình</p>
-              <p className="text-[11px] mt-1.5 text-slate-400 font-medium max-w-xs">
-                Chọn một mẫu ở danh sách bên trái hoặc bấm <span className="font-bold text-emerald-600 cursor-pointer" onClick={() => handleCreateNew()}>"+ Thêm mẫu"</span> để chỉnh sửa nội dung.
-              </p>
             </div>
-          )}
-        </div>
 
-      </div>
+            {/* Modal Footer */}
+            <div className="p-4 px-6 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <Button 
+                variant="secondary" 
+                onClick={() => {
+                  setIsTemplateModalOpen(false);
+                  setEditingTemplate(null);
+                }} 
+                className="py-2 px-4 text-xs font-bold rounded-xl"
+              >
+                Hủy
+              </Button>
+              <Button 
+                onClick={handleSave} 
+                className="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-5 text-xs font-bold rounded-xl shadow-md shadow-emerald-600/20"
+              >
+                <Save size={15} className="mr-1.5" /> Cập nhật mẫu
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cửa sổ Popup xác nhận xóa mẫu */}
+      {templateToDelete && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
+            onClick={() => setTemplateToDelete(null)} 
+          />
+          <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-150 p-6 flex flex-col gap-4 overflow-hidden">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="font-black text-slate-800 text-base">Xác nhận xóa mẫu</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Thao tác này sẽ xóa vĩnh viễn mẫu chỉ định</p>
+              </div>
+            </div>
+            
+            <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+              Bạn có xác nhận xóa mẫu <strong className="text-slate-900">"{templateToDelete.name}"</strong> này hay không?
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button 
+                variant="secondary" 
+                onClick={() => setTemplateToDelete(null)}
+                className="py-2 px-4 text-xs font-bold rounded-xl"
+              >
+                Hủy
+              </Button>
+              <Button 
+                onClick={handleConfirmDelete}
+                className="bg-rose-600 hover:bg-rose-700 text-white py-2 px-5 text-xs font-bold rounded-xl shadow-md shadow-rose-600/20"
+              >
+                Đồng ý
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {isProcModalOpen && editingTemplate && (
         <TemplateProcModal
