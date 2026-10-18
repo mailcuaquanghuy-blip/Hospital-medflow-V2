@@ -228,6 +228,7 @@ export interface Appointment {
   needsAssistant1?: boolean;
   needsAssistant2?: boolean;
   isPriority?: boolean;
+  isDeleted?: boolean;
 }
 
 export interface Backup {

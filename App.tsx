@@ -1052,13 +1052,23 @@ const App: React.FC = () => {
         const updated = [...filtered, snapObj];
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
-            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
-          } catch (e) {}
+            // Giữ tối đa 30 snapshot gần nhất trong localStorage để tránh tràn bộ nhớ
+            const trimmed = updated.slice(-30);
+            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(trimmed));
+            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(trimmed));
+          } catch (e) {
+            console.warn('LocalStorage snapshot write error:', e);
+          }
         }
         return updated;
       });
 
+      // Lập tức lưu lên Firestore & Supabase khi chuyển ngày làm việc
+      if (db) {
+        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(err => {
+          console.warn('Error auto saving snapshot to Firestore on date change:', err);
+        });
+      }
       saveScheduleSnapshotToSupabase(snapObj).catch(err => {
         console.warn('Error auto saving snapshot to Supabase:', err);
       });
@@ -1069,7 +1079,7 @@ const App: React.FC = () => {
 
   const handleDateChange = (newDate: string) => {
     if (!newDate || newDate === activeDate) return;
-    // Tự động chốt/lưu lịch sử chỉnh sửa của ngày hiện tại trước khi chuyển sang ngày mới
+    // Tự động chốt/lưu lịch sử chỉnh sửa của ngày hiện tại lập tức trước khi chuyển sang ngày mới
     if (currentDept && activeDate) {
       autoFinalizeScheduleSnapshotForDate(currentDept.id, activeDate);
     }
@@ -1089,6 +1099,9 @@ const App: React.FC = () => {
         appointments: JSON.parse(JSON.stringify(deptAppts))
       };
 
+      if (db) {
+        await setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj);
+      }
       await saveScheduleSnapshotToSupabase(snapObj);
 
       setSessionBaseline(deptId, dateStr, deptAppts);
@@ -1099,9 +1112,12 @@ const App: React.FC = () => {
         const updated = [...filtered, snapObj];
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
-            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
-          } catch (e) {}
+            const trimmed = updated.slice(-30);
+            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(trimmed));
+            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(trimmed));
+          } catch (e) {
+            console.warn('LocalStorage snapshot write error:', e);
+          }
         }
         return updated;
       });
@@ -1414,43 +1430,11 @@ const App: React.FC = () => {
         return [...filtered, ...newAppts];
       });
 
-      // Tự động chốt mốc lịch trình cho các ngày đích để không ghi nhận sao chép thành biến động / lịch sử chỉnh sửa
+      // Bỏ qua lịch sử chỉnh sửa những ngày sau khi sao chép thủ thuật đi để chống tràn bộ nhớ
       if (targetDeptId) {
-        const newSnapshotsToSave: ScheduleSnapshot[] = [];
         actualTargetDates.forEach(targetDate => {
-          const targetDayAppts = currentApptsState.filter(a => a.date === targetDate && a.deptId === targetDeptId);
-          const snapshotId = `${targetDeptId}_${targetDate}`;
-          const snapObj: ScheduleSnapshot = {
-            id: snapshotId,
-            deptId: targetDeptId,
-            date: targetDate,
-            createdAt: new Date().toISOString(),
-            createdBy: currentUser?.fullName || 'Sao chép lịch trình',
-            appointments: JSON.parse(JSON.stringify(targetDayAppts))
-          };
-          newSnapshotsToSave.push(snapObj);
-
-          setSessionBaseline(targetDeptId, targetDate, targetDayAppts);
           clearDeletedSessionAppointments(targetDeptId, targetDate);
         });
-
-        if (newSnapshotsToSave.length > 0) {
-          setScheduleSnapshots(prev => {
-            const updatedDates = new Set(actualTargetDates);
-            const filtered = prev.filter(s => !(s.deptId === targetDeptId && updatedDates.has(s.date)));
-            const updated = [...filtered, ...newSnapshotsToSave];
-            if (typeof window !== 'undefined') {
-              try {
-                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
-                localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
-              } catch (e) {}
-            }
-            return updated;
-          });
-
-          // Lưu vĩnh viễn mốc chốt của các ngày được sao chép lên Supabase
-          await Promise.all(newSnapshotsToSave.map(s => saveScheduleSnapshotToSupabase(s)));
-        }
       }
 
       try {

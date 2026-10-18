@@ -671,8 +671,33 @@ export const Timeline: React.FC<TimelineProps> = ({
 
     // Lọc các lịch trình có biến động so với bản chốt
     if (filterModifiedOnly) {
-      const changedIds = new Set(deviations.filter(d => d.date === date).map(d => d.id));
-      result = result.filter(a => changedIds.has(a.id));
+      const dayDeviations = deviations.filter(d => d.date === date);
+      const changedIds = new Set(dayDeviations.map(d => d.id));
+      const activeChanged = result.filter(a => changedIds.has(a.id));
+
+      // Bổ sung các lịch trình đã xóa trong ngày làm việc để hiển thị dạng bóng mờ
+      const deletedDevs = dayDeviations.filter(d => d.type === 'DELETED');
+      const deletedAppts: Appointment[] = [];
+      deletedDevs.forEach(d => {
+        const apptObj: Appointment = d.originalAppt || {
+          id: d.id,
+          patientId: d.patientId,
+          staffId: '',
+          procedureId: '',
+          deptId: currentDept?.id || '',
+          date: d.date || date,
+          startTime: '08:00',
+          endTime: '08:30',
+          status: AppointmentStatus.PENDING,
+          notes: 'Xóa lịch trình'
+        };
+        deletedAppts.push({
+          ...apptObj,
+          isDeleted: true
+        });
+      });
+
+      result = [...activeChanged, ...deletedAppts];
     }
     
     if (filterText) {
@@ -1004,25 +1029,27 @@ export const Timeline: React.FC<TimelineProps> = ({
     });
 
     const tableRows = sortedAppts.map((appt, idx) => {
+      const devItem = deviations.find(d => d.id === appt.id);
+      const isDeleted = !!appt.isDeleted || devItem?.type === 'DELETED';
       const patient = patients.find(p => p.id === appt.patientId);
       const staffMember = staff.find(s => s.id === appt.staffId);
       const procedure = procedures.find(p => p.id === appt.procedureId);
       const procedureDeptId = procedure?.deptId || appt.deptId;
       const performingDept = DEPARTMENTS.find(d => d.id === procedureDeptId);
       return `
-        <tr>
+        <tr style="${isDeleted ? 'opacity: 0.55; background-color: #f8fafc;' : ''}">
           <td>${idx + 1}</td>
-          <td><b>${patient?.name || 'Không yêu cầu BN'}</b><br/><small>${patient ? `${patient.gender} • ${calculateAge(patient.dob)}t • ${patient.bedType || 'Nội trú'}` : '-'}</small></td>
+          <td><b style="${isDeleted ? 'text-decoration: line-through; color: #64748b;' : ''}">${patient?.name || 'Không yêu cầu BN'}</b>${isDeleted ? ' <span style="color:#e11d48;font-size:11px;">(Đã xóa)</span>' : ''}<br/><small>${patient ? `${patient.gender} • ${calculateAge(patient.dob)}t • ${patient.bedType || 'Nội trú'}` : '-'}</small></td>
           <td style="text-align:center">${patient ? `${patient.bedNumber} - P:${patient.roomNumber || '?'}` : '-'}</td>
           <td>${performingDept?.name || '-'}</td>
-          <td>${procedure?.name || 'Lịch trình đã xóa'}</td>
+          <td style="${isDeleted ? 'text-decoration: line-through; color: #64748b;' : ''}">${procedure?.name || (isDeleted ? 'Lịch trình đã xóa' : 'Lịch trình không rõ')}</td>
           <td style="text-align:center">${timeStringToMinutes(appt.endTime) - timeStringToMinutes(appt.startTime)}p</td>
           <td>
-            ${staffMember?.name || '-'}
+            <span style="${isDeleted ? 'text-decoration: line-through; color: #64748b;' : ''}">${staffMember?.name || '-'}</span>
             ${appt.assistant1Id ? `<br/><small>Phụ 1: ${staff.find(s => s.id === appt.assistant1Id)?.name}</small>` : ''}
             ${appt.assistant2Id ? `<br/><small>Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}</small>` : ''}
           </td>
-          <td style="text-align:center">${appt.startTime} - ${appt.endTime}</td>
+          <td style="text-align:center;${isDeleted ? 'text-decoration: line-through; color: #64748b;' : ''}">${appt.startTime} - ${appt.endTime}</td>
           <td style="text-align:center">${appt.assignedMachineId ? appt.assignedMachineId.replace(/-/g, '') : ''}</td>
         </tr>
       `;
@@ -1115,11 +1142,15 @@ export const Timeline: React.FC<TimelineProps> = ({
     });
 
     const csvData = sortedAppts.map((appt, idx) => {
+      const devItem = deviations.find(d => d.id === appt.id);
+      const isDeleted = !!appt.isDeleted || devItem?.type === 'DELETED';
       const patient = patients.find(p => p.id === appt.patientId);
       const staffMember = staff.find(s => s.id === appt.staffId);
       const procedure = procedures.find(p => p.id === appt.procedureId);
       const procedureDeptId = procedure?.deptId || appt.deptId;
       const performingDept = DEPARTMENTS.find(d => d.id === procedureDeptId);
+
+      const noteText = isDeleted ? 'Xóa lịch trình' : (appt.notes || '');
 
       return {
         stt: idx + 1,
@@ -1127,13 +1158,14 @@ export const Timeline: React.FC<TimelineProps> = ({
         patientInfo: patient ? `${patient.gender} • ${calculateAge(patient.dob)}t • ${patient.bedType || 'Nội trú'}` : '-',
         bedRoom: patient ? `${patient.bedNumber} - P:${patient.roomNumber || '?'}` : '-',
         dept: performingDept?.name || '-',
-        procedure: procedure?.name || 'Lịch trình đã xóa',
+        procedure: procedure?.name || (isDeleted ? 'Lịch trình đã xóa' : 'Lịch trình không rõ'),
         duration: `${timeStringToMinutes(appt.endTime) - timeStringToMinutes(appt.startTime)}p`,
         staff: staffMember?.name || '-',
         assistant1: appt.assistant1Id ? staff.find(s => s.id === appt.assistant1Id)?.name : '',
         assistant2: appt.assistant2Id ? staff.find(s => s.id === appt.assistant2Id)?.name : '',
         time: `${appt.startTime} - ${appt.endTime}`,
-        machine: appt.assignedMachineId ? appt.assignedMachineId.replace(/-/g, '') : ''
+        machine: appt.assignedMachineId ? appt.assignedMachineId.replace(/-/g, '') : '',
+        note: noteText
       };
     });
 
@@ -1149,7 +1181,8 @@ export const Timeline: React.FC<TimelineProps> = ({
       { label: 'Phụ 1', key: 'assistant1' },
       { label: 'Phụ 2', key: 'assistant2' },
       { label: 'Thời gian', key: 'time' },
-      { label: 'Máy', key: 'machine' }
+      { label: 'Máy', key: 'machine' },
+      { label: 'Ghi chú', key: 'note' }
     ];
 
     downloadCSV(csvData, `Timeline_Tong_${date}.csv`, headers);
@@ -1626,6 +1659,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                 <tbody className="bg-white divide-y divide-slate-100">
               {filteredAppointments.map((appt, idx) => {
                 const devItem = deviations.find(d => d.id === appt.id);
+                const isDeleted = !!appt.isDeleted || devItem?.type === 'DELETED';
                 const patient = patients.find(p => p.id === appt.patientId);
                 const staffMember = staff.find(s => s.id === appt.staffId);
                 const procedure = procedures.find(p => p.id === appt.procedureId);
@@ -1648,9 +1682,9 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const duration = Math.max(endMin - startMin, 5);
                 const exactWidth = minutesToPixels(duration, pixelsPerMinute);
                 const left = minutesToPixels(startMin, pixelsPerMinute);
-                const isOutside = !isInsideOfficeHours(startMin, endMin);
+                const isOutside = !isDeleted && !isInsideOfficeHours(startMin, endMin);
                 
-                const dynamicConflicts = allDynamicConflicts.get(appt.id) || [];
+                const dynamicConflicts = !isDeleted ? (allDynamicConflicts.get(appt.id) || []) : [];
                 const hasConflict = dynamicConflicts.some(c => c.level === 1);
                 const displayConflictDetails = dynamicConflicts;
 
@@ -1658,23 +1692,34 @@ export const Timeline: React.FC<TimelineProps> = ({
                 const displayStartTime = appt.startTime || minutesToTimeString(startMin);
                 const displayEndTime = (appt.endTime && rawEndMin > startMin) ? appt.endTime : minutesToTimeString(endMin);
 
-                const procedureName = procedure?.name || 'Lịch trình đã xóa';
+                const procedureName = procedure?.name || (isDeleted ? 'Lịch trình đã xóa' : 'Lịch trình không rõ');
                 // Đảm bảo thẻ có độ dài tối thiểu đủ để hiển thị đầy đủ 100% tên thủ thuật (không bị cắt bớt thành dấu 3 chấm ...)
                 const minNameWidth = Math.max(Math.ceil(procedureName.length * 8.5) + 24, 90);
                 const cardWidth = Math.max(exactWidth, minNameWidth);
                 
                 const isBgHighlight = hasConflict || isOutside;
-                const stickyCellBg = isBgHighlight ? 'bg-[#fff5f5]' : 'bg-white';
-                const stickyCellHover = isBgHighlight ? 'group-hover:bg-rose-100/60' : 'group-hover:bg-slate-50';
+                const stickyCellBg = isDeleted 
+                  ? 'bg-slate-50/90' 
+                  : (isBgHighlight ? 'bg-[#fff5f5]' : 'bg-white');
+                const stickyCellHover = isDeleted 
+                  ? 'group-hover:bg-slate-100/90' 
+                  : (isBgHighlight ? 'group-hover:bg-rose-100/60' : 'group-hover:bg-slate-50');
                 
                 const marqueeContent = `(${procedureName}) ${displayStartTime} - ${displayEndTime}, ${staffMember?.name}${appt.assistant1Id ? `, Phụ 1: ${staff.find(s => s.id === appt.assistant1Id)?.name}` : ''}${appt.assistant2Id ? `, Phụ 2: ${staff.find(s => s.id === appt.assistant2Id)?.name}` : ''}${appt.assignedMachineId ? `, Máy: ${appt.assignedMachineId.replace(/-/g, '')}` : ''}`;
 
                 return (
-                  <tr key={appt.id} className={`hover:bg-slate-50 transition-all group min-h-[5rem] ${hasConflict || isOutside ? 'bg-rose-50/20' : ''}`}>
+                  <tr key={appt.id} className={`hover:bg-slate-50 transition-all group min-h-[5rem] ${
+                    isDeleted 
+                      ? 'bg-slate-50/70 opacity-60 hover:opacity-85' 
+                      : (hasConflict || isOutside ? 'bg-rose-50/20' : '')
+                  }`}>
                     <td className={`p-3 font-medium text-slate-800 sticky left-0 ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[220px] min-w-[220px] max-w-[220px]`}>
                         <div className="flex flex-col">
-                            <span className="font-bold text-sm text-primary">
+                            <span className={`font-bold text-sm ${isDeleted ? 'text-slate-400 line-through' : 'text-primary'}`}>
                               {patient?.name || 'Không yêu cầu BN'} {(() => {
+                                if (isDeleted) {
+                                  return <span className="text-rose-500 font-semibold no-underline text-xs ml-1">(Đã xóa)</span>;
+                                }
                                 if (!patient) return null;
                                 const isDischarged = patient.status === 'DISCHARGED';
                                 const dischargeDateStr = getLocalDateString(patient.dischargeDate);
@@ -1690,10 +1735,12 @@ export const Timeline: React.FC<TimelineProps> = ({
                               })()}
                             </span>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs text-slate-500 font-bold">{patient ? `${patient.gender} • ${calculateAge(patient.dob)} tuổi` : '-'}</span>
+                                <span className={`text-xs ${isDeleted ? 'text-slate-400' : 'text-slate-500 font-bold'}`}>{patient ? `${patient.gender} • ${calculateAge(patient.dob)} tuổi` : '-'}</span>
                                 {patient?.bedType && (
                                     <span className={`text-[10px] font-black px-1.5 py-0.5 rounded uppercase ${
-                                      patient.bedType === 'Nội trú ban ngày' 
+                                      isDeleted 
+                                        ? 'bg-slate-100 text-slate-400'
+                                        : patient.bedType === 'Nội trú ban ngày' 
                                         ? 'bg-amber-100 text-amber-700' 
                                         : patient.bedType === 'Ngoại trú'
                                         ? 'bg-blue-100 text-blue-700'
@@ -1708,28 +1755,42 @@ export const Timeline: React.FC<TimelineProps> = ({
                         </div>
                     </td>
                     <td className={`p-3 text-center sticky left-[220px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[140px] min-w-[140px] max-w-[140px]`}>
-                        <div className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 px-2 py-1.5 rounded text-xs font-bold">
+                        <div className={`inline-flex items-center gap-1.5 ${isDeleted ? 'bg-slate-100/70 text-slate-400 line-through' : 'bg-slate-100 text-slate-600'} px-2 py-1.5 rounded text-xs font-bold`}>
                             <Bed size={14} /> {patient ? `${patient.bedNumber} - P:${patient.roomNumber || '?'}` : '-'}
                         </div>
                     </td>
                     <td className={`p-3 sticky left-[360px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[140px] min-w-[140px] max-w-[140px]`}>
                         <div className="flex flex-col">
-                            <span className="font-black text-xs text-primary uppercase leading-tight">{performingDept?.name || '-'}</span>
+                            <span className={`font-black text-xs ${isDeleted ? 'text-slate-400' : 'text-primary'} uppercase leading-tight`}>{performingDept?.name || '-'}</span>
                             {patient && patient.admittedByDeptId && patient.admittedByDeptId !== procedureDeptId && (
-                              <span className="text-[10px] font-bold text-slate-500 mt-0.5 truncate" title={`Khoa tiếp nhận BN: ${DEPARTMENTS.find(d => d.id === patient.admittedByDeptId)?.name || patient.admittedByDeptId}`}>
+                              <span className="text-[10px] font-bold text-slate-400 mt-0.5 truncate" title={`Khoa tiếp nhận BN: ${DEPARTMENTS.find(d => d.id === patient.admittedByDeptId)?.name || patient.admittedByDeptId}`}>
                                 Từ: {DEPARTMENTS.find(d => d.id === patient.admittedByDeptId)?.name || patient.admittedByDeptId}
                               </span>
                             )}
                         </div>
                     </td>
                     <td 
-                      onClick={() => onAppointmentClick(appt)}
-                      className={`p-3 sticky left-[500px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[220px] min-w-[220px] max-w-[220px] cursor-pointer hover:opacity-85 transition-opacity`}
+                      onClick={() => !isDeleted && onAppointmentClick(appt)}
+                      className={`p-3 sticky left-[500px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[220px] min-w-[220px] max-w-[220px] ${isDeleted ? 'cursor-default' : 'cursor-pointer hover:opacity-85 transition-opacity'}`}
                     >
-                        <div className={`flex flex-col gap-1 p-2 rounded-xl border ${getProcedureColor(appt.procedureId).bg}`}>
+                        <div className={`flex flex-col gap-1 p-2 rounded-xl border ${
+                          isDeleted 
+                            ? 'bg-slate-100/90 border-dashed border-slate-300 text-slate-500' 
+                            : getProcedureColor(appt.procedureId).bg
+                        }`}>
                             <div className="flex items-center justify-between gap-1 flex-wrap">
-                              <span className={`font-bold text-xs ${hasConflict || isOutside ? 'text-rose-700 font-extrabold' : getProcedureColor(appt.procedureId).text}`}>{procedure?.name || 'Lịch trình đã xóa'}</span>
-                              {devItem && (
+                              <span className={`font-bold text-xs ${
+                                isDeleted 
+                                  ? 'text-slate-500 line-through' 
+                                  : (hasConflict || isOutside ? 'text-rose-700 font-extrabold' : getProcedureColor(appt.procedureId).text)
+                              }`}>
+                                {procedure?.name || (isDeleted ? 'Lịch trình đã xóa' : 'Lịch trình không rõ')}
+                              </span>
+                              {isDeleted ? (
+                                <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border shrink-0 bg-rose-50 text-rose-600 border-rose-200">
+                                  ✕ Xóa lịch trình
+                                </span>
+                              ) : devItem && (
                                 <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border shrink-0 ${
                                   devItem.type === 'NEW' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-amber-50 text-amber-700 border-amber-300'
                                 }`}>
@@ -1769,17 +1830,17 @@ export const Timeline: React.FC<TimelineProps> = ({
                     </td>
                     <td className={`p-3 sticky left-[720px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 text-slate-600 w-[200px] min-w-[200px] max-w-[200px]`}>
                         <div className="flex flex-col gap-1.5">
-                            <span className="font-bold text-sm text-slate-800">{staffMember?.name}</span>
-                            {appt.assistant1Id && <span className="text-xs text-slate-500">Phụ 1: <span className="font-medium text-slate-700">{staff.find(s => s.id === appt.assistant1Id)?.name}</span></span>}
-                            {appt.assistant2Id && <span className="text-xs text-slate-500">Phụ 2: <span className="font-medium text-slate-700">{staff.find(s => s.id === appt.assistant2Id)?.name}</span></span>}
+                            <span className={`font-bold text-sm ${isDeleted ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{staffMember?.name}</span>
+                            {appt.assistant1Id && <span className={`text-xs ${isDeleted ? 'text-slate-400' : 'text-slate-500'}`}>Phụ 1: <span className={`font-medium ${isDeleted ? 'text-slate-400' : 'text-slate-700'}`}>{staff.find(s => s.id === appt.assistant1Id)?.name}</span></span>}
+                            {appt.assistant2Id && <span className={`text-xs ${isDeleted ? 'text-slate-400' : 'text-slate-500'}`}>Phụ 2: <span className={`font-medium ${isDeleted ? 'text-slate-400' : 'text-slate-700'}`}>{staff.find(s => s.id === appt.assistant2Id)?.name}</span></span>}
                         </div>
                     </td>
-                    <td className={`p-3 text-center font-mono sticky left-[920px] ${stickyCellBg} ${stickyCellHover} z-20 text-sm font-semibold border-r border-slate-100 w-[110px] min-w-[110px] max-w-[110px]`}>
+                    <td className={`p-3 text-center font-mono sticky left-[920px] ${stickyCellBg} ${stickyCellHover} z-20 text-sm font-semibold border-r border-slate-100 w-[110px] min-w-[110px] max-w-[110px] ${isDeleted ? 'text-slate-400 line-through' : ''}`}>
                         {displayStartTime} - {displayEndTime}
                     </td>
                     <td className={`p-3 text-center sticky left-[1030px] ${stickyCellBg} ${stickyCellHover} z-20 border-r border-slate-100 w-[110px] min-w-[110px] max-w-[110px] shadow-[2px_0_5px_rgba(0,0,0,0.05)]`}>
                        {appt.assignedMachineId ? (
-                         <span className="px-2.5 py-1 rounded text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-100">
+                         <span className={`px-2.5 py-1 rounded text-xs font-bold border ${isDeleted ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>
                             {appt.assignedMachineId.replace(/-/g, '')}
                          </span>
                        ) : null}
@@ -1787,7 +1848,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                     <td className="p-0 relative bg-slate-50/20">
                       <div className="relative h-full w-full" style={{ width: timelineWidth }}>
                         {renderTimeRuler(false)}
-                        {procedure?.restMinutes ? (
+                        {!isDeleted && procedure?.restMinutes ? (
                           <div 
                             className="absolute top-1/2 -translate-y-1/2 rounded-r-lg border-y-2 border-r-2 border-slate-200 bg-slate-200/50 flex items-center overflow-hidden z-0 pointer-events-none"
                             style={{ left: left + cardWidth - 4, width: minutesToPixels(procedure.restMinutes, pixelsPerMinute) + 4, height: 38 }}
@@ -1796,33 +1857,43 @@ export const Timeline: React.FC<TimelineProps> = ({
                           </div>
                         ) : null}
                         <div 
-                          onClick={() => onAppointmentClick(appt)} 
-                          className={`absolute top-1/2 -translate-y-1/2 rounded-lg border shadow-xs flex items-center justify-center px-2 cursor-pointer hover:z-30 hover:scale-[1.02] hover:shadow-md transition-all z-10 ${getBarColor(appt.procedureId, hasConflict ? 'CONFLICT' : appt.status, isOutside, procedures.find(p => p.id === appt.procedureId)?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} 
+                          onClick={() => !isDeleted ? onAppointmentClick(appt) : undefined} 
+                          className={`absolute top-1/2 -translate-y-1/2 rounded-lg border shadow-xs flex items-center justify-center px-2 transition-all z-10 ${
+                            isDeleted 
+                              ? 'bg-slate-200/50 text-slate-500 border-dashed border-2 border-slate-400 opacity-40 shadow-none cursor-default backdrop-blur-[1px] hover:opacity-75' 
+                              : `cursor-pointer hover:z-30 hover:scale-[1.02] hover:shadow-md ${getBarColor(appt.procedureId, hasConflict ? 'CONFLICT' : appt.status, isOutside, procedures.find(p => p.id === appt.procedureId)?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`
+                          }`} 
                           style={{ left, width: cardWidth, minWidth: 'max-content', height: 38 }}
-                          title={`${displayStartTime} - ${displayEndTime}: ${procedureName}`}
+                          title={isDeleted ? `[ĐÃ XÓA LỊCH TRÌNH] ${displayStartTime} - ${displayEndTime}: ${procedureName}` : `${displayStartTime} - ${displayEndTime}: ${procedureName}`}
                         >
                           {/* Giờ bắt đầu cho ra bên ngoài và ở phía trước thẻ */}
                           <div className="absolute right-[calc(100%+4px)] top-1/2 -translate-y-1/2 select-none z-20 flex items-center pointer-events-none">
                             <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold whitespace-nowrap shadow-2xs border ${
-                              hasConflict || isOutside 
-                                ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                                : 'bg-white/95 text-slate-700 border-slate-200/90'
+                              isDeleted 
+                                ? 'bg-slate-100 text-slate-400 border-dashed border-slate-300 opacity-60'
+                                : (hasConflict || isOutside 
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                                    : 'bg-white/95 text-slate-700 border-slate-200/90')
                             }`}>
                               {displayStartTime}
                             </span>
                           </div>
 
                           {/* Bên trong thẻ: HIỆN TOÀN BỘ TÊN THỦ THUẬT */}
-                          <span className="font-bold text-[10.5px] sm:text-[11px] leading-tight whitespace-nowrap text-center select-none px-1">
-                            {procedureName}
+                          <span className={`font-bold text-[10.5px] sm:text-[11px] leading-tight whitespace-nowrap text-center select-none px-1 ${
+                            isDeleted ? 'line-through text-slate-500 italic' : ''
+                          }`}>
+                            {procedureName} {isDeleted ? '(Đã xóa)' : ''}
                           </span>
 
                           {/* Giờ kết thúc cho ra bên ngoài và ở phía sau thẻ */}
                           <div className="absolute left-[calc(100%+4px)] top-1/2 -translate-y-1/2 select-none z-20 flex items-center pointer-events-none">
                             <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold whitespace-nowrap shadow-2xs border ${
-                              hasConflict || isOutside 
-                                ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                                : 'bg-white/95 text-slate-700 border-slate-200/90'
+                              isDeleted 
+                                ? 'bg-slate-100 text-slate-400 border-dashed border-slate-300 opacity-60'
+                                : (hasConflict || isOutside 
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                                    : 'bg-white/95 text-slate-700 border-slate-200/90')
                             }`}>
                               {displayEndTime}
                             </span>
@@ -1989,15 +2060,17 @@ export const Timeline: React.FC<TimelineProps> = ({
                     const left = minutesToPixels(blockStartMin, pixelsPerMinute);
                     const patient = patients.find(p => p.id === appt.patientId);
                     const staffMember = staff.find(s => s.id === appt.staffId);
-                    const isOutside = !isInsideOfficeHours(startMin, endMin);
-                    const dynamicConflicts = allDynamicConflicts.get(appt.id) || [];
+                    const devItem = deviations.find(d => d.id === appt.id);
+                    const isDeleted = !!appt.isDeleted || devItem?.type === 'DELETED';
+                    const isOutside = !isDeleted && !isInsideOfficeHours(startMin, endMin);
+                    const dynamicConflicts = !isDeleted ? (allDynamicConflicts.get(appt.id) || []) : [];
                     const hasConflict = dynamicConflicts.some(c => c.level === 1);
 
                     const displayWidth = Math.max(width, 100);
 
                     return (
                       <React.Fragment key={appt.id}>
-                        {procedure?.restMinutes && (!row.role || row.role === 'ALL') ? (
+                        {!isDeleted && procedure?.restMinutes && (!row.role || row.role === 'ALL') ? (
                           <div 
                             className="absolute top-4 bottom-4 rounded-r-lg border-y border-r border-slate-200 bg-slate-200/50 flex items-center overflow-hidden z-10 pointer-events-none"
                             style={{ left: minutesToPixels(endMin, pixelsPerMinute), width: minutesToPixels(procedure.restMinutes, pixelsPerMinute) + 4 }}
@@ -2005,7 +2078,11 @@ export const Timeline: React.FC<TimelineProps> = ({
                              <div className="px-2 pl-3 text-[9px] font-bold text-slate-500 whitespace-nowrap truncate">Nghỉ {procedure.restMinutes}p</div>
                           </div>
                         ) : null}
-                        <div onClick={(e) => { e.stopPropagation(); onAppointmentClick(appt); }} className={`absolute top-3 bottom-3 rounded-lg border px-3 py-2 cursor-pointer hover:shadow-lg hover:z-50 hover:scale-[1.02] transition-all z-20 flex flex-col justify-between overflow-hidden ${getStatusColor(hasConflict ? AppointmentStatus.CONFLICT : appt.status, isOutside, procedure?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`} style={{ left, width: displayWidth }}>
+                        <div onClick={(e) => { e.stopPropagation(); if (!isDeleted) onAppointmentClick(appt); }} className={`absolute top-3 bottom-3 rounded-lg border px-3 py-2 transition-all z-20 flex flex-col justify-between overflow-hidden ${
+                          isDeleted
+                            ? 'bg-slate-200/50 text-slate-500 border-dashed border-2 border-slate-400 opacity-40 shadow-none cursor-default hover:opacity-75'
+                            : `cursor-pointer hover:shadow-lg hover:z-50 hover:scale-[1.02] ${getStatusColor(hasConflict ? AppointmentStatus.CONFLICT : appt.status, isOutside, procedure?.isIndependent, !currentDept || appt.deptId === currentDept.id)}`
+                        }`} style={{ left, width: displayWidth }}>
                          <div className={`font-bold text-xs truncate flex items-center gap-1.5 ${hasConflict || isOutside ? 'text-white' : 'text-slate-900'}`}>
                             {patient?.insuranceLevel && (
                               <div className={`shrink-0 w-2.5 h-3.5 rounded-[2px] border shadow-sm ${
