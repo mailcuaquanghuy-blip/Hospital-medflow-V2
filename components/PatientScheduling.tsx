@@ -613,7 +613,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
     for (const config of sortConfigs) {
       let cmp = 0;
       if (config.field === 'NAME') {
-        const getFirstName = (fullName: string) => {
+        const getFirstName = (fullName?: string) => {
+          if (!fullName) return '';
           const parts = fullName.trim().split(/\s+/);
           return parts.length > 0 ? parts[parts.length - 1] : fullName;
         };
@@ -621,7 +622,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         const firstNameB = getFirstName(b.name);
         cmp = firstNameA.localeCompare(firstNameB, 'vi');
         if (cmp === 0) {
-          cmp = a.name.localeCompare(b.name, 'vi');
+          cmp = (a.name || '').localeCompare(b.name || '', 'vi');
         }
       } else if (config.field === 'ROOM_BED') {
         const roomA = a.roomNumber || '';
@@ -971,6 +972,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
               }
               
               const template = item.template;
+              if (!template) return null;
               const templateProcIds = (template.procedures || []).map((p: TemplateProcedure) => `${p.procedureId}_${p.startTime}_${p.endTime}`).sort();
               const templateKey = templateProcIds.join('|');
               
@@ -2813,14 +2815,17 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                         ) : (
                           (() => {
                             const currentDeptTemplates = templates.filter(t => {
-                              if (t.deptId !== currentDept.id) return false;
+                              if (!t || t.deptId !== currentDept.id) return false;
+                              if (t.isFolder) return false;
                               if (!templateSearchQuery.trim()) return true;
-                              const q = templateSearchQuery.toLowerCase();
+                              const q = templateSearchQuery.toLowerCase().trim();
                               const matchesProcedures = (t.procedures || []).some(tp => {
                                 const proc = procedures.find(p => p.id === tp.procedureId);
-                                return proc?.name.toLowerCase().includes(q);
+                                return (proc?.name || '').toLowerCase().includes(q);
                               });
-                              return t.name.toLowerCase().includes(q) || (t.group && t.group.toLowerCase().includes(q)) || matchesProcedures;
+                              const tmplName = (t.name || '').toLowerCase();
+                              const tmplGroup = (t.group || '').toLowerCase();
+                              return tmplName.includes(q) || tmplGroup.includes(q) || matchesProcedures;
                             });
 
                             if (currentDeptTemplates.length === 0) {
@@ -2860,14 +2865,14 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                 items.sort((a, b) => {
                                   if (a.isGroup && !b.isGroup) return -1;
                                   if (!a.isGroup && b.isGroup) return 1;
-                                  const nameA = a.isGroup ? a.name : a.template.name;
-                                  const nameB = b.isGroup ? b.name : b.template.name;
+                                  const nameA = (a.isGroup ? a.name : a.template?.name) || '';
+                                  const nameB = (b.isGroup ? b.name : b.template?.name) || '';
                                   if (nameA === 'Khác') return 1;
                                   if (nameB === 'Khác') return -1;
                                   const cmp = nameA.localeCompare(nameB, 'vi');
                                   return isTemplateSortDesc ? -cmp : cmp;
                                 });
-                                items.forEach(i => { if (i.isGroup) sortItems(i.items); });
+                                items.forEach(i => { if (i.isGroup && Array.isArray(i.items)) sortItems(i.items); });
                             };
                             sortItems(treeData);
 

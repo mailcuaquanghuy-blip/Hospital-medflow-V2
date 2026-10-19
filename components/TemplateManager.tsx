@@ -455,8 +455,10 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
   });
 
   const groupedTemplates = deptTemplates.reduce((acc, template) => {
+    if (!template) return acc;
     if (template.isFolder) {
-      if (!acc[template.name]) acc[template.name] = [];
+      const folderName = (template.name || '').trim();
+      if (folderName && !acc[folderName]) acc[folderName] = [];
       return acc;
     }
     const group = template.group || 'Khác';
@@ -595,7 +597,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
         let allTmplsInTarget = groupedTemplates[targetGroup] || [];
         allTmplsInTarget = [...allTmplsInTarget].sort((a,b) => {
            const oa = a.order ?? 0; const ob = b.order ?? 0;
-           return oa !== ob ? oa - ob : a.name.localeCompare(b.name, 'vi');
+           return oa !== ob ? oa - ob : (a.name || '').localeCompare(b.name || '', 'vi');
         });
         
         const filtered = allTmplsInTarget.filter(t => t.id !== t1.id);
@@ -661,15 +663,15 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
 
     // Update all folders and templates that start with this group name
     const relatedItems = deptTemplates.filter(t => 
-      t.name === groupName || (t.isFolder && t.name.startsWith(groupName + '/')) || (!t.isFolder && t.group?.startsWith(groupName))
+      t.name === groupName || (t.isFolder && t.name?.startsWith(groupName + '/')) || (!t.isFolder && t.group?.startsWith(groupName))
     );
     
     relatedItems.forEach(item => {
       if (item.isFolder) {
-        let newFolderName = item.name;
+        let newFolderName = item.name || '';
         if (item.name === groupName) {
           newFolderName = trimmedNewName;
-        } else if (item.name.startsWith(groupName + '/')) {
+        } else if (item.name?.startsWith(groupName + '/')) {
           newFolderName = trimmedNewName + item.name.substring(groupName.length);
         }
         onSaveTemplate({ ...item, name: newFolderName }, true);
@@ -695,7 +697,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
     
     // Get list of other top-level folders (or any folder)
     const possibleParents = Array.from(new Set(deptTemplates
-      .filter(t => t.isFolder && t.name !== groupName && !t.name.startsWith(groupName + '/'))
+      .filter(t => t.isFolder && t.name && t.name !== groupName && !t.name.startsWith(groupName + '/'))
       .map(t => t.name)
     ));
     
@@ -732,15 +734,15 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
 
     // Update all folders and templates that start with this group name
     const relatedItems = deptTemplates.filter(t => 
-      t.name === groupName || (t.isFolder && t.name.startsWith(groupName + '/')) || (!t.isFolder && (t.group === groupName || t.group?.startsWith(groupName + '/')))
+      t.name === groupName || (t.isFolder && t.name?.startsWith(groupName + '/')) || (!t.isFolder && (t.group === groupName || t.group?.startsWith(groupName + '/')))
     );
     
     relatedItems.forEach(item => {
       if (item.isFolder) {
-        let newFolderName = item.name;
+        let newFolderName = item.name || '';
         if (item.name === groupName) {
           newFolderName = newGroupName;
-        } else if (item.name.startsWith(groupName + '/')) {
+        } else if (item.name?.startsWith(groupName + '/')) {
           newFolderName = newGroupName + item.name.substring(groupName.length);
         }
         if (item.name !== newFolderName) {
@@ -770,7 +772,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
     
     // Check for any templates or sub-folders
     const hasTemplates = deptTemplates.some(t => !t.isFolder && (t.group === groupName || t.group?.startsWith(groupName + '/')));
-    const hasSubFolders = deptTemplates.some(t => t.isFolder && t.name.startsWith(groupName + '/'));
+    const hasSubFolders = deptTemplates.some(t => t.isFolder && t.name?.startsWith(groupName + '/'));
 
     if (hasTemplates || hasSubFolders) {
       alert("Phải xóa tất cả mẫu và nhóm con bên trong trước khi xóa nhóm này.");
@@ -959,10 +961,11 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                 const patientsUsedTemplates = new Set<string>();
 
                 const renderedGroups = sortedGroups.map(([group, tmpls]) => {
-                  const filteredTmpls = tmpls.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
+                  const q = (searchTerm || '').toLowerCase().trim();
+                  const filteredTmpls = tmpls.filter(t => (t?.name || '').toLowerCase().includes(q));
                   
                   // If searching and no templates match in this group, hide group completely (unless it's an empty folder and searching is empty)
-                  if (searchTerm && filteredTmpls.length === 0) return null;
+                  if (q && filteredTmpls.length === 0) return null;
                   
                   const rowSpan = filteredTmpls.length + 1;
 
@@ -1021,7 +1024,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                             const orderA = a.order ?? 0;
                             const orderB = b.order ?? 0;
                             if (orderA !== orderB) return orderA - orderB;
-                            return a.name.localeCompare(b.name, 'vi');
+                            return (a?.name || '').localeCompare(b?.name || '', 'vi');
                           }).map((t, idx) => {
                           const templateProcIds = (t.procedures || []).map(p => `${p.procedureId}_${p.startTime}_${p.endTime}`);
                           let usedCount = 0;
