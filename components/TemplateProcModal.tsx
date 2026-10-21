@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Staff, Procedure, Department, TemplateProcedure, ProcedureDurationOption } from '../types';
 import { Button } from './Button';
 import { TimeInput } from './TimeInput';
-import { User, Search, Monitor, Clock, X, Save, AlertTriangle, Check } from 'lucide-react';
+import { User, Search, Monitor, Clock, X, Save, AlertTriangle, Check, Link2 } from 'lucide-react';
 import { timeStringToMinutes, minutesToTimeString, addMinutesToTime, getRoleLabel, getRoleShortLabel } from '../utils/timeUtils';
 
 interface TemplateProcModalProps {
@@ -28,7 +28,8 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
   const [formData, setFormData] = useState<Partial<TemplateProcedure>>({
     startTime: '08:00',
     endTime: '08:30',
-    ...initialData
+    ...initialData,
+    allowSameAssistant: !!initialData?.allowSameAssistant || (!!initialData?.assistant1Id && initialData.assistant1Id === initialData?.assistant2Id)
   });
 
   const [isProcDropdownOpen, setIsProcDropdownOpen] = useState(false);
@@ -53,6 +54,20 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
     return activeDurationOptions.find(o => o.id === selectedOptionId);
   }, [activeDurationOptions, selectedOptionId]);
 
+  // Sync initialData when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const isSameAsst = !!initialData?.allowSameAssistant || (!!initialData?.assistant1Id && initialData.assistant1Id === initialData?.assistant2Id);
+      setFormData({
+        startTime: '08:00',
+        endTime: '08:30',
+        ...initialData,
+        allowSameAssistant: isSameAsst,
+        assistant2Id: isSameAsst && initialData?.assistant1Id ? initialData.assistant1Id : initialData?.assistant2Id
+      });
+    }
+  }, [isOpen, initialData]);
+
   // Handle defaults when clicking a procedure
   useEffect(() => {
     if (formData.procedureId && formData.startTime && currentProc && !initialData?.procedureId) {
@@ -60,6 +75,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
       const dur = defaultOpt ? defaultOpt.durationMinutes : currentProc.durationMinutes;
       const startMin = timeStringToMinutes(formData.startTime);
       const endMin = startMin + dur;
+      const shouldAllowSame = defaultOpt ? !!defaultOpt.allowSameAssistant : !!currentProc.allowSameAssistant;
       setFormData(prev => ({
         ...prev,
         selectedDurationOptionId: defaultOpt ? defaultOpt.id : null,
@@ -72,7 +88,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
         asst2BusyStart: defaultOpt ? defaultOpt.asst2BusyStart : currentProc.asst2BusyStart,
         asst2BusyEnd: defaultOpt ? defaultOpt.asst2BusyEnd : currentProc.asst2BusyEnd,
         restMinutes: defaultOpt ? defaultOpt.restMinutes : currentProc.restMinutes,
-        allowSameAssistant: defaultOpt ? defaultOpt.allowSameAssistant : currentProc.allowSameAssistant
+        allowSameAssistant: shouldAllowSame
       }));
     }
   }, [formData.procedureId]);
@@ -81,6 +97,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
     const dur = opt.durationMinutes;
     const startMin = timeStringToMinutes(formData.startTime || '08:00');
     const newEnd = minutesToTimeString(startMin + dur);
+    const optAllowSame = opt.allowSameAssistant !== undefined ? opt.allowSameAssistant : formData.allowSameAssistant;
     setFormData(prev => ({
       ...prev,
       selectedDurationOptionId: opt.id,
@@ -92,7 +109,8 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
       asst2BusyStart: opt.asst2BusyStart,
       asst2BusyEnd: opt.asst2BusyEnd,
       restMinutes: opt.restMinutes,
-      allowSameAssistant: opt.allowSameAssistant
+      allowSameAssistant: optAllowSame,
+      assistant2Id: optAllowSame && prev.assistant1Id ? prev.assistant1Id : prev.assistant2Id
     }));
   };
 
@@ -101,23 +119,30 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
   }, [staff, currentDept, formData.procedureId]);
 
   const eligibleAssistants = useMemo(() => {
-    return staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(formData.procedureId || ''));
+    return staff.filter(s => s.deptId === currentDept.id && (s.assistantCapabilityIds?.includes(formData.procedureId || '') || s.capabilityIds?.includes(formData.procedureId || '')));
   }, [staff, currentDept, formData.procedureId]);
   const availableMachines = useMemo(() => currentProc?.availableMachines || [], [currentProc]);
 
   const needsAssistant1 = useMemo(() => {
+    if (formData.assistant1Id) return true;
+    if (formData.allowSameAssistant) return true;
     if (currentSelectedOpt) {
       return (currentSelectedOpt.asst1BusyEnd ?? 0) > 0;
     }
     return (currentProc?.asst1BusyEnd && currentProc.asst1BusyEnd > 0) || (currentProc?.assistant1BusyMinutes && currentProc.assistant1BusyMinutes > 0);
-  }, [currentSelectedOpt, currentProc]);
+  }, [currentSelectedOpt, currentProc, formData.assistant1Id, formData.allowSameAssistant]);
 
   const needsAssistant2 = useMemo(() => {
+    if (formData.allowSameAssistant) return true;
+    if (formData.assistant2Id) return true;
     if (currentSelectedOpt) {
-      return (currentSelectedOpt.asst2BusyEnd ?? 0) > 0;
+      return (currentSelectedOpt.asst2BusyEnd ?? 0) > 0 || !!currentSelectedOpt.allowSameAssistant;
     }
-    return (currentProc?.asst2BusyEnd && currentProc.asst2BusyEnd > 0) || (currentProc?.assistant2BusyMinutes && currentProc.assistant2BusyMinutes > 0);
-  }, [currentSelectedOpt, currentProc]);
+    return (currentProc?.asst2BusyEnd && currentProc.asst2BusyEnd > 0) || (currentProc?.assistant2BusyMinutes && currentProc.assistant2BusyMinutes > 0) || !!currentProc?.allowSameAssistant;
+  }, [currentSelectedOpt, currentProc, formData.allowSameAssistant, formData.assistant2Id]);
+
+  const showAssistant1 = needsAssistant1 || needsAssistant2 || eligibleAssistants.length > 0 || !!formData.assistant1Id || !!formData.allowSameAssistant;
+  const showAssistant2 = needsAssistant2 || !!formData.allowSameAssistant || !!formData.assistant2Id;
 
   if (!isOpen) return null;
 
@@ -287,21 +312,74 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                   </div>
 
                   <div className="grid grid-cols-2 gap-5">
-                    {needsAssistant1 && (
+                    {showAssistant1 && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5"><User size={14} className="text-primary" /> Người phụ 1</label>
-                        <select className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all" value={formData.assistant1Id || ''} onChange={e => setFormData({ ...formData, assistant1Id: e.target.value })}>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                            <User size={14} className="text-primary" /> Người phụ 1
+                          </label>
+                          <label 
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-2.5 py-1 rounded-xl border border-amber-200/80 cursor-pointer select-none transition-colors"
+                            title="Cho phép người phụ 1 kiêm nhiệm luôn người phụ 2"
+                          >
+                            <input 
+                              type="checkbox" 
+                              checked={!!formData.allowSameAssistant} 
+                              onChange={e => {
+                                const checked = e.target.checked;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  allowSameAssistant: checked,
+                                  assistant2Id: checked && prev.assistant1Id ? prev.assistant1Id : (checked ? '' : prev.assistant2Id)
+                                }));
+                              }} 
+                              className="w-3.5 h-3.5 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
+                            />
+                            <Link2 size={13} className={formData.allowSameAssistant ? "text-amber-600" : "text-slate-400"} />
+                            <span>Phụ 1 kiêm phụ 2</span>
+                          </label>
+                        </div>
+                        <select 
+                          className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all" 
+                          value={formData.assistant1Id || ''} 
+                          onChange={e => {
+                            const newStaffId = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              assistant1Id: newStaffId,
+                              assistant2Id: prev.allowSameAssistant ? newStaffId : prev.assistant2Id
+                            }));
+                          }}
+                        >
                           <option value="">-- Chọn người phụ 1 --</option>
-                          {eligibleAssistants.filter(s => s.id !== formData.staffId && s.id !== formData.assistant2Id).map(s => <option key={s.id} value={s.id}>{s.name} ({getRoleShortLabel(s.role)})</option>)}
+                          {eligibleAssistants
+                            .filter(s => s.id !== formData.staffId && (formData.allowSameAssistant || s.id !== formData.assistant2Id))
+                            .map(s => <option key={s.id} value={s.id}>{s.name} ({getRoleShortLabel(s.role)})</option>)}
                         </select>
                       </div>
                     )}
-                    {needsAssistant2 && (
+                    {showAssistant2 && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5"><User size={14} className="text-primary" /> Người phụ 2</label>
-                        <select className="w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all" value={formData.assistant2Id || ''} onChange={e => setFormData({ ...formData, assistant2Id: e.target.value })}>
-                          <option value="">-- Chọn người phụ 2 --</option>
-                          {eligibleAssistants.filter(s => s.id !== formData.staffId && s.id !== formData.assistant1Id).map(s => <option key={s.id} value={s.id}>{s.name} ({getRoleShortLabel(s.role)})</option>)}
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+                            <User size={14} className="text-primary" /> Người phụ 2
+                          </label>
+                          {formData.allowSameAssistant && (
+                            <span className="text-amber-600 font-bold lowercase tracking-normal text-[11px] bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60 flex items-center gap-1">
+                              <Link2 size={11} /> (Đồng bộ Phụ 1)
+                            </span>
+                          )}
+                        </div>
+                        <select 
+                          className={`w-full p-4 border border-slate-200 rounded-2xl bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-semibold text-sm transition-all ${formData.allowSameAssistant ? 'bg-amber-50/40 text-amber-900 border-amber-200 cursor-not-allowed' : ''}`} 
+                          value={formData.allowSameAssistant ? (formData.assistant1Id || '') : (formData.assistant2Id || '')} 
+                          onChange={e => setFormData({ ...formData, assistant2Id: e.target.value })}
+                          disabled={!!formData.allowSameAssistant}
+                        >
+                          <option value="">{formData.allowSameAssistant ? '-- Tự động đồng bộ Người phụ 1 --' : '-- Chọn người phụ 2 --'}</option>
+                          {eligibleAssistants
+                            .filter(s => s.id !== formData.staffId && (formData.allowSameAssistant || s.id !== formData.assistant1Id))
+                            .map(s => <option key={s.id} value={s.id}>{s.name} ({getRoleShortLabel(s.role)})</option>)}
                         </select>
                       </div>
                     )}
@@ -324,7 +402,7 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                       </div>
                     </div>
 
-                    {needsAssistant1 && (
+                    {showAssistant1 && (
                       <div className="flex items-center gap-4">
                         <span className="text-[10px] font-bold text-slate-400 w-16 uppercase tracking-widest">PHỤ 1:</span>
                         <div className="flex-1 flex gap-4">
@@ -338,15 +416,15 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
                       </div>
                     )}
                     
-                    {needsAssistant2 && (
+                    {showAssistant2 && (
                       <div className="flex items-center gap-4">
                         <span className="text-[10px] font-bold text-slate-400 w-16 uppercase tracking-widest">PHỤ 2:</span>
                         <div className="flex-1 flex gap-4">
                           <div className="flex-1 space-y-1.5">
-                            <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white" placeholder="0" value={formData.asst2BusyStart ?? currentSelectedOpt?.asst2BusyStart ?? currentProc.asst2BusyStart ?? 0} onChange={e => setFormData({...formData, asst2BusyStart: Number(e.target.value)})} />
+                            <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white" placeholder="0" value={formData.allowSameAssistant ? (formData.asst1BusyStart ?? currentSelectedOpt?.asst1BusyStart ?? currentProc.asst1BusyStart ?? 0) : (formData.asst2BusyStart ?? currentSelectedOpt?.asst2BusyStart ?? currentProc.asst2BusyStart ?? 0)} onChange={e => setFormData({...formData, asst2BusyStart: Number(e.target.value)})} disabled={!!formData.allowSameAssistant} />
                           </div>
                           <div className="flex-1 space-y-1.5">
-                            <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white" placeholder="0" value={formData.asst2BusyEnd ?? currentSelectedOpt?.asst2BusyEnd ?? currentProc.asst2BusyEnd ?? 0} onChange={e => setFormData({...formData, asst2BusyEnd: Number(e.target.value)})} />
+                            <input type="number" className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white" placeholder="0" value={formData.allowSameAssistant ? (formData.asst1BusyEnd ?? currentSelectedOpt?.asst1BusyEnd ?? currentProc.asst1BusyEnd ?? 0) : (formData.asst2BusyEnd ?? currentSelectedOpt?.asst2BusyEnd ?? currentProc.asst2BusyEnd ?? 0)} onChange={e => setFormData({...formData, asst2BusyEnd: Number(e.target.value)})} disabled={!!formData.allowSameAssistant} />
                           </div>
                         </div>
                       </div>
@@ -398,7 +476,18 @@ export const TemplateProcModal: React.FC<TemplateProcModalProps> = ({
               if (finalData.asst2BusyStart === undefined) finalData.asst2BusyStart = opt ? opt.asst2BusyStart : (currentProc.asst2BusyStart ?? 0);
               if (finalData.asst2BusyEnd === undefined) finalData.asst2BusyEnd = opt ? opt.asst2BusyEnd : (currentProc.asst2BusyEnd ?? 0);
               if (finalData.restMinutes === undefined) finalData.restMinutes = opt ? opt.restMinutes : currentProc.restMinutes;
-              if (finalData.allowSameAssistant === undefined) finalData.allowSameAssistant = opt ? opt.allowSameAssistant : currentProc.allowSameAssistant;
+              finalData.allowSameAssistant = !!formData.allowSameAssistant;
+              if (finalData.allowSameAssistant) {
+                finalData.assistant2Id = finalData.assistant1Id || null;
+                if (!finalData.asst1BusyEnd || finalData.asst1BusyEnd <= 0) {
+                  finalData.asst1BusyStart = 0;
+                  finalData.asst1BusyEnd = opt ? opt.durationMinutes : (currentProc.durationMinutes || 30);
+                }
+                if (!finalData.asst2BusyEnd || finalData.asst2BusyEnd <= 0) {
+                  finalData.asst2BusyStart = finalData.asst1BusyStart;
+                  finalData.asst2BusyEnd = finalData.asst1BusyEnd;
+                }
+              }
               onSave(finalData as TemplateProcedure);
             }
           }} className="px-8 h-12 rounded-xl text-sm font-bold shadow-lg shadow-primary/20">

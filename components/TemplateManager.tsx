@@ -1370,6 +1370,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                       const staffInfo = staff.find(s => s.id === tProc.staffId);
                       const asst1Info = tProc.assistant1Id ? staff.find(s => s.id === tProc.assistant1Id) : null;
                       const asst2Info = tProc.assistant2Id ? staff.find(s => s.id === tProc.assistant2Id) : null;
+                      const isSameAsst = !!tProc.allowSameAssistant || (!!tProc.assistant1Id && tProc.assistant1Id === tProc.assistant2Id);
                       const selectedOpt = tProc.selectedDurationOptionId ? procInfo?.durationOptions?.find(o => o.id === tProc.selectedDurationOptionId && !o.isDeleted) : null;
 
                       return (
@@ -1399,10 +1400,17 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
                               </span>
                               {asst1Info && (
                                 <span className="flex items-center gap-1 text-slate-500">
-                                  <User size={12} className="text-amber-500" /> Phụ 1: {asst1Info.name}
+                                  <User size={12} className="text-amber-500" /> 
+                                  {isSameAsst ? (
+                                    <span className="text-amber-700 font-semibold flex items-center gap-1">
+                                      Phụ 1 & 2: {asst1Info.name} <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">Kiêm nhiệm</span>
+                                    </span>
+                                  ) : (
+                                    `Phụ 1: ${asst1Info.name}`
+                                  )}
                                 </span>
                               )}
-                              {asst2Info && (
+                              {asst2Info && !isSameAsst && (
                                 <span className="flex items-center gap-1 text-slate-500">
                                   <User size={12} className="text-amber-500" /> Phụ 2: {asst2Info.name}
                                 </span>

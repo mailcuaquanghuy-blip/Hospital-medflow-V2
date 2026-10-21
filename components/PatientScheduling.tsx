@@ -877,6 +877,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       if (a.assistant2Id !== undefined) proc.assistant2Id = a.assistant2Id;
       if (a.notes !== undefined) proc.notes = a.notes;
       if (a.assignedMachineId !== undefined) proc.assignedMachineId = a.assignedMachineId;
+      if (a.selectedDurationOptionId !== undefined) proc.selectedDurationOptionId = a.selectedDurationOptionId;
       if (a.mainBusyStart !== undefined) proc.mainBusyStart = a.mainBusyStart;
       if (a.mainBusyEnd !== undefined) proc.mainBusyEnd = a.mainBusyEnd;
       if (a.asst1BusyStart !== undefined) proc.asst1BusyStart = a.asst1BusyStart;
@@ -884,6 +885,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
       if (a.asst2BusyStart !== undefined) proc.asst2BusyStart = a.asst2BusyStart;
       if (a.asst2BusyEnd !== undefined) proc.asst2BusyEnd = a.asst2BusyEnd;
       if (a.restMinutes !== undefined) proc.restMinutes = a.restMinutes;
+      if (a.allowSameAssistant !== undefined) proc.allowSameAssistant = a.allowSameAssistant;
+      else if (a.assistant1Id && a.assistant1Id === a.assistant2Id) proc.allowSameAssistant = true;
       return proc as TemplateProcedure;
     });
 
@@ -1204,9 +1207,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         const asst2BusyStart = targetOpt ? (targetOpt.asst2BusyStart ?? 0) : (proc?.asst2BusyStart ?? (tProc.asst2BusyStart ?? 0));
         const asst2BusyEnd = targetOpt ? (targetOpt.asst2BusyEnd ?? 0) : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? (tProc.asst2BusyEnd ?? 0));
         const restMinutes = targetOpt ? (targetOpt.restMinutes ?? 0) : (proc?.restMinutes ?? (tProc.restMinutes || 0));
-        const allowSameAssistant = targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? (tProc.allowSameAssistant ?? false));
+        const allowSameAssistant = tProc.allowSameAssistant ?? (targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? false));
+        let effectiveAsst2Id = assistant2Id;
+        let effectiveAsst2BusyStart = asst2BusyStart;
+        let effectiveAsst2BusyEnd = asst2BusyEnd;
+        let effectiveNeedsAsst2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+        if (allowSameAssistant) {
+          if (assistant1Id) effectiveAsst2Id = assistant1Id;
+          effectiveAsst2BusyStart = asst1BusyStart;
+          effectiveAsst2BusyEnd = asst1BusyEnd > 0 ? asst1BusyEnd : (targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 30));
+          effectiveNeedsAsst2 = true;
+        }
+
         const needsAssistant1 = targetOpt ? ((targetOpt.asst1BusyEnd ?? 0) > 0) : ((asst1BusyEnd ?? 0) > 0);
-        const needsAssistant2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+        const needsAssistant2 = effectiveNeedsAsst2;
 
         const optDur = targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 0);
         const calculatedEndTime = (optDur > 0 && tProc.startTime) ? addMinutesToTime(tProc.startTime, optDur) : tProc.endTime;
@@ -1224,7 +1238,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           procedureId: effectiveProcId,
           staffId: staffId || '',
           assistant1Id: assistant1Id || null,
-          assistant2Id: assistant2Id || null,
+          assistant2Id: effectiveAsst2Id || null,
           date: currentDate,
           startTime: tProc.startTime,
           endTime: calculatedEndTime,
@@ -1237,8 +1251,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           mainBusyEnd,
           asst1BusyStart,
           asst1BusyEnd,
-          asst2BusyStart,
-          asst2BusyEnd,
+          asst2BusyStart: effectiveAsst2BusyStart,
+          asst2BusyEnd: effectiveAsst2BusyEnd,
           restMinutes,
           allowSameAssistant,
           needsAssistant1,
@@ -1323,9 +1337,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         const asst2BusyStart = targetOpt ? (targetOpt.asst2BusyStart ?? 0) : (proc?.asst2BusyStart ?? (tProc.asst2BusyStart ?? 0));
         const asst2BusyEnd = targetOpt ? (targetOpt.asst2BusyEnd ?? 0) : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? (tProc.asst2BusyEnd ?? 0));
         const restMinutes = targetOpt ? (targetOpt.restMinutes ?? 0) : (proc?.restMinutes ?? (tProc.restMinutes || 0));
-        const allowSameAssistant = targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? (tProc.allowSameAssistant ?? false));
+        const allowSameAssistant = tProc.allowSameAssistant ?? (targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? false));
+        let effectiveAsst2Id = assistant2Id;
+        let effectiveAsst2BusyStart = asst2BusyStart;
+        let effectiveAsst2BusyEnd = asst2BusyEnd;
+        let effectiveNeedsAsst2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+        if (allowSameAssistant) {
+          if (assistant1Id) effectiveAsst2Id = assistant1Id;
+          effectiveAsst2BusyStart = asst1BusyStart;
+          effectiveAsst2BusyEnd = asst1BusyEnd > 0 ? asst1BusyEnd : (targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 30));
+          effectiveNeedsAsst2 = true;
+        }
+
         const needsAssistant1 = targetOpt ? ((targetOpt.asst1BusyEnd ?? 0) > 0) : ((asst1BusyEnd ?? 0) > 0);
-        const needsAssistant2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+        const needsAssistant2 = effectiveNeedsAsst2;
 
         const optDur = targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 0);
         const calculatedEndTime = (optDur > 0 && tProc.startTime) ? addMinutesToTime(tProc.startTime, optDur) : tProc.endTime;
@@ -1338,7 +1363,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           procedureId: tProc.procedureId,
           staffId: staffId || '',
           assistant1Id: assistant1Id || null,
-          assistant2Id: assistant2Id || null,
+          assistant2Id: effectiveAsst2Id || null,
           date: currentDate,
           startTime: tProc.startTime,
           endTime: calculatedEndTime,
@@ -1351,8 +1376,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           mainBusyEnd,
           asst1BusyStart,
           asst1BusyEnd,
-          asst2BusyStart,
-          asst2BusyEnd,
+          asst2BusyStart: effectiveAsst2BusyStart,
+          asst2BusyEnd: effectiveAsst2BusyEnd,
           restMinutes,
           allowSameAssistant,
           needsAssistant1,
@@ -1437,9 +1462,20 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         const asst2BusyStart = targetOpt ? (targetOpt.asst2BusyStart ?? 0) : (proc?.asst2BusyStart ?? (tProc.asst2BusyStart ?? 0));
         const asst2BusyEnd = targetOpt ? (targetOpt.asst2BusyEnd ?? 0) : (proc?.asst2BusyEnd ?? proc?.assistant2BusyMinutes ?? (tProc.asst2BusyEnd ?? 0));
         const restMinutes = targetOpt ? (targetOpt.restMinutes ?? 0) : (proc?.restMinutes ?? (tProc.restMinutes || 0));
-        const allowSameAssistant = targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? (tProc.allowSameAssistant ?? false));
+        const allowSameAssistant = tProc.allowSameAssistant ?? (targetOpt ? (targetOpt.allowSameAssistant ?? false) : (proc?.allowSameAssistant ?? false));
+        let effectiveAsst2Id = tProc.assistant2Id || null;
+        let effectiveAsst2BusyStart = asst2BusyStart;
+        let effectiveAsst2BusyEnd = asst2BusyEnd;
+        let effectiveNeedsAsst2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+        if (allowSameAssistant) {
+          if (tProc.assistant1Id) effectiveAsst2Id = tProc.assistant1Id;
+          effectiveAsst2BusyStart = asst1BusyStart;
+          effectiveAsst2BusyEnd = asst1BusyEnd > 0 ? asst1BusyEnd : (targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 30));
+          effectiveNeedsAsst2 = true;
+        }
+
         const needsAssistant1 = targetOpt ? ((targetOpt.asst1BusyEnd ?? 0) > 0) : ((asst1BusyEnd ?? 0) > 0);
-        const needsAssistant2 = targetOpt ? ((targetOpt.asst2BusyEnd ?? 0) > 0) : ((asst2BusyEnd ?? 0) > 0);
+        const needsAssistant2 = effectiveNeedsAsst2;
 
         const optDur = targetOpt ? targetOpt.durationMinutes : (proc?.durationMinutes || 0);
         const calculatedEndTime = (optDur > 0 && tProc.startTime) ? addMinutesToTime(tProc.startTime, optDur) : tProc.endTime;
@@ -1452,7 +1488,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           procedureId: tProc.procedureId,
           staffId: tProc.staffId || '',
           assistant1Id: tProc.assistant1Id || null,
-          assistant2Id: tProc.assistant2Id || null,
+          assistant2Id: effectiveAsst2Id,
           date: currentDate,
           startTime: tProc.startTime,
           endTime: calculatedEndTime,
@@ -1465,8 +1501,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
           mainBusyEnd,
           asst1BusyStart,
           asst1BusyEnd,
-          asst2BusyStart,
-          asst2BusyEnd,
+          asst2BusyStart: effectiveAsst2BusyStart,
+          asst2BusyEnd: effectiveAsst2BusyEnd,
           restMinutes,
           allowSameAssistant,
           needsAssistant1,
@@ -1522,6 +1558,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         if (a.assistant2Id !== undefined) proc.assistant2Id = a.assistant2Id;
         if (a.notes !== undefined) proc.notes = a.notes;
         if (a.assignedMachineId !== undefined) proc.assignedMachineId = a.assignedMachineId;
+        if (a.selectedDurationOptionId !== undefined) proc.selectedDurationOptionId = a.selectedDurationOptionId;
         if (a.mainBusyStart !== undefined) proc.mainBusyStart = a.mainBusyStart;
         if (a.mainBusyEnd !== undefined) proc.mainBusyEnd = a.mainBusyEnd;
         if (a.asst1BusyStart !== undefined) proc.asst1BusyStart = a.asst1BusyStart;
@@ -1529,6 +1566,8 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
         if (a.asst2BusyStart !== undefined) proc.asst2BusyStart = a.asst2BusyStart;
         if (a.asst2BusyEnd !== undefined) proc.asst2BusyEnd = a.asst2BusyEnd;
         if (a.restMinutes !== undefined) proc.restMinutes = a.restMinutes;
+        if (a.allowSameAssistant !== undefined) proc.allowSameAssistant = a.allowSameAssistant;
+        else if (a.assistant1Id && a.assistant1Id === a.assistant2Id) proc.allowSameAssistant = true;
         return proc as TemplateProcedure;
       });
 
@@ -3059,30 +3098,28 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                         <div>
                                           <div className="flex items-center justify-between mb-1">
                                             <label className="block text-xs font-medium text-slate-500">Người phụ 1</label>
-                                            {((proc?.asst2BusyEnd && proc.asst2BusyEnd > 0) || (proc?.assistant2BusyMinutes && proc.assistant2BusyMinutes > 0)) && (
-                                              <label 
-                                                className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200/70 cursor-pointer select-none"
-                                                title="Người phụ 1 kiêm nhiệm luôn người phụ 2"
-                                              >
-                                                <input
-                                                  type="checkbox"
-                                                  checked={!!tProc.allowSameAssistant}
-                                                  onChange={(e) => {
-                                                    const checked = e.target.checked;
-                                                    const newProcs = [...editingTemplate.procedures];
-                                                    newProcs[idx] = {
-                                                      ...tProc,
-                                                      allowSameAssistant: checked,
-                                                      assistant2Id: checked && tProc.assistant1Id ? tProc.assistant1Id : (checked ? null : tProc.assistant2Id)
-                                                    };
-                                                    setEditingTemplate({...editingTemplate, procedures: newProcs});
-                                                  }}
-                                                  className="w-2.5 h-2.5 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
-                                                />
-                                                <Link2 size={10} className={tProc.allowSameAssistant ? "text-amber-600" : "text-slate-400"} />
-                                                <span>Kiêm Phụ 2</span>
-                                              </label>
-                                            )}
+                                            <label 
+                                              className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200/70 cursor-pointer select-none"
+                                              title="Người phụ 1 kiêm nhiệm luôn người phụ 2"
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={!!tProc.allowSameAssistant}
+                                                onChange={(e) => {
+                                                  const checked = e.target.checked;
+                                                  const newProcs = [...editingTemplate.procedures];
+                                                  newProcs[idx] = {
+                                                    ...tProc,
+                                                    allowSameAssistant: checked,
+                                                    assistant2Id: checked && tProc.assistant1Id ? tProc.assistant1Id : (checked ? null : tProc.assistant2Id)
+                                                  };
+                                                  setEditingTemplate({...editingTemplate, procedures: newProcs});
+                                                }}
+                                                className="w-2.5 h-2.5 rounded text-amber-600 focus:ring-amber-500 border-amber-300 cursor-pointer"
+                                              />
+                                              <Link2 size={10} className={tProc.allowSameAssistant ? "text-amber-600" : "text-slate-400"} />
+                                              <span>Kiêm Phụ 2</span>
+                                            </label>
                                           </div>
                                           <select
                                             value={tProc.assistant1Id || ''}
@@ -3136,7 +3173,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                           </select>
                                         </div>
                                       )}
-                                      {((proc?.asst2BusyEnd && proc.asst2BusyEnd > 0) || (proc?.assistant2BusyMinutes && proc.assistant2BusyMinutes > 0)) && (
+                                      {(((proc?.asst2BusyEnd && proc.asst2BusyEnd > 0) || (proc?.assistant2BusyMinutes && proc.assistant2BusyMinutes > 0)) || !!tProc.allowSameAssistant || !!tProc.assistant2Id) && (
                                         <div>
                                           <label className="block text-xs font-medium text-slate-500 mb-1">
                                             Người phụ 2 {tProc.allowSameAssistant && <span className="text-amber-600 font-semibold lowercase text-[10px]">(Đồng bộ Phụ 1)</span>}
