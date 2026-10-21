@@ -3146,6 +3146,36 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                           </select>
                                         </div>
                                       )}
+                                      {((proc?.asst2BusyEnd && proc.asst2BusyEnd > 0) || (proc?.assistant2BusyMinutes && proc.assistant2BusyMinutes > 0) || tProc.allowSameAssistant) && (
+                                        <div>
+                                          <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-xs font-medium text-slate-500">Người phụ 2</label>
+                                            {tProc.allowSameAssistant && (
+                                              <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                                (Kiêm nhiệm Phụ 1)
+                                              </span>
+                                            )}
+                                          </div>
+                                          <select
+                                            value={tProc.allowSameAssistant ? (tProc.assistant1Id || '') : (tProc.assistant2Id || '')}
+                                            disabled={!!tProc.allowSameAssistant}
+                                            onChange={(e) => {
+                                              const newProcs = [...editingTemplate.procedures];
+                                              newProcs[idx] = { ...tProc, assistant2Id: e.target.value || null };
+                                              setEditingTemplate({...editingTemplate, procedures: newProcs});
+                                            }}
+                                            className={`w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${tProc.allowSameAssistant ? 'bg-amber-50/50 text-amber-900 cursor-not-allowed' : ''}`}
+                                          >
+                                            <option value="">{tProc.allowSameAssistant ? '-- Tự động theo Phụ 1 --' : '-- Chọn người phụ 2 --'}</option>
+                                            {(() => {
+                                              const filtered = staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(tProc.procedureId) && s.id !== tProc.staffId && (tProc.allowSameAssistant || s.id !== tProc.assistant1Id));
+                                              return filtered.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                              ));
+                                            })()}
+                                          </select>
+                                        </div>
+                                      )}
                                       {(proc?.requireMachine) && (
                                         <div>
                                           <label className="block text-xs font-medium text-slate-500 mb-1">Máy thực hiện</label>

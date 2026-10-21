@@ -245,38 +245,73 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     dedicatedMainId?: string | null,
     dedicatedAsst1Id?: string | null,
     dedicatedAsst2Id?: string | null,
-    dedicatedDeviceId?: string | null
+    dedicatedDeviceId?: string | null,
+    durationOptionId?: string | null,
+    allowSameAssistant?: boolean
   ) => {
+    // Only consider staff belonging to this department
+    const deptStaff = staffList.filter(s => s.deptId === currentDept.id);
+    const attendingIds = new Set(attendingStaff.map(s => s.id));
+
     // Find staff with main capability for this procedure
-    let eligibleMain = staffList.filter(s => s.mainCapabilityIds?.includes(procedure.id));
+    let eligibleMain = deptStaff.filter(s => s.mainCapabilityIds?.includes(procedure.id));
     if (dedicatedMainId) {
-      eligibleMain = eligibleMain.filter(s => s.id === dedicatedMainId);
+      const specific = eligibleMain.filter(s => s.id === dedicatedMainId);
+      if (specific.length > 0) {
+        eligibleMain = specific;
+      }
+    } else {
+      // Prioritize attending staff present today
+      eligibleMain.sort((a, b) => {
+        const aAtt = attendingIds.has(a.id) ? 1 : 0;
+        const bAtt = attendingIds.has(b.id) ? 1 : 0;
+        return bAtt - aAtt;
+      });
     }
 
-    // Check if assistant is required
-    const hasAsst1 = (procedure.asst1BusyEnd !== undefined && procedure.asst1BusyEnd > 0) ||
-                     (procedure.assistant1BusyMinutes !== undefined && procedure.assistant1BusyMinutes > 0);
-    const hasAsst2 = (procedure.asst2BusyEnd !== undefined && procedure.asst2BusyEnd > 0) ||
-                     (procedure.assistant2BusyMinutes !== undefined && procedure.assistant2BusyMinutes > 0);
+    // Check duration option and assistant requirements
+    const opt = durationOptionId
+      ? procedure.durationOptions?.find(o => o.id === durationOptionId)
+      : (procedure.durationOptions?.find(o => o.durationMinutes === durationMins && !o.isDeleted) || 
+         procedure.durationOptions?.find(o => o.isDefault && !o.isDeleted) || 
+         procedure.durationOptions?.find(o => !o.isDeleted) ||
+         procedure.durationOptions?.[0]);
 
-    let eligibleAsst1 = hasAsst1 ? staffList.filter(s => s.assistantCapabilityIds?.includes(procedure.id)) : [null];
+    const allowSame = allowSameAssistant !== undefined 
+      ? allowSameAssistant 
+      : (opt?.allowSameAssistant !== undefined ? opt.allowSameAssistant : (procedure.allowSameAssistant || false));
+
+    const asst1End = opt?.asst1BusyEnd !== undefined ? opt.asst1BusyEnd : (procedure.asst1BusyEnd ?? procedure.assistant1BusyMinutes ?? 0);
+    const asst2End = opt?.asst2BusyEnd !== undefined ? opt.asst2BusyEnd : (procedure.asst2BusyEnd ?? procedure.assistant2BusyMinutes ?? 0);
+
+    const hasAsst1 = asst1End > 0;
+    const hasAsst2 = asst2End > 0;
+
+    let eligibleAsst1: (Staff | null)[] = hasAsst1 ? deptStaff.filter(s => s.assistantCapabilityIds?.includes(procedure.id)) : [null];
     if (hasAsst1 && dedicatedAsst1Id) {
       eligibleAsst1 = eligibleAsst1.filter(s => s && s.id === dedicatedAsst1Id);
+    } else if (hasAsst1) {
+      eligibleAsst1.sort((a, b) => {
+        if (!a || !b) return 0;
+        const aAtt = attendingIds.has(a.id) ? 1 : 0;
+        const bAtt = attendingIds.has(b.id) ? 1 : 0;
+        return bAtt - aAtt;
+      });
     }
 
-    let eligibleAsst2 = hasAsst2 ? staffList.filter(s => s.assistantCapabilityIds?.includes(procedure.id)) : [null];
+    let eligibleAsst2: (Staff | null)[] = hasAsst2 ? deptStaff.filter(s => s.assistantCapabilityIds?.includes(procedure.id)) : [null];
     if (hasAsst2 && dedicatedAsst2Id) {
       eligibleAsst2 = eligibleAsst2.filter(s => s && s.id === dedicatedAsst2Id);
+    } else if (hasAsst2 && allowSame && dedicatedAsst1Id) {
+      eligibleAsst2 = eligibleAsst1;
+    } else if (hasAsst2) {
+      eligibleAsst2.sort((a, b) => {
+        if (!a || !b) return 0;
+        const aAtt = attendingIds.has(a.id) ? 1 : 0;
+        const bAtt = attendingIds.has(b.id) ? 1 : 0;
+        return bAtt - aAtt;
+      });
     }
-
-    // Check if the current option allows same assistant
-    const opt = procedure.durationOptions?.find(o => o.durationMinutes === durationMins && !o.isDeleted) || 
-                 procedure.durationOptions?.find(o => o.isDefault && !o.isDeleted) || 
-                 procedure.durationOptions?.find(o => !o.isDeleted) ||
-                 procedure.durationOptions?.[0];
-    const allowSame = opt?.allowSameAssistant !== undefined 
-      ? opt.allowSameAssistant 
-      : (procedure.allowSameAssistant || false);
 
     // Ensure search does not start before patient's admission time
     let effectiveStartMin = userStartMin;
@@ -291,6 +326,14 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       }
     }
 
+    const mainBusyStart = opt ? (opt.mainBusyStart ?? 0) : (procedure.mainBusyStart ?? 0);
+    const mainBusyEnd = opt ? (opt.mainBusyEnd ?? opt.durationMinutes) : (procedure.mainBusyEnd ?? procedure.durationMinutes);
+    const asst1BusyStart = opt ? opt.asst1BusyStart : procedure.asst1BusyStart;
+    const asst1BusyEnd = opt ? opt.asst1BusyEnd : procedure.asst1BusyEnd;
+    const asst2BusyStart = opt ? opt.asst2BusyStart : procedure.asst2BusyStart;
+    const asst2BusyEnd = opt ? opt.asst2BusyEnd : procedure.asst2BusyEnd;
+    const restMinutes = opt ? (opt.restMinutes ?? 0) : (procedure.restMinutes ?? 0);
+
     // Slide search from effectiveStartMin to userEndMin - durationMins
     // Step by 1 minute for exact scheduling precision
     for (let currentMin = effectiveStartMin; currentMin + durationMins <= userEndMin; currentMin += 1) {
@@ -303,6 +346,10 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
           for (const asst2 of eligibleAsst2) {
             if (asst2 && (asst2.id === mainStaff.id || (!allowSame && asst1 && asst2.id === asst1.id))) continue;
+
+            const effectiveAsst2Id = (allowSame && asst1 && (!asst2 || asst2.id === asst1.id))
+              ? asst1.id
+              : (asst2?.id || null);
 
             // Run conflict checks with detailed simulation
             const conflictRes = checkConflict(
@@ -319,11 +366,20 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
               procedure.id,
               undefined,
               asst1?.id || null,
-              asst2?.id || null,
+              effectiveAsst2Id,
               {
                 endTime: endStr,
                 startTime: startStr,
-                assignedMachineId: dedicatedDeviceId || undefined
+                assignedMachineId: dedicatedDeviceId || undefined,
+                selectedDurationOptionId: durationOptionId || undefined,
+                mainBusyStart,
+                mainBusyEnd,
+                asst1BusyStart,
+                asst1BusyEnd,
+                asst2BusyStart,
+                asst2BusyEnd,
+                restMinutes,
+                allowSameAssistant: allowSame
               }
             );
 
@@ -333,7 +389,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                 endTime: endStr,
                 staffId: mainStaff.id,
                 assistant1Id: asst1?.id || null,
-                assistant2Id: asst2?.id || null,
+                assistant2Id: effectiveAsst2Id,
                 assignedMachineId: conflictRes.assignedMachineId || null
               };
             }
@@ -424,11 +480,21 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       return;
     }
 
-    // Sort tasks: prioritized tasks (isPriority = true) are placed FIRST
-    // so they are allocated prime slots and staff before non-priority tasks
+    // Sort tasks:
+    // 1. Prioritized tasks (isPriority = true) are placed FIRST
+    // 2. Group by patient to keep patient's procedures scheduled in a clean sequence
+    // 3. Within the same patient: prerequisite procedures first, then standard, then postrequisite
     tasks.sort((a, b) => {
       if (a.isPriority && !b.isPriority) return -1;
       if (!a.isPriority && b.isPriority) return 1;
+
+      if (a.patient.id === b.patient.id) {
+        if (a.procedure.isPreRequisite && !b.procedure.isPreRequisite) return -1;
+        if (!a.procedure.isPreRequisite && b.procedure.isPreRequisite) return 1;
+        if (a.procedure.isPostRequisite && !b.procedure.isPostRequisite) return 1;
+        if (!a.procedure.isPostRequisite && b.procedure.isPostRequisite) return -1;
+      }
+
       return 0;
     });
 
@@ -439,8 +505,11 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
 
     const totalTasks = tasks.length;
 
-    // Track next available start minutes per procedure to support consecutive ("gối tiếp") scheduling.
+    // Track next available start minutes per window & procedure to support consecutive ("gối tiếp") scheduling across patients
     const nextProcStartMin: Record<string, number> = {};
+
+    // Track next available start minutes per patient so multiple procedures on the same patient NEVER overlap
+    const nextPatientStartMin: Record<string, number> = {};
 
     for (let i = 0; i < totalTasks; i++) {
       const task = tasks[i];
@@ -483,7 +552,11 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
       let slot: any = null;
 
       for (const window of activeWindows) {
-        const searchStartMin = Math.max(window.startMin, nextProcStartMin[task.procedure.id] || window.startMin);
+        const patientMin = nextPatientStartMin[task.patient.id] || window.startMin;
+        const procKey = `${window.startMin}_${task.procedure.id}`;
+        const procMin = nextProcStartMin[procKey] || window.startMin;
+        const searchStartMin = Math.max(window.startMin, patientMin, procMin);
+
         if (searchStartMin + task.durationMinutes > window.endMin) {
           continue; // Not enough time in this window, check next window
         }
@@ -494,27 +567,27 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
         let decAsst2 = task.assistant2Id || null;
         const decDevice = task.deviceId || null;
 
+        // Check if the current task duration/procedure allows same assistant
+        let currentAllowSame = task.procedure.allowSameAssistant;
+        if (task.durationOptionId) {
+          const opt = task.procedure.durationOptions?.find(o => o.id === task.durationOptionId);
+          if (opt && opt.allowSameAssistant !== undefined) {
+            currentAllowSame = opt.allowSameAssistant;
+          }
+        }
+
         // If no custom staff overrides are specified, check if daily Kip (groups) is defined for this procedure
         if (!decMain && !decAsst1 && !decAsst2) {
           const matchingKips = groups.filter(g => g.procedureId === task.procedure.id);
           if (matchingKips.length > 0) {
             let bestSlot: any = null;
             let bestStartMin = Infinity;
-            
-            // Check if the current task duration/procedure allows same assistant
-            let currentAllowSame = task.procedure.allowSameAssistant;
-            if (task.durationOptionId) {
-              const opt = task.procedure.durationOptions?.find(o => o.id === task.durationOptionId);
-              if (opt && opt.allowSameAssistant !== undefined) {
-                currentAllowSame = opt.allowSameAssistant;
-              }
-            }
 
             for (const kip of matchingKips) {
               let asst1Override = kip.assistant1Id || null;
               let asst2Override = kip.assistant2Id || null;
 
-              if (currentAllowSame && asst1Override && asst2Override && asst1Override !== asst2Override) {
+              if (currentAllowSame && asst1Override && (!asst2Override || asst1Override === asst2Override)) {
                 asst2Override = asst1Override;
               }
 
@@ -532,7 +605,9 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
                 kip.mainStaffId || null,
                 asst1Override,
                 asst2Override,
-                decDevice
+                decDevice,
+                task.durationOptionId || null,
+                currentAllowSame
               );
               if (tempSlot) {
                 const startMin = timeStringToMinutes(tempSlot.startTime);
@@ -552,7 +627,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
             if (isDc) {
               decMain = dcMainId;
               decAsst1 = dcAsst1Id;
-              decAsst2 = dcAsst2Id;
+              decAsst2 = currentAllowSame ? dcAsst1Id : dcAsst2Id;
             } else if (isTc) {
               decMain = tcMainId;
               decAsst1 = tcAsstId;
@@ -573,19 +648,52 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
             decMain,
             decAsst1,
             decAsst2,
-            decDevice
+            decDevice,
+            task.durationOptionId || null,
+            currentAllowSame
           );
+
+          // If standard Điện châm/Thủy châm preset doctor is busy, fallback to any available doctor in department
+          if (!slot && !task.mainStaffId && (isDc || isTc)) {
+            slot = findValidSlotAndStaff(
+              task.patient.id,
+              task.procedure,
+              task.durationMinutes,
+              searchStartMin,
+              window.endMin,
+              tempAppointments,
+              staff,
+              procedures,
+              attendanceRecords,
+              patients,
+              null,
+              null,
+              null,
+              decDevice,
+              task.durationOptionId || null,
+              currentAllowSame
+            );
+          }
         }
 
         if (slot) {
+          // Update procedure next start min (staggered for next patient)
+          const slotStartMin = timeStringToMinutes(slot.startTime);
+          const slotEndMin = timeStringToMinutes(slot.endTime);
+          const procKey = `${window.startMin}_${task.procedure.id}`;
+          nextProcStartMin[procKey] = slotStartMin + stagger;
+
+          // Update patient next start min: patient can only start next procedure after current finishes (+ rest)
+          const currentProc = task.procedure;
+          const opt = currentProc.durationOptions?.find(o => o.id === task.durationOptionId) || currentProc.durationOptions?.find(o => o.isDefault && !o.isDeleted) || currentProc.durationOptions?.find(o => !o.isDeleted);
+          const restMinutes = opt ? (opt.restMinutes ?? 0) : (currentProc.restMinutes ?? 0);
+          nextPatientStartMin[task.patient.id] = Math.max(nextPatientStartMin[task.patient.id] || 0, slotEndMin + restMinutes + 1);
+
           break; // Found slot, stop checking other windows
         }
       }
 
       if (slot) {
-        const slotStartMin = timeStringToMinutes(slot.startTime);
-        nextProcStartMin[task.procedure.id] = slotStartMin + stagger;
-
         const currentProc = task.procedure;
         const opt = currentProc.durationOptions?.find(o => o.id === task.durationOptionId) || currentProc.durationOptions?.find(o => o.isDefault && !o.isDeleted) || currentProc.durationOptions?.find(o => !o.isDeleted);
 
@@ -596,6 +704,10 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
         const asst2BusyStart = opt ? opt.asst2BusyStart : currentProc.asst2BusyStart;
         const asst2BusyEnd = opt ? opt.asst2BusyEnd : currentProc.asst2BusyEnd;
         const restMinutes = opt ? (opt.restMinutes ?? 0) : (currentProc.restMinutes ?? 0);
+
+        const allowSame = opt?.allowSameAssistant !== undefined
+          ? opt.allowSameAssistant
+          : (currentProc.allowSameAssistant || false);
 
         const newAppt: Appointment = {
           id: 'quick_' + Math.random().toString(36).substr(2, 9),
@@ -619,6 +731,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
           asst2BusyStart: asst2BusyStart,
           asst2BusyEnd: asst2BusyEnd,
           restMinutes: restMinutes,
+          allowSameAssistant: !!allowSame,
           isPriority: !!task.isPriority
         };
 
@@ -626,7 +739,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
           try {
             await setDoc(doc(db, "appointments", newAppt.id), newAppt);
             successCount++;
-            tempAppointments.push(newAppt);
+            tempAppointments = [...tempAppointments, newAppt];
           } catch (err) {
             console.error(err);
             failCount++;
@@ -638,7 +751,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
           }
         } else {
           successCount++;
-          tempAppointments.push(newAppt);
+          tempAppointments = [...tempAppointments, newAppt];
         }
       } else {
         failCount++;

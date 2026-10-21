@@ -186,7 +186,12 @@ export const getLocalTimeMinutes = (isoStr: string | null | undefined): number |
 const procMapCache = new WeakMap<Procedure[], Map<string, Procedure>>();
 const staffMapCache = new WeakMap<Staff[], Map<string, Staff>>();
 const patientMapCache = new WeakMap<Patient[], Map<string, Patient>>();
-const dayApptsCache = new WeakMap<Appointment[], Map<string, Appointment[]>>();
+interface CachedDayMap {
+  length: number;
+  lastItem?: Appointment;
+  map: Map<string, Appointment[]>;
+}
+const dayApptsCache = new WeakMap<Appointment[], CachedDayMap>();
 
 const getProcFromCache = (arr: Procedure[], id: string | undefined): Procedure | undefined => {
   if (!id || !arr) return undefined;
@@ -220,9 +225,9 @@ const getPatientFromCache = (arr: Patient[], id: string | undefined): Patient | 
 
 const getDayAppointmentsFromCache = (arr: Appointment[], date: string): Appointment[] => {
   if (!arr || !date) return [];
-  let map = dayApptsCache.get(arr);
-  if (!map) {
-    map = new Map();
+  let cached = dayApptsCache.get(arr);
+  if (!cached || cached.length !== arr.length || (arr.length > 0 && cached.lastItem !== arr[arr.length - 1])) {
+    const map = new Map<string, Appointment[]>();
     for (let i = 0; i < arr.length; i++) {
       const a = arr[i];
       if (!a.date) continue;
@@ -233,9 +238,10 @@ const getDayAppointmentsFromCache = (arr: Appointment[], date: string): Appointm
         map.set(a.date, [a]);
       }
     }
-    dayApptsCache.set(arr, map);
+    cached = { length: arr.length, lastItem: arr[arr.length - 1], map };
+    dayApptsCache.set(arr, cached);
   }
-  return map.get(date) || [];
+  return cached.map.get(date) || [];
 };
 
 export const getStaffBusyIntervalsInAppointment = (
