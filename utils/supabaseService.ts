@@ -64,8 +64,8 @@ export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | nu
 
 export async function saveSupabaseItem(tableName: string, id: string, itemData: any): Promise<boolean> {
   try {
-    // Save to local storage as continuous fallback
-    if (typeof window !== 'undefined') {
+    // Save to local storage as continuous fallback (skip appointments to prevent UI freeze)
+    if (typeof window !== 'undefined' && tableName !== 'appointments') {
       try {
         const localKey = `medflow_local_${tableName}`;
         const existing = localStorage.getItem(localKey);
@@ -205,8 +205,9 @@ export async function saveScheduleSnapshotToSupabase(snapshot: any): Promise<boo
         let list: any[] = existing ? JSON.parse(existing) : [];
         list = list.filter(item => !(item.deptId === cleanSnapshot.deptId && item.date === cleanSnapshot.date));
         list.push(cleanSnapshot);
-        localStorage.setItem(localKey, JSON.stringify(list));
-        localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(list));
+        const trimmed = list.slice(-30);
+        localStorage.setItem(localKey, JSON.stringify(trimmed));
+        localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(trimmed));
       } catch (e) {}
     }
 

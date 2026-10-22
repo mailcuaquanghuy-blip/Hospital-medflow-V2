@@ -29,9 +29,14 @@ export const getSupabaseTableName = (collectionName: string): string => {
   return collectionName;
 };
 
-
-
-// Ensure auth is initialized
+// Safely release ~20MB of blocked localStorage quota if old dump is present
+if (typeof window !== 'undefined') {
+  try {
+    if (localStorage.getItem('medflow_local_appointments')) {
+      localStorage.removeItem('medflow_local_appointments');
+    }
+  } catch (e) {}
+}// Ensure auth is initialized
 let authInitPromise: Promise<any> | null = null;
 export async function ensureAuthReady() {
   if (auth.currentUser) return auth.currentUser;
@@ -145,7 +150,7 @@ export async function fetchCollectionFromFirestore<T>(collName: string): Promise
     const snap = await firestoreGetDocs(firestoreCollection(db, collName));
     if (!snap.empty) {
       const items = snap.docs.map(d => ({ ...d.data(), id: d.id })) as T[];
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && collName !== 'appointments') {
         try {
           localStorage.setItem(`medflow_local_${collName}`, JSON.stringify(items));
         } catch (e) {}
@@ -156,8 +161,8 @@ export async function fetchCollectionFromFirestore<T>(collName: string): Promise
     console.warn(`[Firestore] Fetch error on collection "${collName}":`, err);
   }
 
-  // Fallback to localStorage
-  if (typeof window !== 'undefined') {
+  // Fallback to localStorage (excluding appointments to prevent main thread blocking)
+  if (typeof window !== 'undefined' && collName !== 'appointments') {
     try {
       const cached = localStorage.getItem(`medflow_local_${collName}`);
       if (cached) {
@@ -287,8 +292,8 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
   // 1. Dispatch optimistic update immediately for 0ms local UI responsiveness
   dispatchDbChange(collectionName, docId, cleanData, 'set');
 
-  // 2. Save to localStorage continuous cache
-  if (typeof window !== 'undefined') {
+  // 2. Save to localStorage continuous cache (skip appointments to prevent UI freeze)
+  if (typeof window !== 'undefined' && collectionName !== 'appointments') {
     try {
       const localKey = `medflow_local_${collectionName}`;
       const existing = localStorage.getItem(localKey);
@@ -330,8 +335,8 @@ export const updateDoc = async (docRef: any, data: any) => {
   // 1. Instant optimistic update
   dispatchDbChange(collectionName, docId, cleanData, 'set');
 
-  // 2. Update in localStorage cache
-  if (typeof window !== 'undefined') {
+  // 2. Update in localStorage cache (skip appointments to prevent UI freeze)
+  if (typeof window !== 'undefined' && collectionName !== 'appointments') {
     try {
       const localKey = `medflow_local_${collectionName}`;
       const existing = localStorage.getItem(localKey);
@@ -373,8 +378,8 @@ export const deleteDoc = async (docRef: any) => {
   // 1. Dispatch optimistic delete immediately
   dispatchDbChange(collectionName, docId, null, 'delete');
 
-  // 2. Remove from localStorage cache
-  if (typeof window !== 'undefined') {
+  // 2. Remove from localStorage cache (skip appointments to prevent UI freeze)
+  if (typeof window !== 'undefined' && collectionName !== 'appointments') {
     try {
       const localKey = `medflow_local_${collectionName}`;
       const existing = localStorage.getItem(localKey);

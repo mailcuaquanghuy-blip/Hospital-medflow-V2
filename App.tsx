@@ -133,6 +133,7 @@ const App: React.FC = () => {
   const recentlyDeletedPatientIdsRef = useRef<Map<string, number>>(new Map());
   const recentlyUpdatedApptsRef = useRef<Map<string, { appt: Appointment; timestamp: number }>>(new Map());
   const recentlyUpdatedPatientsRef = useRef<Map<string, { patient: Patient; timestamp: number }>>(new Map());
+  const recentlySavedSnapshotsRef = useRef<Map<string, { snapshot: ScheduleSnapshot; timestamp: number }>>(new Map());
   const lastUserActionTimeRef = useRef<number>(0);
   
   // Verification State
@@ -207,7 +208,16 @@ const App: React.FC = () => {
           if (action === 'delete') {
             recentlyDeletedApptIdsRef.current.set(docId, Date.now());
           } else if (data) {
-            recentlyUpdatedApptsRef.current.set(docId, { appt: data, timestamp: Date.now() });
+            // 1. Prevent resurrecting appointments recently deleted locally (< 45s)
+            const deletedTime = recentlyDeletedApptIdsRef.current.get(docId);
+            if (deletedTime && Date.now() - deletedTime < 45000) {
+              return;
+            }
+            // 2. Prevent older in-flight echo from overwriting fresh local edits (< 8s)
+            const recent = recentlyUpdatedApptsRef.current.get(docId);
+            if (recent && Date.now() - recent.timestamp < 8000) {
+              return;
+            }
           }
           setAppointments(prev => {
             if (action === 'delete') return prev.filter(item => item.id !== docId);
@@ -234,6 +244,10 @@ const App: React.FC = () => {
           });
           break;
         case 'templates':
+          if (docId?.startsWith('snap_')) {
+            // Snapshot stored in templates table; do not put into templates state
+            return;
+          }
           setTemplates(prev => {
             if (action === 'delete') return prev.filter(item => item.id !== docId);
             const idx = prev.findIndex(item => item.id === docId);
@@ -249,7 +263,16 @@ const App: React.FC = () => {
           if (action === 'delete') {
             recentlyDeletedPatientIdsRef.current.set(docId, Date.now());
           } else if (data && action === 'set') {
-            recentlyUpdatedPatientsRef.current.set(docId, { patient: data, timestamp: Date.now() });
+            // 1. Prevent resurrecting patient recently deleted locally (< 45s)
+            const deletedTime = recentlyDeletedPatientIdsRef.current.get(docId);
+            if (deletedTime && Date.now() - deletedTime < 45000) {
+              return;
+            }
+            // 2. Prevent older echo from overwriting fresh local edits (< 8s)
+            const recent = recentlyUpdatedPatientsRef.current.get(docId);
+            if (recent && Date.now() - recent.timestamp < 8000) {
+              return;
+            }
           }
           setPatients(prev => {
             if (action === 'delete') return prev.filter(item => item.id !== docId);
@@ -312,23 +335,31 @@ const App: React.FC = () => {
           break;
         case 'scheduleSnapshots':
         case 'schedule_snapshots':
+          const rawSnapId = docId.replace(/^snap_/, '');
+          if (action === 'set' && data) {
+            const recent = recentlySavedSnapshotsRef.current.get(rawSnapId);
+            if (recent && Date.now() - recent.timestamp < 15000) {
+              return;
+            }
+          }
           setScheduleSnapshots(prev => {
             let updated: ScheduleSnapshot[];
             if (action === 'delete') {
-              updated = prev.filter(item => item.id !== docId);
+              updated = prev.filter(item => item.id !== rawSnapId && item.id !== `snap_${rawSnapId}`);
             } else {
-              const idx = prev.findIndex(item => item.id === docId);
+              const cleanData = { ...data, id: rawSnapId };
+              const idx = prev.findIndex(item => item.id === rawSnapId || item.id === `snap_${rawSnapId}`);
               if (idx > -1) {
                 const copy = [...prev];
-                copy[idx] = { ...copy[idx], ...data };
+                copy[idx] = { ...copy[idx], ...cleanData };
                 updated = copy;
               } else {
-                updated = [...prev, data];
+                updated = [...prev, cleanData];
               }
             }
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
+                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated.slice(-30)));
               } catch (e) {}
             }
             return updated;
@@ -438,9 +469,9 @@ const App: React.FC = () => {
     
     const loadAppData = async (force = false) => {
       const now = Date.now();
-      // If user performed an action recently (< 8s ago), skip background reload to prevent race conditions
-      if (!force && now - lastUserActionTimeRef.current < 8000) {
-        console.log("[loadAppData] User action recently in progress (< 8s ago). Skipping fetch to protect local state.");
+      // If user performed an action recently (< 45s ago), skip background reload to prevent race conditions
+      if (!force && now - lastUserActionTimeRef.current < 45000) {
+        console.log("[loadAppData] User action recently in progress (< 45s ago). Skipping fetch to protect local state.");
         return;
       }
       // Throttle reloads to maximum once every 20 seconds, unless forced
@@ -567,15 +598,23 @@ const App: React.FC = () => {
         if (usrs && usrs.length > 0) setUsers(usrs);
         if (snapshots && snapshots.length > 0) {
           setScheduleSnapshots(prev => {
-            const serverMap = new Map(snapshots.map(s => [s.id, s]));
+            const currentTime = Date.now();
+            const merged = snapshots.map(serverSnap => {
+              const recent = recentlySavedSnapshotsRef.current.get(serverSnap.id);
+              if (recent && currentTime - recent.timestamp < 45000) {
+                return recent.snapshot;
+              }
+              return serverSnap;
+            });
+            const serverMap = new Map(merged.map(s => [s.id, s]));
             const localOnly = prev.filter(local => !serverMap.has(local.id));
-            const merged = [...snapshots, ...localOnly];
+            const finalSnapshots = [...merged, ...localOnly];
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(merged));
+                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(finalSnapshots.slice(-30)));
               } catch (e) {}
             }
-            return merged;
+            return finalSnapshots;
           });
         } else {
           // Restore from localStorage if server snapshots were empty
@@ -623,8 +662,18 @@ const App: React.FC = () => {
           if (tableName === 'machine_shifts') collectionName = 'machineShifts';
           if (tableName === 'schedule_snapshots' || tableName === 'scheduleSnapshots') collectionName = 'scheduleSnapshots';
 
+          const oldId = (payload.old as any)?.id;
+          const newId = (payload.new as any)?.id;
+          const isSnapshotRow = (newId && typeof newId === 'string' && newId.startsWith('snap_')) ||
+                                (oldId && typeof oldId === 'string' && oldId.startsWith('snap_'));
+
+          if (tableName === 'templates' && isSnapshotRow) {
+            collectionName = 'scheduleSnapshots';
+          }
+
           if (payload.eventType === 'DELETE') {
-            const docId = payload.old?.id;
+            const rawDocId = oldId || '';
+            const docId = isSnapshotRow ? rawDocId.replace(/^snap_/, '') : rawDocId;
             if (docId) {
               const event = new CustomEvent('db-change', {
                 detail: { collectionName, docId, data: null, action: 'delete' }
@@ -634,9 +683,10 @@ const App: React.FC = () => {
           } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const row = payload.new;
             if (row && row.id) {
-              const itemData = row.data && typeof row.data === 'object' ? { ...row.data, id: row.id } : row;
+              const cleanDocId = isSnapshotRow ? row.id.replace(/^snap_/, '') : row.id;
+              const itemData = row.data && typeof row.data === 'object' ? { ...row.data, id: cleanDocId } : { ...row, id: cleanDocId };
               const event = new CustomEvent('db-change', {
-                detail: { collectionName, docId: row.id, data: itemData, action: 'set' }
+                detail: { collectionName, docId: cleanDocId, data: itemData, action: 'set' }
               });
               window.dispatchEvent(event);
             }
@@ -1079,15 +1129,14 @@ const App: React.FC = () => {
 
   const handleDateChange = (newDate: string) => {
     if (!newDate || newDate === activeDate) return;
-    // Tự động chốt/lưu lịch sử chỉnh sửa của ngày hiện tại lập tức trước khi chuyển sang ngày mới
-    if (currentDept && activeDate) {
-      autoFinalizeScheduleSnapshotForDate(currentDept.id, activeDate);
-    }
     setActiveDate(newDate);
   };
 
   const handleSaveScheduleSnapshot = async (deptId: string, dateStr: string) => {
     try {
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+
       const deptAppts = appointments.filter(a => a.deptId === deptId && a.date === dateStr);
       const snapshotId = `${deptId}_${dateStr}`;
       const snapObj: ScheduleSnapshot = {
@@ -1099,10 +1148,7 @@ const App: React.FC = () => {
         appointments: JSON.parse(JSON.stringify(deptAppts))
       };
 
-      if (db) {
-        await setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj);
-      }
-      await saveScheduleSnapshotToSupabase(snapObj);
+      recentlySavedSnapshotsRef.current.set(snapshotId, { snapshot: snapObj, timestamp: now });
 
       setSessionBaseline(deptId, dateStr, deptAppts);
       clearDeletedSessionAppointments(deptId, dateStr);
@@ -1122,6 +1168,13 @@ const App: React.FC = () => {
         return updated;
       });
 
+      await saveScheduleSnapshotToSupabase(snapObj);
+      if (db) {
+        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(err => {
+          console.warn('Firestore snapshot mirror note:', err);
+        });
+      }
+
       alert(`Đã lưu chốt mốc phiên bản ngày ${formatDateVi(dateStr)} thành công!`);
     } catch (err) {
       console.error('Error saving schedule snapshot:', err);
@@ -1135,13 +1188,20 @@ const App: React.FC = () => {
     originalAppt?: Appointment
   ) => {
     try {
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+
       if (type === 'NEW') {
+        recentlyDeletedApptIdsRef.current.set(apptId, now);
         setAppointments(prev => prev.filter(a => a.id !== apptId));
         await deleteDoc(doc(db, 'appointments', apptId));
       } else if (type === 'MODIFIED' && originalAppt) {
+        recentlyUpdatedApptsRef.current.set(apptId, { appt: originalAppt, timestamp: now });
         setAppointments(prev => prev.map(a => a.id === apptId ? originalAppt : a));
         await setDoc(doc(db, 'appointments', apptId), originalAppt);
       } else if (type === 'DELETED' && originalAppt) {
+        recentlyDeletedApptIdsRef.current.delete(apptId);
+        recentlyUpdatedApptsRef.current.set(apptId, { appt: originalAppt, timestamp: now });
         setAppointments(prev => [...prev.filter(a => a.id !== apptId), originalAppt]);
         await setDoc(doc(db, 'appointments', apptId), originalAppt);
         removeDeletedSessionAppointment(originalAppt.deptId, originalAppt.date, apptId);
