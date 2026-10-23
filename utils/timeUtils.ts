@@ -145,6 +145,21 @@ export const getLocalDateString = (isoStr: string | null | undefined): string =>
   return res;
 };
 
+export const getPatientDischargeTag = (patient?: { status?: string; dischargeDate?: string | null } | null): string | null => {
+  if (!patient) return null;
+  const dischargeDateStr = getLocalDateString(patient.dischargeDate);
+  if (dischargeDateStr) {
+    const parts = dischargeDateStr.split('-');
+    if (parts.length === 3) {
+      return `Ra viện ${parts[2]}/${parts[1]}`;
+    }
+  }
+  if (patient.status === 'DISCHARGED') {
+    return 'Ra viện';
+  }
+  return null;
+};
+
 export const getLocalTimeMinutes = (isoStr: string | null | undefined): number | null => {
   if (!isoStr) return null;
   const cached = localTimeCache.get(isoStr);

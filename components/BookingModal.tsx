@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel, ProcedureCategory, PROCEDURE_CATEGORIES, UserAccount, UserRole } from '../types';
 import { Button } from './Button';
 
-import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, getRoleShortLabel, formatDate, getAbbreviation, getLocalDateString, getLocalTimeMinutes } from '../utils/timeUtils';
+import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, getRoleShortLabel, formatDate, getAbbreviation, getLocalDateString, getLocalTimeMinutes, getPatientDischargeTag } from '../utils/timeUtils';
 // Fix: Added LogOut to lucide-react imports
 import { AlertTriangle, Calendar, User, Activity, Search, UserPlus, Zap, Bed, Clock, Info, CheckCircle2, Monitor, Building2, Stethoscope, LogOut, ChevronDown, Plus, Trash2, X, Edit2, Shield, StickyNote, Check, Link2 } from 'lucide-react';
 import { DEPARTMENTS } from '../constants';
@@ -1330,7 +1330,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                 return comp;
                               })
                               .map(p => (
-                                <option key={p.id} value={p.id}>{p.name} - {p.bedNumber}</option>
+                                <option key={p.id} value={p.id}>{p.name}{getPatientDischargeTag(p) ? ` (${getPatientDischargeTag(p)})` : ''} - {p.bedNumber}</option>
                               ))}
                           </select>
                           <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors group-hover:text-primary">

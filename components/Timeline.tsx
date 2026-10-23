@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, DepartmentType, UserAccount, UserRole, ScheduleSnapshot, AttendanceRecord, ConflictDetail } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
-import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString, checkConflict, getLocalDateString } from '../utils/timeUtils';
+import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString, checkConflict, getLocalDateString, getPatientDischargeTag } from '../utils/timeUtils';
 import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X } from 'lucide-react';
 import { downloadCSV } from '../utils/csvUtils';
 import { getBaselineAppointments, getAllBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
@@ -565,16 +565,14 @@ export const Timeline: React.FC<TimelineProps> = ({
           if (isDischarged && dischargeDateStr && dischargeDateStr < date) return false;
           return true;
         }).map(p => {
-          const isDischarged = p.status === 'DISCHARGED';
-          const dischargeDateStr = getLocalDateString(p.dischargeDate);
-          const isDischargedOnDate = isDischarged && dischargeDateStr === date;
+          const dischargeTag = getPatientDischargeTag(p);
           return {
             id: p.id,
             originalId: p.id,
             role: 'ALL',
-            title: p.name + (isDischargedOnDate ? ' (Ra viện)' : ''),
+            title: p.name + (dischargeTag ? ` (${dischargeTag})` : ''),
             subtitle: `G: ${p.bedNumber} | ${p.bedType || 'Nội trú'} | ${calculateAge(p.dob)}t | BH: ${p.insuranceLevel || '100%'}${p.note ? ` | ${p.note}` : ''}`,
-            color: isDischargedOnDate ? 'bg-slate-400' : 'bg-emerald-500',
+            color: p.status === 'DISCHARGED' ? 'bg-slate-400' : 'bg-emerald-500',
             icon: <User size={14} />
           };
         });
@@ -1036,10 +1034,11 @@ export const Timeline: React.FC<TimelineProps> = ({
       const procedure = procedures.find(p => p.id === appt.procedureId);
       const procedureDeptId = procedure?.deptId || appt.deptId;
       const performingDept = DEPARTMENTS.find(d => d.id === procedureDeptId);
+      const dischargeTag = getPatientDischargeTag(patient);
       return `
         <tr style="${isDeleted ? 'opacity: 0.55; background-color: #f8fafc;' : ''}">
           <td>${idx + 1}</td>
-          <td><b style="${isDeleted ? 'text-decoration: line-through; color: #64748b;' : ''}">${patient?.name || 'Không yêu cầu BN'}</b>${isDeleted ? ' <span style="color:#e11d48;font-size:11px;">(Đã xóa)</span>' : ''}<br/><small>${patient ? `${patient.gender} • ${calculateAge(patient.dob)}t • ${patient.bedType || 'Nội trú'}` : '-'}</small></td>
+          <td><b style="${isDeleted ? 'text-decoration: line-through; color: #64748b;' : ''}">${patient?.name || 'Không yêu cầu BN'}</b>${dischargeTag ? ` <span style="color:#64748b;font-size:11px;font-weight:normal;">(${dischargeTag})</span>` : ''}${isDeleted ? ' <span style="color:#e11d48;font-size:11px;">(Đã xóa)</span>' : ''}<br/><small>${patient ? `${patient.gender} • ${calculateAge(patient.dob)}t • ${patient.bedType || 'Nội trú'}` : '-'}</small></td>
           <td style="text-align:center">${patient ? `${patient.bedNumber} - P:${patient.roomNumber || '?'}` : '-'}</td>
           <td>${performingDept?.name || '-'}</td>
           <td style="${isDeleted ? 'text-decoration: line-through; color: #64748b;' : ''}">${procedure?.name || (isDeleted ? 'Lịch trình đã xóa' : 'Lịch trình không rõ')}</td>
@@ -1721,15 +1720,9 @@ export const Timeline: React.FC<TimelineProps> = ({
                                   return <span className="text-rose-500 font-semibold no-underline text-xs ml-1">(Đã xóa)</span>;
                                 }
                                 if (!patient) return null;
-                                const isDischarged = patient.status === 'DISCHARGED';
-                                const dischargeDateStr = getLocalDateString(patient.dischargeDate);
-                                const isDischargedOnDate = isDischarged && dischargeDateStr === date;
-                                const isDischargedPast = isDischarged && dischargeDateStr && dischargeDateStr < date;
-                                if (isDischargedOnDate) {
-                                  return <span className="text-slate-400 font-normal">(Ra viện)</span>;
-                                }
-                                if (isDischargedPast) {
-                                  return <span className="text-slate-400 font-normal">(Đã ra viện)</span>;
+                                const dischargeTag = getPatientDischargeTag(patient);
+                                if (dischargeTag) {
+                                  return <span className="text-slate-400 font-normal ml-1">({dischargeTag})</span>;
                                 }
                                 return null;
                               })()}

@@ -6,7 +6,7 @@ import { DateTimePicker } from './DateTimePicker';
 import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
 import { Search, Plus, User, MapPin, Bed, LogOut, FileText, Edit3, Printer, Send, Activity, FlaskConical, HeartPulse, CheckCircle2, Clock, Building2, Filter, Calendar, CheckSquare, Trash2, AlertTriangle, Power, CheckCircle, RotateCcw, X, XCircle, Pill, ChevronDown, DoorOpen, Download, Shield, Upload, ArrowUpDown, ArrowUp, ArrowDown, ArrowUpAZ, ArrowDownZA, Check, Wrench } from 'lucide-react';
-import { calculateAge, getAbbreviation, timeStringToMinutes, generatePatientCode } from '../utils/timeUtils';
+import { calculateAge, getAbbreviation, timeStringToMinutes, generatePatientCode, getPatientDischargeTag } from '../utils/timeUtils';
 import { DEPARTMENTS } from '../constants';
 import { Appointment, Procedure, Staff } from '../types';
 import { downloadCSV, parseCSV } from '../utils/csvUtils';
@@ -1562,7 +1562,17 @@ export const PatientList: React.FC<PatientListProps> = ({
                         {p.name.charAt(0)}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <div className="font-black text-slate-800 text-[13.5px] leading-tight uppercase whitespace-nowrap" title={p.name}>{p.name}</div>
+                        <div className="font-black text-slate-800 text-[13.5px] leading-tight uppercase whitespace-nowrap flex items-center gap-1.5" title={p.name}>
+                          <span>{p.name}</span>
+                          {(() => {
+                            const dischargeTag = getPatientDischargeTag(p);
+                            return dischargeTag ? (
+                              <span className="text-slate-400 font-bold text-xs normal-case tracking-normal">
+                                ({dischargeTag})
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                       </div>
                     </div>
                   </td>

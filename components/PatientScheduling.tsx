@@ -4,7 +4,7 @@ import { Patient, Appointment, Procedure, Staff, AppointmentStatus, PatientStatu
 import { Button } from './Button';
 import { Search, Plus, Calendar, Clock, User, FileText, Bed, Zap, Monitor, GripVertical, AlertTriangle, Cpu, Info, Copy, Building2, Filter, CheckCircle2, Trash2, Lock, Save, FolderOpen, X, ChevronDown, RefreshCw, Check, Link, Link2, AlertCircle, RotateCcw, Shield, ZoomIn, ZoomOut, History, LogOut, BookmarkCheck, Loader2, StickyNote, Edit3, CalendarDays } from 'lucide-react';
 
-import { calculateAge, timeStringToMinutes, minutesToPixels, minutesToTimeString, addMinutesToTime, isInsideOfficeHours, checkConflict, getRoleLabel, formatDate, getAbbreviation } from '../utils/timeUtils';
+import { calculateAge, timeStringToMinutes, minutesToPixels, minutesToTimeString, addMinutesToTime, isInsideOfficeHours, checkConflict, getRoleLabel, formatDate, getAbbreviation, getPatientDischargeTag } from '../utils/timeUtils';
 import { CopyRangeModal } from './CopyRangeModal';
 import { BatchLoadModal, BatchLoadOptions } from './BatchLoadModal';
 import { MachineShiftManager } from './MachineShiftManager';
@@ -2116,6 +2116,14 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                   <span className={`font-extrabold text-lg uppercase truncate tracking-tight transition-colors ${selectedPatientId === p.id ? 'text-sky-600' : 'text-slate-800'}`}>
                                       {p.name}
                                   </span>
+                                  {(() => {
+                                    const dischargeTag = getPatientDischargeTag(p);
+                                    return dischargeTag ? (
+                                      <span className="text-slate-400 font-bold text-xs ml-1.5 normal-case tracking-normal shrink-0">
+                                        ({dischargeTag})
+                                      </span>
+                                    ) : null;
+                                  })()}
                                   {p.note && (
                                     <div className="group/note relative">
                                       <Plus size={12} className="text-amber-500 bg-amber-50 rounded-full border border-amber-200 cursor-help" />
@@ -2172,8 +2180,10 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                     <CheckCircle2 size={13} /> Đã kết thúc
                                   </div>
                                 )}
-                                {p.status === 'DISCHARGED' && (
-                                  <div className="text-[11px] font-black text-rose-600 uppercase tracking-widest bg-rose-50 px-2 py-0.5 border border-rose-100 rounded-lg">Đã ra viện</div>
+                                {(p.status === 'DISCHARGED' || p.dischargeDate) && (
+                                  <div className="text-[11px] font-black text-rose-600 uppercase tracking-widest bg-rose-50 px-2 py-0.5 border border-rose-100 rounded-lg">
+                                    {getPatientDischargeTag(p) || 'Đã ra viện'}
+                                  </div>
                                 )}
                               </div>
                           </div>
