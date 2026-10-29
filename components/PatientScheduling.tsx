@@ -2104,7 +2104,7 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                   <button key={p.id} onClick={() => setSelectedPatientId(p.id)} className={`w-full text-left p-3.5 rounded-2xl transition-all duration-200 border ${selectedPatientId === p.id ? 'bg-sky-50/50 border-sky-400 shadow-sm shadow-sky-100/50' : 'border-slate-100 hover:bg-slate-50 hover:border-slate-200'} ${hasIssue && selectedPatientId !== p.id ? 'bg-rose-50/40 border-rose-200' : ''}`}>
                       <div className="flex justify-between items-start gap-2">
                           <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 mb-1">
+                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                                   {p.insuranceLevel && (
                                     <div className={`shrink-0 w-3 h-4 rounded-[2px] border shadow-sm ${
                                       p.insuranceLevel === '0%' ? 'bg-rose-500 border-rose-600' :
@@ -2113,19 +2113,14 @@ export const PatientScheduling: React.FC<PatientSchedulingProps> = ({
                                       'bg-emerald-500 border-emerald-600'
                                     }`} title={`BHYT: ${p.insuranceLevel}`} />
                                   )}
-                                  <span className={`font-extrabold text-lg uppercase truncate tracking-tight transition-colors ${selectedPatientId === p.id ? 'text-sky-600' : 'text-slate-800'}`}>
+                                  <span 
+                                    className={`font-extrabold text-[15px] md:text-base uppercase tracking-tight leading-snug break-words transition-colors ${selectedPatientId === p.id ? 'text-sky-600' : 'text-slate-800'}`}
+                                    title={p.name}
+                                  >
                                       {p.name}
                                   </span>
-                                  {(() => {
-                                    const dischargeTag = getPatientDischargeTag(p);
-                                    return dischargeTag ? (
-                                      <span className="text-slate-400 font-bold text-xs ml-1.5 normal-case tracking-normal shrink-0">
-                                        ({dischargeTag})
-                                      </span>
-                                    ) : null;
-                                  })()}
                                   {p.note && (
-                                    <div className="group/note relative">
+                                    <div className="group/note relative shrink-0">
                                       <Plus size={12} className="text-amber-500 bg-amber-50 rounded-full border border-amber-200 cursor-help" />
                                       <div className="absolute left-full ml-1 top-0 hidden group-hover/note:block z-[100] w-48 p-2 bg-slate-800 text-white text-xs font-medium rounded-lg shadow-xl backdrop-blur-sm bg-opacity-90">
                                         {p.note}
