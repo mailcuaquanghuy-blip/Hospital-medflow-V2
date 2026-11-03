@@ -160,6 +160,19 @@ export const getPatientDischargeTag = (patient?: { status?: string; dischargeDat
   return null;
 };
 
+export const isStaffResignedOnDate = (staff: Staff | undefined | null, date: string): boolean => {
+  if (!staff) return false;
+  if (!staff.isResigned) return false;
+  if (!staff.resignationDate) return true;
+  return date >= staff.resignationDate;
+};
+
+export const isStaffActiveOnDate = (staff: Staff | undefined | null, date?: string): boolean => {
+  if (!staff) return false;
+  if (!date) return !staff.isResigned;
+  return !isStaffResignedOnDate(staff, date);
+};
+
 export const getLocalTimeMinutes = (isoStr: string | null | undefined): number | null => {
   if (!isoStr) return null;
   const cached = localTimeCache.get(isoStr);
@@ -483,8 +496,15 @@ export const checkConflict = (
     if (!staffId) {
       conflictDetails.push({ message: `Chưa chọn người thực hiện.`, level: 1 });
     }
-  } else if (staff && procedureId && !staff.mainCapabilityIds?.includes(procedureId)) {
-    conflictDetails.push({ message: `${getRoleLabel(staff.role)} ${staff.name} không có chuyên môn thực hiện chính lịch trình này.`, level: 1 });
+  } else if (staff) {
+    if (isStaffResignedOnDate(staff, newDate)) {
+      conflictDetails.push({ 
+        message: `${getRoleLabel(staff.role)} ${staff.name} đã nghỉ việc từ ngày ${formatDate(staff.resignationDate || '')}. Không thể chỉ định.`, 
+        level: 1 
+      });
+    } else if (procedureId && !staff.mainCapabilityIds?.includes(procedureId)) {
+      conflictDetails.push({ message: `${getRoleLabel(staff.role)} ${staff.name} không có chuyên môn thực hiện chính lịch trình này.`, level: 1 });
+    }
   }
 
   // Check if assistants are required but not specified
@@ -535,17 +555,25 @@ export const checkConflict = (
     }
   }
 
-  if (assistant1Id && procedureId) {
+  if (assistant1Id) {
     const a1 = getStaffFromCache(staffList, assistant1Id);
-    if (a1 && !a1.assistantCapabilityIds?.includes(procedureId)) {
-      conflictDetails.push({ message: `Người phụ 1 (${getRoleLabel(a1.role)} ${a1.name}) không có chuyên môn phụ lịch trình này.`, level: 1 });
+    if (a1) {
+      if (isStaffResignedOnDate(a1, newDate)) {
+        conflictDetails.push({ message: `Người phụ 1 (${getRoleLabel(a1.role)} ${a1.name}) đã nghỉ việc từ ngày ${formatDate(a1.resignationDate || '')}.`, level: 1 });
+      } else if (procedureId && !a1.assistantCapabilityIds?.includes(procedureId)) {
+        conflictDetails.push({ message: `Người phụ 1 (${getRoleLabel(a1.role)} ${a1.name}) không có chuyên môn phụ lịch trình này.`, level: 1 });
+      }
     }
   }
 
-  if (assistant2Id && procedureId) {
+  if (assistant2Id) {
     const a2 = getStaffFromCache(staffList, assistant2Id);
-    if (a2 && !a2.assistantCapabilityIds?.includes(procedureId)) {
-      conflictDetails.push({ message: `Người phụ 2 (${getRoleLabel(a2.role)} ${a2.name}) không có chuyên môn phụ lịch trình này.`, level: 1 });
+    if (a2) {
+      if (isStaffResignedOnDate(a2, newDate)) {
+        conflictDetails.push({ message: `Người phụ 2 (${getRoleLabel(a2.role)} ${a2.name}) đã nghỉ việc từ ngày ${formatDate(a2.resignationDate || '')}.`, level: 1 });
+      } else if (procedureId && !a2.assistantCapabilityIds?.includes(procedureId)) {
+        conflictDetails.push({ message: `Người phụ 2 (${getRoleLabel(a2.role)} ${a2.name}) không có chuyên môn phụ lịch trình này.`, level: 1 });
+      }
     }
   }
 

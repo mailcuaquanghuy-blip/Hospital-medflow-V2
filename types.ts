@@ -51,6 +51,8 @@ export interface Staff {
   capabilityIds: string[]; // Legacy field for backward compatibility if needed
   mainCapabilityIds: string[]; // Danh sách ID các lịch trình có thể làm chính
   assistantCapabilityIds: string[]; // Danh sách ID các lịch trình có thể làm phụ
+  isResigned?: boolean; // Nhân sự đã nghỉ việc
+  resignationDate?: string | null; // Ngày nghỉ việc (YYYY-MM-DD)
 }
 
 export interface AttendanceRecord {

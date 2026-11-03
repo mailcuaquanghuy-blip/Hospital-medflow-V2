@@ -1994,7 +1994,9 @@ const App: React.FC = () => {
             deptId: currentDept?.id,
             capabilityIds: [],
             mainCapabilityIds: [],
-            assistantCapabilityIds: []
+            assistantCapabilityIds: [],
+            isResigned: false,
+            resignationDate: null
         });
     }
     setIsStaffModalOpen(true);
@@ -2013,6 +2015,9 @@ const App: React.FC = () => {
     const asstIds = editingStaff.assistantCapabilityIds || [];
     const combinedCapabilityIds = Array.from(new Set([...mainIds, ...asstIds]));
 
+    const isResigned = !!editingStaff.isResigned;
+    const resignationDate = isResigned ? (editingStaff.resignationDate || new Date().toISOString().split('T')[0]) : null;
+
     const newStaff: Staff = {
         id: editingStaff.id || `s_${Math.random().toString(36).substr(2,9)}`,
         name: editingStaff.name,
@@ -2020,7 +2025,9 @@ const App: React.FC = () => {
         deptId: editingStaff.deptId || currentDept?.id || '',
         capabilityIds: combinedCapabilityIds,
         mainCapabilityIds: mainIds,
-        assistantCapabilityIds: asstIds
+        assistantCapabilityIds: asstIds,
+        isResigned,
+        resignationDate
     };
 
     // Optimistically update React state immediately
@@ -3053,6 +3060,55 @@ const App: React.FC = () => {
                                 </div>
                               </div>
                           </div>
+                      </div>
+
+                      {/* Cài đặt trạng thái làm việc / Nghỉ việc */}
+                      <div className="bg-slate-50/80 p-4 rounded-2xl border-2 border-slate-100 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div>
+                                  <label className="block text-[11px] font-black text-slate-600 uppercase tracking-widest">Trạng thái công tác</label>
+                                  <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Cài đặt nhân sự đang làm việc hoặc đã nghỉ việc</p>
+                              </div>
+                              <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shrink-0">
+                                  <button
+                                      type="button"
+                                      onClick={() => setEditingStaff({ ...editingStaff, isResigned: false })}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${!editingStaff.isResigned ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                  >
+                                      Đang làm việc
+                                  </button>
+                                  <button
+                                      type="button"
+                                      onClick={() => setEditingStaff({ 
+                                          ...editingStaff, 
+                                          isResigned: true,
+                                          resignationDate: editingStaff.resignationDate || new Date().toISOString().split('T')[0]
+                                      })}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${editingStaff.isResigned ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                  >
+                                      Đã nghỉ việc
+                                  </button>
+                              </div>
+                          </div>
+
+                          {editingStaff.isResigned && (
+                              <div className="pt-3 border-t border-slate-200/80 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                                  <div>
+                                      <label className="block text-[11px] font-black text-rose-600 uppercase tracking-widest mb-1.5">
+                                          Nghỉ việc từ ngày (áp dụng đến hiện tại)
+                                      </label>
+                                      <input 
+                                          type="date"
+                                          className="w-full border-2 border-rose-200 bg-white rounded-xl p-2.5 font-bold text-slate-800 text-sm outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-50 transition-all shadow-sm"
+                                          value={editingStaff.resignationDate || ''}
+                                          onChange={e => setEditingStaff({ ...editingStaff, resignationDate: e.target.value })}
+                                      />
+                                  </div>
+                                  <div className="text-[11px] font-medium text-slate-500 bg-white p-3 rounded-xl border border-slate-200 leading-relaxed">
+                                      Từ ngày này trở đi, nhân sự sẽ không thể chỉ định vào lịch trình mới. Bảng chấm công sẽ bỏ chấm công từ ngày nghỉ và sang tháng mới sẽ không hiển thị nhân sự này nữa. Các lịch trình và mẫu trước ngày nghỉ vẫn được bảo toàn.
+                                  </div>
+                              </div>
+                          )}
                       </div>
 
                       <div className="space-y-6">

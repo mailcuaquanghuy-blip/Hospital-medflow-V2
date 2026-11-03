@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, DepartmentType, AttendanceRecord, AttendanceStatus, ConflictDetail, MachineShift, PatientStatus, BedType, InsuranceLevel, ProcedureCategory, PROCEDURE_CATEGORIES, UserAccount, UserRole } from '../types';
 import { Button } from './Button';
 
-import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, getRoleShortLabel, formatDate, getAbbreviation, getLocalDateString, getLocalTimeMinutes, getPatientDischargeTag } from '../utils/timeUtils';
+import { checkConflict, addMinutesToTime, calculateAge, findAvailableSlot, timeStringToMinutes, minutesToTimeString, getAvailableTimeBlocks, getRoleLabel, getRoleShortLabel, formatDate, getAbbreviation, getLocalDateString, getLocalTimeMinutes, getPatientDischargeTag, isStaffResignedOnDate } from '../utils/timeUtils';
 // Fix: Added LogOut to lucide-react imports
 import { AlertTriangle, Calendar, User, Activity, Search, UserPlus, Zap, Bed, Clock, Info, CheckCircle2, Monitor, Building2, Stethoscope, LogOut, ChevronDown, Plus, Trash2, X, Edit2, Shield, StickyNote, Check, Link2 } from 'lucide-react';
 import { DEPARTMENTS } from '../constants';
@@ -282,7 +282,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   }, [selectedPatient, formData.date, formData.startTime]);
 
   const eligibleStaff = useMemo(() => {
-    let deptStaff = staff.filter(s => s.deptId === currentDept.id);
+    let deptStaff = staff.filter(s => {
+      if (s.deptId !== currentDept.id) return false;
+      if (formData.date && isStaffResignedOnDate(s, formData.date)) {
+        // Nếu đã nghỉ việc, chỉ giữ lại nếu nhân sự này đang là người được gán của lịch trình hiện tại (để hiển thị nếu xem lại lịch cũ)
+        if (s.id !== formData.staffId) return false;
+      }
+      return true;
+    });
+
     if (formData.date) {
       const isHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) && r.date === formData.date && r.status === AttendanceStatus.OFF_FULL);
 
@@ -299,10 +307,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (!formData.procedureId) return deptStaff;
     const filtered = deptStaff.filter(s => s.mainCapabilityIds?.includes(formData.procedureId!));
     return filtered;
-  }, [staff, currentDept.id, formData.procedureId, formData.date, attendanceRecords]);
+  }, [staff, currentDept.id, formData.procedureId, formData.date, formData.staffId, attendanceRecords]);
 
   const eligibleAssistants = useMemo(() => {
-    let deptStaff = staff.filter(s => s.deptId === currentDept.id);
+    let deptStaff = staff.filter(s => {
+      if (s.deptId !== currentDept.id) return false;
+      if (formData.date && isStaffResignedOnDate(s, formData.date)) {
+        if (s.id !== formData.assistant1Id && s.id !== formData.assistant2Id) return false;
+      }
+      return true;
+    });
+
     if (formData.date) {
       const isHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) && r.date === formData.date && r.status === AttendanceStatus.OFF_FULL);
 
@@ -319,7 +334,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     if (!formData.procedureId) return deptStaff;
     const filtered = deptStaff.filter(s => s.assistantCapabilityIds?.includes(formData.procedureId!));
     return filtered;
-  }, [staff, currentDept.id, formData.procedureId, formData.date, attendanceRecords]);
+  }, [staff, currentDept.id, formData.procedureId, formData.date, formData.assistant1Id, formData.assistant2Id, attendanceRecords]);
 
   const allDeptMachines = useMemo(() => {
     const machines = new Set<string>();
@@ -1782,7 +1797,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                             <option value="">-- Chọn nhân sự --</option>
                             {sortedEligibleStaff.map(s => {
                               const hasNoConflict = mainStaffStatusMap.get(s.id);
-                              let label = `${s.name} (${getRoleShortLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
+                              const isResigned = formData.date && isStaffResignedOnDate(s, formData.date);
+                              let label = `${s.name} (${getRoleShortLabel(s.role)})${isResigned ? ' (Đã nghỉ việc)' : hasNoConflict ? ' (Gợi ý)' : ''}`;
                               return <option key={s.id} value={s.id}>{label}</option>;
                             })}
                           </select>
@@ -1826,7 +1842,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   <option value="">-- Chọn người phụ 1 --</option>
                                   {sortedAssistants1.map(s => {
                                     const hasNoConflict = assistant1StatusMap.get(s.id);
-                                    let label = `${s.name} (${getRoleShortLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
+                                    const isResigned = formData.date && isStaffResignedOnDate(s, formData.date);
+                                    let label = `${s.name} (${getRoleShortLabel(s.role)})${isResigned ? ' (Đã nghỉ việc)' : hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}
                                 </select>
@@ -1880,7 +1897,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                                   <option value="">{allowSameAsst ? '-- Tự động đồng bộ Người phụ 1 --' : '-- Chọn người phụ 2 --'}</option>
                                   {sortedAssistants2.map(s => {
                                     const hasNoConflict = assistant2StatusMap.get(s.id);
-                                    let label = `${s.name} (${getRoleShortLabel(s.role)})${hasNoConflict ? ' (Gợi ý)' : ''}`;
+                                    const isResigned = formData.date && isStaffResignedOnDate(s, formData.date);
+                                    let label = `${s.name} (${getRoleShortLabel(s.role)})${isResigned ? ' (Đã nghỉ việc)' : hasNoConflict ? ' (Gợi ý)' : ''}`;
                                     return <option key={s.id} value={s.id}>{label}</option>;
                                   })}
                                 </select>

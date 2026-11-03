@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { X, Clock, Zap, Check, ChevronDown, Sparkles, AlertCircle, RefreshCw, User, HelpCircle, CheckCircle2, Plus, Link2 } from 'lucide-react';
 import { Button } from './Button';
 import { Patient, Appointment, Procedure, Staff, AttendanceRecord, AppointmentStatus, Department, AttendanceStatus, ProcedureCategory } from '../types';
-import { timeStringToMinutes, minutesToTimeString, checkConflict, getLocalDateString, getLocalTimeMinutes } from '../utils/timeUtils';
+import { timeStringToMinutes, minutesToTimeString, checkConflict, getLocalDateString, getLocalTimeMinutes, isStaffResignedOnDate } from '../utils/timeUtils';
 import { db, doc, setDoc } from '../utils/dbService';
 
 const calculateAge = (dobString: string) => {
@@ -115,6 +115,7 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
   const attendingStaff = useMemo(() => {
     return staff.filter(s => {
       if (s.deptId !== currentDept.id) return false;
+      if (currentDate && isStaffResignedOnDate(s, currentDate)) return false;
       
       const isHoliday = attendanceRecords.some(r => (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) && r.date === currentDate && r.status === AttendanceStatus.OFF_FULL);
 
@@ -249,8 +250,8 @@ export const QuickScheduleModal: React.FC<QuickScheduleModalProps> = ({
     durationOptionId?: string | null,
     allowSameAssistant?: boolean
   ) => {
-    // Only consider staff belonging to this department
-    const deptStaff = staffList.filter(s => s.deptId === currentDept.id);
+    // Only consider staff belonging to this department who have not resigned on currentDate
+    const deptStaff = staffList.filter(s => s.deptId === currentDept.id && !isStaffResignedOnDate(s, currentDate));
     const attendingIds = new Set(attendingStaff.map(s => s.id));
 
     // Find staff with main capability for this procedure

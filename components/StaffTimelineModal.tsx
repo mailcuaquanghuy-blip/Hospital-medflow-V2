@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Department, Staff, Appointment, Procedure, Patient, AttendanceRecord, AttendanceStatus } from '../types';
-import { timeStringToMinutes, minutesToTimeString, formatDate } from '../utils/timeUtils';
+import { timeStringToMinutes, minutesToTimeString, formatDate, isStaffResignedOnDate } from '../utils/timeUtils';
 import { CalendarDays, Clock, Filter, X, Search, CheckCircle2, User, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { Button } from './Button';
 
@@ -105,7 +105,11 @@ export const StaffTimelineModal: React.FC<StaffTimelineModalProps> = ({
 
   // 1. Relevant staff for this department on activeDate
   const relevantStaff = useMemo(() => {
-    const baseStaff = staff.filter(s => s.deptId === currentDept.id);
+    const baseStaff = staff.filter(s => {
+      if (s.deptId !== currentDept.id) return false;
+      if (activeDate && isStaffResignedOnDate(s, activeDate)) return false;
+      return true;
+    });
 
     const isDeptHoliday = (attendanceRecords || []).some(
       r => (r.staffId === `holiday_dept_${currentDept.id}` || r.staffId === `holiday_${currentDept.id}`) &&

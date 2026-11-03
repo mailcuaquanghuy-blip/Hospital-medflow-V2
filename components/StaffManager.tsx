@@ -8,7 +8,7 @@ import {
   Star, Download, Upload, FileText
 } from 'lucide-react';
 import { Button } from './Button';
-import { getDaysInMonth, getDayOfWeek, getRoleLabel } from '../utils/timeUtils';
+import { getDaysInMonth, getDayOfWeek, getRoleLabel, isStaffResignedOnDate, formatDate } from '../utils/timeUtils';
 import { ManagerTab } from '../App';
 
 interface StaffManagerProps {
@@ -152,6 +152,41 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
       return staffSortDir === 'ASC' ? cmp : -cmp;
     });
   }, [departmentStaff, staffSortBy, staffSortDir]);
+
+  const [staffStatusFilter, setStaffStatusFilter] = useState<'ALL' | 'ACTIVE' | 'RESIGNED'>('ALL');
+
+  // Lọc danh sách nhân sự hiển thị trên bảng chấm công:
+  // - Nếu nhân sự nghỉ việc:
+  //   + Tháng sau tháng nghỉ việc: không hiển thị nữa ("sang tháng mới sẽ không hiển thị nhân sự nghỉ việc nữa")
+  //   + Tháng nghỉ việc: vẫn hiển thị nhân sự, nhưng từ ngày nghỉ việc trở đi sẽ không chấm công / bỏ chấm công
+  //   + Tháng trước ngày nghỉ việc: hiển thị bình thường
+  const attendanceStaff = useMemo(() => {
+    return sortedDepartmentStaff.filter(s => {
+      if (!s.isResigned) return true;
+      if (!s.resignationDate) return false;
+      const parts = s.resignationDate.split('-');
+      if (parts.length < 2) return false;
+      const resYear = parseInt(parts[0], 10);
+      const resMonth = parseInt(parts[1], 10);
+      if (isNaN(resYear) || isNaN(resMonth)) return false;
+
+      // Nếu năm/tháng xem lớn hơn năm/tháng nghỉ việc => không hiển thị nữa
+      if (selectedYear > resYear || (selectedYear === resYear && selectedMonth > resMonth)) {
+        return false;
+      }
+      return true;
+    });
+  }, [sortedDepartmentStaff, selectedYear, selectedMonth]);
+
+  const filteredPersonnelStaff = useMemo(() => {
+    return sortedDepartmentStaff
+      .filter(s => s.name.toLowerCase().includes(personnelSearch.toLowerCase()))
+      .filter(s => {
+        if (staffStatusFilter === 'ACTIVE') return !s.isResigned;
+        if (staffStatusFilter === 'RESIGNED') return !!s.isResigned;
+        return true;
+      });
+  }, [sortedDepartmentStaff, personnelSearch, staffStatusFilter]);
 
   // --- Procedure Logic ---
   const handleAddProcedure = () => {
@@ -351,6 +386,12 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
       return;
     }
     const dateStr = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    const targetStaff = staff.find(s => s.id === staffId);
+    if (targetStaff && isStaffResignedOnDate(targetStaff, dateStr)) {
+      alert(`Nhân sự ${targetStaff.name} đã nghỉ việc từ ngày ${formatDate(targetStaff.resignationDate || '')}. Không thể chấm công từ thời điểm này.`);
+      return;
+    }
+
     const holidayActive = isHoliday(day);
     const currentStatus = getAttendanceStatus(staffId, day);
     let nextStatus: AttendanceStatus;
@@ -418,6 +459,9 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
     const recordsToUpdate: AttendanceRecord[] = [];
     for (const day of daysArray) {
       const dateStr = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+      if (isStaffResignedOnDate(s, dateStr)) {
+        continue; // Bỏ qua chấm công từ thời điểm nghỉ việc
+      }
       const existing = attendanceRecords.find(r => r.staffId === s.id && r.date === dateStr);
       recordsToUpdate.push({
         id: existing ? existing.id : `att_${Math.random().toString(36).substr(2, 9)}`,
@@ -510,13 +554,20 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
               </tr>
             </thead>
             <tbody>
-              ${sortedDepartmentStaff.map((s, idx) => {
+              ${attendanceStaff.map((s, idx) => {
                   let rowHtml = `<tr>
                       <td>${idx + 1}</td>
                       <td class="name-col">${s.name}</td>
                       <td>${getRoleLabel(s.role)}</td>`;
                   
                   daysArray.forEach(d => {
+                    const dateStr = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+                    const isResignedDay = isStaffResignedOnDate(s, dateStr);
+                    if (isResignedDay) {
+                      rowHtml += `<td style="background-color: #f1f5f9; color: #94a3b8;">-</td>`;
+                      return;
+                    }
+
                     const status = getAttendanceStatus(s.id, d);
                     const dayIsHoliday = isHoliday(d);
                     let className = '';
@@ -670,9 +721,9 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
         
         {activeTab === 'PERSONNEL' && (
             <div className="flex-1 overflow-y-auto p-6">
-                 <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 w-72 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all">
+                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-4 py-2.5 w-64 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all">
                             <Search size={18} className="text-slate-400" />
                             <input 
                                 placeholder="Tìm kiếm nhân sự..." 
@@ -681,6 +732,53 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                 onChange={(e) => setPersonnelSearch(e.target.value)}
                             />
                         </div>
+
+                        {/* Status filter tabs */}
+                        <div className="flex items-center gap-1 bg-slate-100/70 border border-slate-200/80 rounded-xl p-1 shadow-sm">
+                            <button
+                                type="button"
+                                onClick={() => setStaffStatusFilter('ALL')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
+                                    staffStatusFilter === 'ALL'
+                                        ? 'bg-white text-slate-800 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                <span>Tất cả</span>
+                                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 font-bold">
+                                    {sortedDepartmentStaff.length}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setStaffStatusFilter('ACTIVE')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
+                                    staffStatusFilter === 'ACTIVE'
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                <span>Đang làm việc</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${staffStatusFilter === 'ACTIVE' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                    {sortedDepartmentStaff.filter(s => !s.isResigned).length}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setStaffStatusFilter('RESIGNED')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
+                                    staffStatusFilter === 'RESIGNED'
+                                        ? 'bg-rose-600 text-white shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                <span>Đã nghỉ việc</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${staffStatusFilter === 'RESIGNED' ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'}`}>
+                                    {sortedDepartmentStaff.filter(s => s.isResigned).length}
+                                </span>
+                            </button>
+                        </div>
+
                         <div className="flex items-center gap-1.5 bg-slate-100/50 border border-slate-200/60 rounded-xl p-1 shadow-sm">
                            <button
                               onClick={() => {
@@ -712,14 +810,14 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                         onClick={() => onEditStaff()} 
                         disabled={!canEdit}
                         title={!canEdit ? "Bạn không có quyền thêm nhân sự ở khoa này" : undefined}
-                        className={`shadow-sm ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`shadow-sm shrink-0 ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <UserPlus size={18} /> Thêm nhân sự
                     </Button>
                  </div>
 
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {sortedDepartmentStaff.filter(s => s.name.toLowerCase().includes(personnelSearch.toLowerCase())).map(s => (
+                    {filteredPersonnelStaff.map(s => (
                         <div 
                             key={s.id} 
                             onClick={() => {
@@ -729,10 +827,18 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                 }
                                 onEditStaff(s);
                             }}
-                            className={`bg-white rounded-[2rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl hover:border-primary/20 transition-all ${canEdit ? 'cursor-pointer group' : 'cursor-default'}`}
+                            className={`bg-white rounded-[2rem] p-8 border transition-all ${
+                                s.isResigned 
+                                    ? 'border-rose-200/80 bg-rose-50/10 shadow-[0_8px_30px_rgb(244,63,94,0.04)] hover:border-rose-300' 
+                                    : 'border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl hover:border-primary/20'
+                            } ${canEdit ? 'cursor-pointer group' : 'cursor-default'}`}
                         >
-                            <div className="flex items-start justify-between mb-6">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black ${s.role === 'Doctor' ? 'bg-indigo-50 text-indigo-600' : s.role === 'Pharmacist' ? 'bg-emerald-50 text-emerald-600' : 'bg-teal-50 text-teal-600'}`}>
+                            <div className="flex items-start justify-between mb-4">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black ${
+                                    s.isResigned 
+                                        ? 'bg-rose-50 text-rose-500' 
+                                        : s.role === 'Doctor' ? 'bg-indigo-50 text-indigo-600' : s.role === 'Pharmacist' ? 'bg-emerald-50 text-emerald-600' : 'bg-teal-50 text-teal-600'
+                                }`}>
                                     {s.name.charAt(0)}
                                 </div>
                                 {canEdit && (
@@ -753,8 +859,18 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                     </div>
                                 )}
                             </div>
+
+                            {s.isResigned && (
+                                <div className="mb-3">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                                        <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                                        Đã nghỉ việc {s.resignationDate ? `từ ${formatDate(s.resignationDate)}` : ''}
+                                    </span>
+                                </div>
+                            )}
+
                             <div>
-                                <h3 className="font-black text-slate-800 text-xl mb-1 tracking-tight">{s.name}</h3>
+                                <h3 className={`font-black text-xl mb-1 tracking-tight ${s.isResigned ? 'text-slate-600' : 'text-slate-800'}`}>{s.name}</h3>
                                 <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                                     {s.role === 'Doctor' ? <Stethoscope size={14} className="text-primary/60" /> : <User size={14} className="text-primary/60" />}
                                     <span>
@@ -919,13 +1035,37 @@ export const StaffManager: React.FC<StaffManagerProps> = ({
                                 );
                             })}
                             
-                            {sortedDepartmentStaff.map((s, index) => (
+                            {attendanceStaff.map((s, index) => (
                                 <React.Fragment key={s.id}>
                                     <div className="sticky left-0 z-10 border-r border-b border-slate-200 p-2 text-center text-sm font-bold text-slate-400 bg-white">{index + 1}</div>
-                                    <div className="sticky left-[50px] z-10 border-r border-b border-slate-200 p-2 text-sm font-bold text-slate-700 bg-white truncate hover:bg-blue-50 hover:text-primary transition-colors cursor-pointer select-none" title={`Nhấp để chấm nhanh nghỉ/đi làm cả tháng cho ${s.name}`} onClick={() => handleStaffNameClick(s)}>{s.name}</div>
+                                    <div className="sticky left-[50px] z-10 border-r border-b border-slate-200 p-2 text-sm font-bold text-slate-700 bg-white truncate hover:bg-blue-50 hover:text-primary transition-colors cursor-pointer select-none" title={`Nhấp để chấm nhanh nghỉ/đi làm cả tháng cho ${s.name}`} onClick={() => handleStaffNameClick(s)}>
+                                        <div className="flex items-center gap-1.5 truncate">
+                                            <span className="truncate">{s.name}</span>
+                                            {s.isResigned && (
+                                                <span className="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded-md shrink-0">
+                                                    Đã nghỉ
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div className="sticky left-[270px] z-10 border-r border-b border-slate-200 p-2 text-center text-[11px] font-bold text-slate-500 uppercase tracking-widest bg-white truncate">{getRoleLabel(s.role)}</div>
                                     
                                     {daysArray.map(day => {
+                                        const dateStr = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                                        const isResignedDay = isStaffResignedOnDate(s, dateStr);
+
+                                        if (isResignedDay) {
+                                            return (
+                                                <div 
+                                                    key={`${s.id}-${day}`}
+                                                    className="border-r border-b border-slate-200 text-center text-[10px] font-bold flex items-center justify-center h-10 bg-slate-100/70 text-slate-400 select-none cursor-not-allowed"
+                                                    title={`Ngày ${day}: Nhân sự đã nghỉ việc từ ngày ${formatDate(s.resignationDate || '')}`}
+                                                >
+                                                    -
+                                                </div>
+                                            );
+                                        }
+
                                         const status = getAttendanceStatus(s.id, day);
                                         const dow = getDayOfWeek(day, selectedMonth, selectedYear);
                                         const isWeekend = dow === 'CN';

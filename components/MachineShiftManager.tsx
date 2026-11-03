@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MachineShift, Procedure, Staff, Department, Appointment, AttendanceRecord, AttendanceStatus } from '../types';
 import { Plus, Edit3, Trash2, Clock, Users, AlertTriangle, X, Copy } from 'lucide-react';
 import { Button } from './Button';
-import { checkConflict } from '../utils/timeUtils';
+import { checkConflict, isStaffResignedOnDate } from '../utils/timeUtils';
 import { CopyRangeModal } from './CopyRangeModal';
 
 interface MachineShiftManagerProps {
@@ -372,10 +372,10 @@ export const MachineShiftManager: React.FC<MachineShiftManagerProps> = ({
                 <select value={staffId} onChange={e => setStaffId(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all">
                   <option value="">-- Chọn nhân sự --</option>
                   {(() => {
-                    const filtered = staff.filter(s => s.deptId === currentDept.id && s.mainCapabilityIds?.includes(procedureId) && s.id !== assistant1Id && s.id !== assistant2Id && !attendanceRecords.some(r => r.staffId === s.id && r.date === activeDate && r.status === AttendanceStatus.OFF_FULL));
+                    const filtered = staff.filter(s => s.deptId === currentDept.id && s.mainCapabilityIds?.includes(procedureId) && s.id !== assistant1Id && s.id !== assistant2Id && !attendanceRecords.some(r => r.staffId === s.id && r.date === activeDate && r.status === AttendanceStatus.OFF_FULL) && (!isStaffResignedOnDate(s, activeDate) || s.id === staffId));
                     const list = filtered;
                     return list.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                      <option key={s.id} value={s.id}>{s.name} ({s.role}){isStaffResignedOnDate(s, activeDate) ? ' (Đã nghỉ)' : ''}</option>
                     ));
                   })()}
                 </select>
@@ -387,10 +387,10 @@ export const MachineShiftManager: React.FC<MachineShiftManagerProps> = ({
                   <select value={assistant1Id} onChange={e => setAssistant1Id(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all">
                     <option value="">-- Chọn người phụ 1 --</option>
                     {(() => {
-                      const filtered = staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(procedureId) && s.id !== staffId && s.id !== assistant2Id && !attendanceRecords.some(r => r.staffId === s.id && r.date === activeDate && r.status === AttendanceStatus.OFF_FULL));
+                      const filtered = staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(procedureId) && s.id !== staffId && s.id !== assistant2Id && !attendanceRecords.some(r => r.staffId === s.id && r.date === activeDate && r.status === AttendanceStatus.OFF_FULL) && (!isStaffResignedOnDate(s, activeDate) || s.id === assistant1Id));
                       const list = filtered;
                       return list.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                        <option key={s.id} value={s.id}>{s.name} ({s.role}){isStaffResignedOnDate(s, activeDate) ? ' (Đã nghỉ)' : ''}</option>
                       ));
                     })()}
                   </select>
@@ -403,10 +403,10 @@ export const MachineShiftManager: React.FC<MachineShiftManagerProps> = ({
                   <select value={assistant2Id} onChange={e => setAssistant2Id(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all">
                     <option value="">-- Chọn người phụ 2 --</option>
                     {(() => {
-                      const filtered = staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(procedureId) && s.id !== staffId && s.id !== assistant1Id && !attendanceRecords.some(r => r.staffId === s.id && r.date === activeDate && r.status === AttendanceStatus.OFF_FULL));
+                      const filtered = staff.filter(s => s.deptId === currentDept.id && s.assistantCapabilityIds?.includes(procedureId) && s.id !== staffId && s.id !== assistant1Id && !attendanceRecords.some(r => r.staffId === s.id && r.date === activeDate && r.status === AttendanceStatus.OFF_FULL) && (!isStaffResignedOnDate(s, activeDate) || s.id === assistant2Id));
                       const list = filtered;
                       return list.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
+                        <option key={s.id} value={s.id}>{s.name} ({s.role}){isStaffResignedOnDate(s, activeDate) ? ' (Đã nghỉ)' : ''}</option>
                       ));
                     })()}
                   </select>
