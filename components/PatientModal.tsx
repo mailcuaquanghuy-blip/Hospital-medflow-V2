@@ -24,6 +24,7 @@ export const PatientModal: React.FC<PatientModalProps> = ({
   currentDept,
   patients,
 }) => {
+  const isEditing = Boolean(initialData?.id);
   const [formData, setFormData] = useState<Partial<Patient>>({
     name: '',
     dob: '',
@@ -86,7 +87,8 @@ export const PatientModal: React.FC<PatientModalProps> = ({
     // Giữ nguyên ID cũ nếu sửa, hoặc tạo ID mới nếu thêm
     const patientId = formData.id || `p_${Math.random().toString(36).substr(2, 9)}`;
     const admissionDateIso = new Date(formData.admissionDate || new Date()).toISOString();
-    const dischargeDateIso = formData.status === PatientStatus.TREATING ? null : (formData.dischargeDate ? new Date(formData.dischargeDate).toISOString() : null);
+    const patientStatus = isEditing ? ((formData.status as PatientStatus) || PatientStatus.TREATING) : PatientStatus.TREATING;
+    const dischargeDateIso = patientStatus === PatientStatus.TREATING ? null : (formData.dischargeDate ? new Date(formData.dischargeDate).toISOString() : null);
     
     // Mã bệnh nhân vẫn sinh ra để lưu trữ hệ thống
     const code = formData.code || generatePatientCode(formData.name, admissionDateIso, currentDept.id);
@@ -102,7 +104,7 @@ export const PatientModal: React.FC<PatientModalProps> = ({
       admissionDate: admissionDateIso,
       dischargeDate: dischargeDateIso,
       bedType: (formData.bedType as BedType) || 'Nội trú',
-      status: (formData.status as PatientStatus) || PatientStatus.TREATING,
+      status: patientStatus,
       admittedByDeptId: formData.admittedByDeptId || currentDept.id,
       referrals: formData.referrals || [],
       insuranceLevel: formData.insuranceLevel || '100%',
@@ -243,48 +245,52 @@ export const PatientModal: React.FC<PatientModalProps> = ({
                     </div>
                 </div>
 
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Info size={12}/> Trạng thái bệnh nhân</label>
-                    <select 
-                        className={`w-full p-3 border-2 border-slate-100 rounded-xl font-bold outline-none bg-white ${formData.status === PatientStatus.DISCHARGED ? 'text-rose-600 border-rose-100' : 'text-slate-800'}`}
-                        value={formData.status || PatientStatus.TREATING}
-                        onChange={e => setFormData({...formData, status: e.target.value as PatientStatus})}
-                    >
-                        <option value={PatientStatus.TREATING}>Đang điều trị</option>
-                        <option value={PatientStatus.DISCHARGED}>Đã ra viện</option>
-                    </select>
-                </div>
-
-                {formData.status === PatientStatus.DISCHARGED && (
-                    <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <div className="flex items-center gap-2 text-rose-600 font-black text-[10px] uppercase tracking-widest">
-                            <LogOut size={14} /> Thông tin ra viện
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12}/> Ngày ra viện</label>
-                                <DateInput 
-                                    className="w-full p-3 border-2 border-white rounded-xl font-bold text-rose-700 focus:border-rose-300 outline-none transition-colors shadow-sm"
-                                    value={formData.dischargeDate?.split('T')[0] || ''}
-                                    onChange={val => {
-                                        const time = formData.dischargeDate?.split('T')[1] || '08:00';
-                                        setFormData({...formData, dischargeDate: `${val}T${time}`});
-                                    }}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1"><Clock size={12}/> Giờ ra viện</label>
-                                <TimeInput 
-                                    className="w-full p-3 border-2 border-white rounded-xl font-bold text-rose-700 focus:border-rose-300 outline-none transition-colors shadow-sm"
-                                    value={formData.dischargeDate?.split('T')[1] || '08:00'}
-                                    onChange={val => {
-                                        const date = formData.dischargeDate?.split('T')[0] || new Date().toISOString().split('T')[0];
-                                        setFormData({...formData, dischargeDate: `${date}T${val}`});
-                                    }}
-                                />
-                            </div>
-                        </div>
+                {isEditing && (
+                  <>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Info size={12}/> Trạng thái bệnh nhân</label>
+                        <select 
+                            className={`w-full p-3 border-2 border-slate-100 rounded-xl font-bold outline-none bg-white ${formData.status === PatientStatus.DISCHARGED ? 'text-rose-600 border-rose-100' : 'text-slate-800'}`}
+                            value={formData.status || PatientStatus.TREATING}
+                            onChange={e => setFormData({...formData, status: e.target.value as PatientStatus})}
+                        >
+                            <option value={PatientStatus.TREATING}>Đang điều trị</option>
+                            <option value={PatientStatus.DISCHARGED}>Đã ra viện</option>
+                        </select>
                     </div>
+
+                    {formData.status === PatientStatus.DISCHARGED && (
+                        <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex items-center gap-2 text-rose-600 font-black text-[10px] uppercase tracking-widest">
+                                <LogOut size={14} /> Thông tin ra viện
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12}/> Ngày ra viện</label>
+                                    <DateInput 
+                                        className="w-full p-3 border-2 border-white rounded-xl font-bold text-rose-700 focus:border-rose-300 outline-none transition-colors shadow-sm"
+                                        value={formData.dischargeDate?.split('T')[0] || ''}
+                                        onChange={val => {
+                                            const time = formData.dischargeDate?.split('T')[1] || '08:00';
+                                            setFormData({...formData, dischargeDate: `${val}T${time}`});
+                                        }}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1"><Clock size={12}/> Giờ ra viện</label>
+                                    <TimeInput 
+                                        className="w-full p-3 border-2 border-white rounded-xl font-bold text-rose-700 focus:border-rose-300 outline-none transition-colors shadow-sm"
+                                        value={formData.dischargeDate?.split('T')[1] || '08:00'}
+                                        onChange={val => {
+                                            const date = formData.dischargeDate?.split('T')[0] || new Date().toISOString().split('T')[0];
+                                            setFormData({...formData, dischargeDate: `${date}T${val}`});
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                  </>
                 )}
 
                 {/* Giường & Phòng */}
