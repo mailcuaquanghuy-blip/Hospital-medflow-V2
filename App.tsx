@@ -2581,10 +2581,18 @@ const App: React.FC = () => {
                       setCurrentDept(null); 
                       setActiveTab('PATIENT_RECORDS'); 
                     }} 
-                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="Về danh sách khoa"
+                    className="flex items-center gap-2.5 p-1 -ml-1 hover:bg-slate-100 rounded-2xl text-slate-700 transition-all group disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Hospital MedFlow - Về danh sách khoa"
                   >
-                    <Home size={20} />
+                    <img 
+                      src="/logo.png" 
+                      alt="Hospital MedFlow Logo" 
+                      className="w-8 h-8 rounded-xl object-contain shadow-xs group-hover:scale-105 transition-transform" 
+                    />
+                    <div className="hidden sm:flex flex-col text-left leading-none">
+                      <span className="text-[11px] font-black tracking-wider text-sky-600 uppercase">MedFlow</span>
+                      <span className="text-[9px] font-bold text-slate-400">Hospital</span>
+                    </div>
                   </button>
                   <div className="h-6 w-px bg-slate-200"></div>
                   {currentDept ? (

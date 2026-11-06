@@ -105,8 +105,8 @@ export const LoginLoader: React.FC<LoginLoaderProps> = ({ loadedCollections, onC
             transition={{ delay: 0.1 }}
             className="space-y-3"
           >
-            <div className="inline-flex p-4 bg-sky-500/10 border border-sky-500/20 rounded-[2rem] text-sky-400 shadow-lg shadow-sky-500/5 animate-pulse mb-2">
-              <Database size={40} className="text-sky-400" />
+            <div className="inline-flex p-1.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-[2rem] shadow-2xl shadow-sky-500/20 mb-2">
+              <img src="/logo.png" alt="Hospital MedFlow Logo" className="w-20 h-20 rounded-[1.6rem] object-contain" />
             </div>
             <div>
               <h1 className="text-3xl font-black text-white tracking-widest uppercase">Hospital medflow</h1>

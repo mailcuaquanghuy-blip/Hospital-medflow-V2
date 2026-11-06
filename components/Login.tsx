@@ -63,8 +63,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
       <div className="max-w-md w-full space-y-4">
         <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200 border border-slate-100 p-8 md:p-10 space-y-6 animate-in fade-in zoom-in duration-300">
           <div className="text-center space-y-3">
-            <div className="inline-flex p-3 bg-sky-50 text-sky-500 rounded-2xl mb-1">
-              <Database size={32} />
+            <div className="inline-flex p-1 bg-white rounded-3xl shadow-lg shadow-sky-500/10 border border-slate-100 mb-1">
+              <img src="/logo.png" alt="Hospital MedFlow Logo" className="w-20 h-20 rounded-2xl object-contain" />
             </div>
             <div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">Hospital medflow</h1>

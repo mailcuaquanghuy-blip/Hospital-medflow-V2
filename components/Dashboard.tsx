@@ -66,6 +66,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ departments, onSelectDepar
         
         <div className="flex justify-between items-start">
            <div className="flex items-center gap-4">
+              <img src="/logo.png" alt="Hospital MedFlow Logo" className="w-12 h-12 rounded-2xl shadow-md shadow-sky-500/10 object-contain p-0.5 bg-white border border-slate-100" />
               <div>
                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Lập và quản lý lịch trình y tế</p>
                  <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Hospital medflow</h2>
@@ -93,7 +94,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ departments, onSelectDepar
            </div>
         </div>
 
-        <div className="text-center space-y-4 max-w-4xl mx-auto">
+        <div className="text-center space-y-4 max-w-4xl mx-auto flex flex-col items-center">
+          <div className="w-24 h-24 rounded-3xl bg-white shadow-xl shadow-sky-500/15 border border-slate-100 flex items-center justify-center p-2 mb-1 hover:scale-105 transition-transform duration-300">
+            <img src="/logo.png" alt="Hospital MedFlow Logo" className="w-full h-full object-contain" />
+          </div>
           <h1 className="text-[44px] md:text-[56px] font-black text-slate-900 tracking-tighter leading-none uppercase">
             Lập và Quản lý <br/>
             <span className="text-sky-500 relative inline-block">
