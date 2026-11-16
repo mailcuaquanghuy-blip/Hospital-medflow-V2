@@ -4,9 +4,9 @@ import { Staff, Patient, Procedure, Appointment, AppointmentStatus, Department, 
 import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN, MOCK_TEMPLATES } from './constants';
 
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation, getLocalDateString } from './utils/timeUtils';
-import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments, clearAllSessionBaselines, formatDateVi } from './utils/scheduleHistoryUtils';
+import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments, clearAllSessionBaselines, getDeletedSessionAppointments, formatDateVi } from './utils/scheduleHistoryUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
-import { isSupabaseConfigured, fetchSupabaseTable, saveSupabaseItem, deleteSupabaseItem, deleteSupabaseBatch, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase, saveScheduleSnapshotToSupabase } from './utils/supabaseService';
+import { isSupabaseConfigured, fetchSupabaseTable, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase } from './utils/supabaseService';
 import { supabase } from './supabaseClient';
 import { Timeline } from './components/Timeline';
 import { DailyReport } from './components/DailyReport';
@@ -45,7 +45,10 @@ import {
   fetchCollectionFromFirestore,
   fetchScheduleSnapshotsFromFirestore,
   saveScheduleSnapshotToFirestore,
-  ensureAuthReady
+  ensureAuthReady,
+  seedDocCache,
+  hasPendingSync,
+  normalizeCollectionName
 } from './utils/dbService';
 
 
@@ -134,6 +137,8 @@ const App: React.FC = () => {
   const recentlyUpdatedApptsRef = useRef<Map<string, { appt: Appointment; timestamp: number }>>(new Map());
   const recentlyUpdatedPatientsRef = useRef<Map<string, { patient: Patient; timestamp: number }>>(new Map());
   const recentlySavedSnapshotsRef = useRef<Map<string, { snapshot: ScheduleSnapshot; timestamp: number }>>(new Map());
+  const recentlyUpdatedByCollRef = useRef<Map<string, { data: any; timestamp: number }>>(new Map());
+  const recentlyDeletedByCollRef = useRef<Map<string, number>>(new Map());
   const lastUserActionTimeRef = useRef<number>(0);
   
   // Verification State
@@ -187,10 +192,58 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleDbChange = (e: Event) => {
-      const { collectionName, docId, data, action } = (e as CustomEvent).detail;
-      console.log(`[db-change event received] ${collectionName}/${docId} action: ${action}`, data);
-      lastUserActionTimeRef.current = Date.now();
-      
+      const detail = (e as CustomEvent).detail || {};
+      const collectionName = normalizeCollectionName(detail.collectionName || '');
+      const docId: string = detail.docId || '';
+      const data = detail.data;
+      const action: 'set' | 'delete' = detail.action;
+      const source: 'local' | 'broadcast' | 'realtime' = detail.source || 'local';
+
+      if (!collectionName || !docId) return;
+      if (collectionName === 'templates' && docId.startsWith('snap_')) {
+        return;
+      }
+      if (collectionName === 'templates' && action === 'set' && data && Array.isArray(data.appointments) && !Array.isArray(data.procedures)) {
+        return;
+      }
+
+      const now = Date.now();
+      const normalizedDocId = collectionName === 'scheduleSnapshots' ? docId.replace(/^snap_/, '') : docId;
+      const docKey = `${collectionName}:${normalizedDocId}`;
+
+      if (source === 'local') {
+        if (collectionName !== 'backups') {
+          lastUserActionTimeRef.current = now;
+        }
+        if (action === 'delete') {
+          recentlyDeletedByCollRef.current.set(docKey, now);
+          recentlyUpdatedByCollRef.current.delete(docKey);
+          if (collectionName === 'appointments') recentlyDeletedApptIdsRef.current.set(normalizedDocId, now);
+          if (collectionName === 'patients') recentlyDeletedPatientIdsRef.current.set(normalizedDocId, now);
+        } else if (action === 'set' && data) {
+          recentlyDeletedByCollRef.current.delete(docKey);
+          recentlyUpdatedByCollRef.current.set(docKey, { data, timestamp: now });
+          if (collectionName === 'appointments') recentlyUpdatedApptsRef.current.set(normalizedDocId, { appt: data, timestamp: now });
+          if (collectionName === 'patients') recentlyUpdatedPatientsRef.current.set(normalizedDocId, { patient: data, timestamp: now });
+          if (collectionName === 'scheduleSnapshots') recentlySavedSnapshotsRef.current.set(normalizedDocId, { snapshot: data, timestamp: now });
+        }
+      } else {
+        // Ignore stale realtime or cross-tab echoes while local writes are pending or very fresh
+        if (hasPendingSync(collectionName, normalizedDocId)) {
+          return;
+        }
+        const protectionWindow = source === 'realtime' ? 15000 : 3000;
+        if (action === 'set') {
+          const delTime = recentlyDeletedByCollRef.current.get(docKey);
+          if (delTime && now - delTime < 45000) return;
+          const recent = recentlyUpdatedByCollRef.current.get(docKey);
+          if (recent && now - recent.timestamp < protectionWindow) return;
+        } else if (action === 'delete') {
+          const recent = recentlyUpdatedByCollRef.current.get(docKey);
+          if (recent && now - recent.timestamp < protectionWindow) return;
+        }
+      }
+
       switch (collectionName) {
         case 'users':
           setUsers(prev => {
@@ -205,19 +258,11 @@ const App: React.FC = () => {
           });
           break;
         case 'appointments':
-          if (action === 'delete') {
-            recentlyDeletedApptIdsRef.current.set(docId, Date.now());
-          } else if (data) {
-            // 1. Prevent resurrecting appointments recently deleted locally (< 45s)
+          if (source !== 'local' && data && action === 'set') {
             const deletedTime = recentlyDeletedApptIdsRef.current.get(docId);
-            if (deletedTime && Date.now() - deletedTime < 45000) {
-              return;
-            }
-            // 2. Prevent older in-flight echo from overwriting fresh local edits (< 8s)
+            if (deletedTime && now - deletedTime < 45000) return;
             const recent = recentlyUpdatedApptsRef.current.get(docId);
-            if (recent && Date.now() - recent.timestamp < 8000) {
-              return;
-            }
+            if (recent && now - recent.timestamp < 15000) return;
           }
           setAppointments(prev => {
             if (action === 'delete') return prev.filter(item => item.id !== docId);
@@ -244,10 +289,6 @@ const App: React.FC = () => {
           });
           break;
         case 'templates':
-          if (docId?.startsWith('snap_')) {
-            // Snapshot stored in templates table; do not put into templates state
-            return;
-          }
           setTemplates(prev => {
             if (action === 'delete') return prev.filter(item => item.id !== docId);
             const idx = prev.findIndex(item => item.id === docId);
@@ -260,19 +301,11 @@ const App: React.FC = () => {
           });
           break;
         case 'patients':
-          if (action === 'delete') {
-            recentlyDeletedPatientIdsRef.current.set(docId, Date.now());
-          } else if (data && action === 'set') {
-            // 1. Prevent resurrecting patient recently deleted locally (< 45s)
+          if (source !== 'local' && data && action === 'set') {
             const deletedTime = recentlyDeletedPatientIdsRef.current.get(docId);
-            if (deletedTime && Date.now() - deletedTime < 45000) {
-              return;
-            }
-            // 2. Prevent older echo from overwriting fresh local edits (< 8s)
+            if (deletedTime && now - deletedTime < 45000) return;
             const recent = recentlyUpdatedPatientsRef.current.get(docId);
-            if (recent && Date.now() - recent.timestamp < 8000) {
-              return;
-            }
+            if (recent && now - recent.timestamp < 15000) return;
           }
           setPatients(prev => {
             if (action === 'delete') return prev.filter(item => item.id !== docId);
@@ -334,11 +367,11 @@ const App: React.FC = () => {
           });
           break;
         case 'scheduleSnapshots':
-        case 'schedule_snapshots':
+        case 'schedule_snapshots': {
           const rawSnapId = docId.replace(/^snap_/, '');
-          if (action === 'set' && data) {
+          if (source !== 'local' && action === 'set' && data) {
             const recent = recentlySavedSnapshotsRef.current.get(rawSnapId);
-            if (recent && Date.now() - recent.timestamp < 15000) {
+            if (recent && now - recent.timestamp < 15000) {
               return;
             }
           }
@@ -359,12 +392,15 @@ const App: React.FC = () => {
             }
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated.slice(-30)));
+                const trimmed = updated.slice(-30);
+                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(trimmed));
+                localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(trimmed));
               } catch (e) {}
             }
             return updated;
           });
           break;
+        }
         default:
           break;
       }
@@ -449,13 +485,16 @@ const App: React.FC = () => {
           setTemplates(MOCK_TEMPLATES);
         } else {
           const sanitizedTpls = tpls
-            .filter(t => !t.id?.startsWith('snap_'))
+            .filter(t => !t.id?.startsWith('snap_') && !(Array.isArray((t as any).appointments) && !Array.isArray(t.procedures)))
             .map(t => ({
               ...t,
               procedures: t.procedures || []
             }));
+          seedDocCache('templates', sanitizedTpls);
           setTemplates(sanitizedTpls);
         }
+        seedDocCache('users', currentUsrs);
+        if (procs && procs.length > 0) seedDocCache('procedures', procs);
       } catch (err) {
         console.warn("Failed to initialize or fetch users on startup:", err);
       }
@@ -466,23 +505,95 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!currentUser) return;
     console.log("Loading and synchronizing real-time data from Supabase & Firestore...");
+
+    const mergeWithLocalProtection = <T extends { id: string }>(
+      collName: string,
+      prev: T[],
+      serverItems: T[] | null,
+      prependNew = false
+    ): T[] => {
+      if (serverItems === null) return prev;
+      const currentTime = Date.now();
+
+      const validServerItems = serverItems.filter(item => {
+        const key = `${collName}:${item.id}`;
+        const delTime = recentlyDeletedByCollRef.current.get(key);
+        if (delTime && currentTime - delTime < 60000) return false;
+        if (collName === 'appointments') {
+          const apptDel = recentlyDeletedApptIdsRef.current.get(item.id);
+          if (apptDel && currentTime - apptDel < 60000) return false;
+        }
+        if (collName === 'patients') {
+          const patDel = recentlyDeletedPatientIdsRef.current.get(item.id);
+          if (patDel && currentTime - patDel < 60000) return false;
+        }
+        return true;
+      });
+
+      const mergedServerItems = validServerItems.map(serverItem => {
+        const key = `${collName}:${serverItem.id}`;
+        const recent = recentlyUpdatedByCollRef.current.get(key);
+        if ((recent && currentTime - recent.timestamp < 60000) || hasPendingSync(collName, serverItem.id)) {
+          if (recent?.data) return recent.data as T;
+        }
+        if (collName === 'appointments') {
+          const rAppt = recentlyUpdatedApptsRef.current.get(serverItem.id);
+          if (rAppt && currentTime - rAppt.timestamp < 60000) return rAppt.appt as unknown as T;
+        }
+        if (collName === 'patients') {
+          const rPat = recentlyUpdatedPatientsRef.current.get(serverItem.id);
+          if (rPat && currentTime - rPat.timestamp < 60000) return rPat.patient as unknown as T;
+        }
+        if (collName === 'scheduleSnapshots') {
+          const rSnap = recentlySavedSnapshotsRef.current.get(serverItem.id);
+          if (rSnap && currentTime - rSnap.timestamp < 60000) return rSnap.snapshot as unknown as T;
+        }
+        return serverItem;
+      });
+
+      const serverIdSet = new Set(mergedServerItems.map(i => i.id));
+      const newLocalItems = prev.filter(localItem => {
+        if (serverIdSet.has(localItem.id)) return false;
+        const key = `${collName}:${localItem.id}`;
+        const delTime = recentlyDeletedByCollRef.current.get(key);
+        if (delTime && currentTime - delTime < 60000) return false;
+        if (hasPendingSync(collName, localItem.id)) return true;
+        const upd = recentlyUpdatedByCollRef.current.get(key);
+        if (upd && currentTime - upd.timestamp < 90000) return true;
+        if (collName === 'appointments') {
+          const rAppt = recentlyUpdatedApptsRef.current.get(localItem.id);
+          if (rAppt && currentTime - rAppt.timestamp < 90000) return true;
+        }
+        if (collName === 'patients') {
+          const rPat = recentlyUpdatedPatientsRef.current.get(localItem.id);
+          if (rPat && currentTime - rPat.timestamp < 90000) return true;
+        }
+        if (collName === 'scheduleSnapshots') {
+          const rSnap = recentlySavedSnapshotsRef.current.get(localItem.id);
+          if (rSnap && currentTime - rSnap.timestamp < 90000) return true;
+        }
+        return false;
+      });
+
+      return prependNew ? [...newLocalItems, ...mergedServerItems] : [...mergedServerItems, ...newLocalItems];
+    };
     
     const loadAppData = async (force = false) => {
-      const now = Date.now();
+      const fetchStartTime = Date.now();
       // If user performed an action recently (< 45s ago), skip background reload to prevent race conditions
-      if (!force && now - lastUserActionTimeRef.current < 45000) {
+      if (!force && fetchStartTime - lastUserActionTimeRef.current < 45000) {
         console.log("[loadAppData] User action recently in progress (< 45s ago). Skipping fetch to protect local state.");
         return;
       }
       // Throttle reloads to maximum once every 20 seconds, unless forced
-      if (!force && now - lastFetchTimeRef.current < 20000) {
+      if (!force && fetchStartTime - lastFetchTimeRef.current < 20000) {
         console.log("[loadAppData] Throttled (last sync was < 20s ago). Skipping fetch to preserve UI state.");
         return;
       }
-      lastFetchTimeRef.current = now;
+      lastFetchTimeRef.current = fetchStartTime;
 
       try {
-        // Fetch from Supabase (Pro) first with automatic Firestore fallback
+        // Fetch from Supabase (Pro) first with automatic Firestore fallback on failure/empty boot
         let [pats, appts, stf, procs, att, shifts, tpls, usrs, snapshots, bkps] = await Promise.all([
           fetchSupabaseTable<Patient>('patients'),
           fetchSupabaseTable<Appointment>('appointments'),
@@ -496,141 +607,104 @@ const App: React.FC = () => {
           fetchSupabaseTable<Backup>('backups')
         ]);
 
-        // Fallback to Firestore only if Supabase returned completely empty or errored
+        // Discard stale background response if user edited anything while the network request was in-flight
+        if (!force && lastUserActionTimeRef.current > fetchStartTime) {
+          console.log("[loadAppData] Local change happened while fetch was in-flight. Discarding stale response.");
+          return;
+        }
+
+        // Fallback to Firestore for failed (null) collections or if Supabase returned completely empty
         const supabaseActive = (pats && pats.length > 0) || (appts && appts.length > 0) || (stf && stf.length > 0);
-        if (!supabaseActive) {
+        if (!supabaseActive || pats === null || appts === null || stf === null || procs === null || att === null || shifts === null || tpls === null || usrs === null || snapshots === null || bkps === null) {
           await ensureAuthReady();
-          if (!pats || pats.length === 0) pats = await fetchCollectionFromFirestore<Patient>('patients');
-          if (!appts || appts.length === 0) appts = await fetchCollectionFromFirestore<Appointment>('appointments');
-          if (!stf || stf.length === 0) stf = await fetchCollectionFromFirestore<Staff>('staff');
-          if (!procs || procs.length === 0) procs = await fetchCollectionFromFirestore<Procedure>('procedures');
-          if (!att || att.length === 0) att = await fetchCollectionFromFirestore<AttendanceRecord>('attendance');
-          if (!shifts || shifts.length === 0) shifts = await fetchCollectionFromFirestore<MachineShift>('machineShifts');
-          if (!tpls || tpls.length === 0) tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
-          if (!usrs || usrs.length === 0) usrs = await fetchCollectionFromFirestore<UserAccount>('users');
-          if (!snapshots || snapshots.length === 0) snapshots = await fetchScheduleSnapshotsFromFirestore();
-          if (!bkps || bkps.length === 0) bkps = await fetchCollectionFromFirestore<Backup>('backups');
+          if (pats === null || (!supabaseActive && pats.length === 0)) pats = await fetchCollectionFromFirestore<Patient>('patients');
+          if (appts === null || (!supabaseActive && appts.length === 0)) appts = await fetchCollectionFromFirestore<Appointment>('appointments');
+          if (stf === null || (!supabaseActive && stf.length === 0)) stf = await fetchCollectionFromFirestore<Staff>('staff');
+          if (procs === null || (!supabaseActive && procs.length === 0)) procs = await fetchCollectionFromFirestore<Procedure>('procedures');
+          if (att === null || (!supabaseActive && att.length === 0)) att = await fetchCollectionFromFirestore<AttendanceRecord>('attendance');
+          if (shifts === null || (!supabaseActive && shifts.length === 0)) shifts = await fetchCollectionFromFirestore<MachineShift>('machineShifts');
+          if (tpls === null || (!supabaseActive && tpls.length === 0)) tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
+          if (usrs === null || (!supabaseActive && usrs.length === 0)) usrs = await fetchCollectionFromFirestore<UserAccount>('users');
+          if (snapshots === null || (!supabaseActive && snapshots.length === 0)) snapshots = await fetchScheduleSnapshotsFromFirestore();
+          if (bkps === null || (!supabaseActive && bkps.length === 0)) bkps = await fetchCollectionFromFirestore<Backup>('backups');
+
+          if (!force && lastUserActionTimeRef.current > fetchStartTime) {
+            return;
+          }
         }
 
-        if (pats && pats.length > 0) {
-          setPatients(prev => {
-            if (!prev || prev.length === 0) return pats;
-            const currentTime = Date.now();
-            
-            // 1. Exclude patients recently deleted locally
-            const validServerPats = pats.filter(p => {
-              const delTime = recentlyDeletedPatientIdsRef.current.get(p.id);
-              if (delTime && currentTime - delTime < 45000) {
-                return false;
-              }
-              return true;
-            });
-
-            // 2. Override with locally modified version if recently updated (e.g. discharged)
-            const mergedServerPats = validServerPats.map(serverP => {
-              const recent = recentlyUpdatedPatientsRef.current.get(serverP.id);
-              if (recent && currentTime - recent.timestamp < 45000) {
-                return recent.patient;
-              }
-              return serverP;
-            });
-
-            // 3. Keep newly created local patients not yet returned by server
-            const serverIdSet = new Set(mergedServerPats.map(p => p.id));
-            const newLocalPats = prev.filter(localP => {
-              if (serverIdSet.has(localP.id)) return false;
-              const delTime = recentlyDeletedPatientIdsRef.current.get(localP.id);
-              if (delTime && currentTime - delTime < 45000) return false;
-              return true;
-            });
-
-            return [...mergedServerPats, ...newLocalPats];
-          });
+        if (pats) {
+          seedDocCache('patients', pats);
+          setPatients(prev => mergeWithLocalProtection('patients', prev, pats, true));
         }
-        if (appts && appts.length > 0) {
-          setAppointments(prev => {
-            if (!prev || prev.length === 0) return appts;
-            const currentTime = Date.now();
-            
-            // 1. Exclude appointments recently deleted locally
-            const validServerAppts = appts.filter(a => {
-              const delTime = recentlyDeletedApptIdsRef.current.get(a.id);
-              if (delTime && currentTime - delTime < 45000) {
-                return false;
-              }
-              return true;
-            });
-
-            // 2. Override with locally modified version if recently updated
-            const mergedServerAppts = validServerAppts.map(serverA => {
-              const recent = recentlyUpdatedApptsRef.current.get(serverA.id);
-              if (recent && currentTime - recent.timestamp < 45000) {
-                return recent.appt;
-              }
-              return serverA;
-            });
-
-            // 3. Keep newly created local appointments not yet returned by server
-            const serverIdSet = new Set(mergedServerAppts.map(a => a.id));
-            const newLocalAppts = prev.filter(localA => {
-              if (serverIdSet.has(localA.id)) return false;
-              const delTime = recentlyDeletedApptIdsRef.current.get(localA.id);
-              if (delTime && currentTime - delTime < 45000) return false;
-              return true;
-            });
-
-            return [...mergedServerAppts, ...newLocalAppts];
-          });
+        if (appts) {
+          seedDocCache('appointments', appts);
+          setAppointments(prev => mergeWithLocalProtection('appointments', prev, appts, false));
         }
-        if (stf && stf.length > 0) setStaff(stf);
-        if (procs && procs.length > 0) setProcedures(procs);
-        if (att) setAttendanceRecords(att);
-        if (shifts) setMachineShifts(shifts);
-        if (tpls && tpls.length > 0) {
+        if (stf) {
+          seedDocCache('staff', stf);
+          setStaff(prev => mergeWithLocalProtection('staff', prev, stf, false));
+        }
+        if (procs) {
+          seedDocCache('procedures', procs);
+          setProcedures(prev => mergeWithLocalProtection('procedures', prev, procs, false));
+        }
+        if (att) {
+          seedDocCache('attendance', att);
+          setAttendanceRecords(prev => mergeWithLocalProtection('attendance', prev, att, false));
+        }
+        if (shifts) {
+          seedDocCache('machineShifts', shifts);
+          setMachineShifts(prev => mergeWithLocalProtection('machineShifts', prev, shifts, false));
+        }
+        if (tpls) {
           const sanitizedTpls = tpls
-            .filter(t => !t.id?.startsWith('snap_'))
+            .filter(t => !t.id?.startsWith('snap_') && !(Array.isArray((t as any).appointments) && !Array.isArray(t.procedures)))
             .map(t => ({
               ...t,
               procedures: t.procedures || []
             }));
-          setTemplates(sanitizedTpls);
+          seedDocCache('templates', sanitizedTpls);
+          setTemplates(prev => mergeWithLocalProtection('templates', prev, sanitizedTpls, false));
         }
-        if (usrs && usrs.length > 0) setUsers(usrs);
+        if (usrs && usrs.length > 0) {
+          seedDocCache('users', usrs);
+          setUsers(prev => mergeWithLocalProtection('users', prev, usrs, false));
+        }
         if (snapshots && snapshots.length > 0) {
+          seedDocCache('scheduleSnapshots', snapshots);
           setScheduleSnapshots(prev => {
-            const currentTime = Date.now();
-            const merged = snapshots.map(serverSnap => {
-              const recent = recentlySavedSnapshotsRef.current.get(serverSnap.id);
-              if (recent && currentTime - recent.timestamp < 45000) {
-                return recent.snapshot;
-              }
-              return serverSnap;
-            });
-            const serverMap = new Map(merged.map(s => [s.id, s]));
-            const localOnly = prev.filter(local => !serverMap.has(local.id));
-            const finalSnapshots = [...merged, ...localOnly];
+            const finalSnapshots = mergeWithLocalProtection('scheduleSnapshots', prev, snapshots, false);
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(finalSnapshots.slice(-30)));
+                const trimmed = finalSnapshots.slice(-30);
+                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(trimmed));
+                localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(trimmed));
               } catch (e) {}
             }
             return finalSnapshots;
           });
-        } else {
-          // Restore from localStorage if server snapshots were empty
-          if (typeof window !== 'undefined') {
-            try {
-              const local = localStorage.getItem('medflow_schedule_snapshots') || localStorage.getItem('medflow_local_schedule_snapshots');
-              if (local) {
-                const parsed = JSON.parse(local);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  setScheduleSnapshots(parsed);
+        } else if (snapshots !== null) {
+          setScheduleSnapshots(prev => {
+            if (prev.length > 0) {
+              return mergeWithLocalProtection('scheduleSnapshots', prev, snapshots, false);
+            }
+            if (typeof window !== 'undefined') {
+              try {
+                const local = localStorage.getItem('medflow_schedule_snapshots') || localStorage.getItem('medflow_local_schedule_snapshots');
+                if (local) {
+                  const parsed = JSON.parse(local);
+                  if (Array.isArray(parsed) && parsed.length > 0) return parsed;
                 }
-              }
-            } catch (e) {}
-          }
+              } catch (e) {}
+            }
+            return prev;
+          });
         }
-        if (bkps) setBackups(bkps);
+        if (bkps) {
+          seedDocCache('backups', bkps);
+          setBackups(prev => mergeWithLocalProtection('backups', prev, bkps, false));
+        }
 
         setLoadedCollections({
           patients: true,
@@ -658,9 +732,7 @@ const App: React.FC = () => {
         { event: '*', schema: 'public' },
         (payload) => {
           const tableName = payload.table;
-          let collectionName = tableName;
-          if (tableName === 'machine_shifts') collectionName = 'machineShifts';
-          if (tableName === 'schedule_snapshots' || tableName === 'scheduleSnapshots') collectionName = 'scheduleSnapshots';
+          let collectionName = normalizeCollectionName(tableName);
 
           const oldId = (payload.old as any)?.id;
           const newId = (payload.new as any)?.id;
@@ -676,7 +748,7 @@ const App: React.FC = () => {
             const docId = isSnapshotRow ? rawDocId.replace(/^snap_/, '') : rawDocId;
             if (docId) {
               const event = new CustomEvent('db-change', {
-                detail: { collectionName, docId, data: null, action: 'delete' }
+                detail: { collectionName, docId, data: null, action: 'delete', source: 'realtime' }
               });
               window.dispatchEvent(event);
             }
@@ -686,7 +758,7 @@ const App: React.FC = () => {
               const cleanDocId = isSnapshotRow ? row.id.replace(/^snap_/, '') : row.id;
               const itemData = row.data && typeof row.data === 'object' ? { ...row.data, id: cleanDocId } : { ...row, id: cleanDocId };
               const event = new CustomEvent('db-change', {
-                detail: { collectionName, docId: cleanDocId, data: itemData, action: 'set' }
+                detail: { collectionName, docId: cleanDocId, data: itemData, action: 'set', source: 'realtime' }
               });
               window.dispatchEvent(event);
             }
@@ -868,14 +940,10 @@ const App: React.FC = () => {
       // Save to Supabase and database
       const cleanPatient = JSON.parse(JSON.stringify(patient, (key, value) => value === undefined ? null : value));
       await setDoc(doc(db, "patients", patient.id), cleanPatient);
-      if (apptsToDelete.length > 0) {
-        const ids = apptsToDelete.map(a => a.id);
-        await deleteSupabaseBatch('appointments', ids);
-        if (db) {
-          for (const id of ids) {
-            deleteDoc(doc(db, "appointments", id)).catch(() => {});
-          }
-        }
+      if (apptsToDelete.length > 0 && db) {
+        const batch = writeBatch(db);
+        apptsToDelete.forEach(a => batch.delete(doc(db, "appointments", a.id)));
+        await batch.commit();
       }
     } catch (error) { 
       console.error("Error saving patient:", error);
@@ -904,11 +972,10 @@ const App: React.FC = () => {
       if (isAdmin && patientAppointments.length > 0) {
         patientAppointments.forEach(a => recentlyDeletedApptIdsRef.current.set(a.id, now));
         setAppointments(prev => prev.filter(appt => appt.patientId !== patientId));
-        await deleteSupabaseBatch('appointments', patientAppointments.map(a => a.id));
         if (db) {
-          for (const a of patientAppointments) {
-            deleteDoc(doc(db, "appointments", a.id)).catch(() => {});
-          }
+          const batch = writeBatch(db);
+          patientAppointments.forEach(a => batch.delete(doc(db, "appointments", a.id)));
+          await batch.commit();
         }
       }
 
@@ -1080,9 +1147,36 @@ const App: React.FC = () => {
     return `${year}-${month}-${day}`;
   };
 
+  const areApptListsEqual = (listA: Appointment[], listB: Appointment[]) => {
+    if (listA.length !== listB.length) return false;
+    const normalize = (arr: Appointment[]) =>
+      [...arr]
+        .sort((a, b) => (a.id || '').localeCompare(b.id || ''))
+        .map(a => ({
+          id: a.id,
+          patientId: a.patientId,
+          procedureId: a.procedureId,
+          staffId: a.staffId || '',
+          assistant1Id: a.assistant1Id || null,
+          assistant2Id: a.assistant2Id || null,
+          date: a.date,
+          startTime: a.startTime,
+          endTime: a.endTime,
+          deptId: a.deptId,
+          assignedMachineId: a.assignedMachineId || null,
+          machineShiftId: a.machineShiftId || null,
+          notes: a.notes || '',
+          selectedDurationOptionId: a.selectedDurationOptionId || null,
+        }));
+    return JSON.stringify(normalize(listA)) === JSON.stringify(normalize(listB));
+  };
+
   const autoFinalizeScheduleSnapshotForDate = (deptId: string, dateStr: string) => {
     if (!deptId || !dateStr) return;
     try {
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+
       const deptAppts = appointments.filter(a => a.deptId === deptId && a.date === dateStr);
       const snapshotId = `${deptId}_${dateStr}`;
       const snapObj: ScheduleSnapshot = {
@@ -1094,6 +1188,7 @@ const App: React.FC = () => {
         appointments: JSON.parse(JSON.stringify(deptAppts))
       };
 
+      recentlySavedSnapshotsRef.current.set(snapshotId, { snapshot: snapObj, timestamp: now });
       setSessionBaseline(deptId, dateStr, deptAppts);
       clearDeletedSessionAppointments(deptId, dateStr);
 
@@ -1113,14 +1208,9 @@ const App: React.FC = () => {
         return updated;
       });
 
-      // Lập tức lưu lên Firestore & Supabase khi chuyển ngày làm việc
-      if (db) {
-        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(err => {
-          console.warn('Error auto saving snapshot to Firestore on date change:', err);
-        });
-      }
-      saveScheduleSnapshotToSupabase(snapObj).catch(err => {
-        console.warn('Error auto saving snapshot to Supabase:', err);
+      // Lập tức lưu lên Supabase & Firestore khi chuyển ngày làm việc
+      setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(err => {
+        console.warn('Error auto saving snapshot on date change:', err);
       });
     } catch (err) {
       console.warn('Error in autoFinalizeScheduleSnapshotForDate:', err);
@@ -1129,6 +1219,23 @@ const App: React.FC = () => {
 
   const handleDateChange = (newDate: string) => {
     if (!newDate || newDate === activeDate) return;
+    if (
+      currentDept &&
+      canEditCurrentDept &&
+      loadedCollections.appointments &&
+      loadedCollections.scheduleSnapshots
+    ) {
+      const prevDateAppts = appointments.filter(a => a.deptId === currentDept.id && a.date === activeDate);
+      const existingSnap = scheduleSnapshots.find(s => s.deptId === currentDept.id && s.date === activeDate);
+      const deletedSession = getDeletedSessionAppointments(currentDept.id, activeDate);
+      const hasChangesVsExisting = existingSnap
+        ? !areApptListsEqual(prevDateAppts, existingSnap.appointments || []) || deletedSession.length > 0
+        : prevDateAppts.length > 0 || deletedSession.length > 0;
+
+      if (hasChangesVsExisting) {
+        autoFinalizeScheduleSnapshotForDate(currentDept.id, activeDate);
+      }
+    }
     setActiveDate(newDate);
   };
 
@@ -1168,12 +1275,7 @@ const App: React.FC = () => {
         return updated;
       });
 
-      await saveScheduleSnapshotToSupabase(snapObj);
-      if (db) {
-        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(err => {
-          console.warn('Firestore snapshot mirror note:', err);
-        });
-      }
+      await setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj);
 
       alert(`Đã lưu chốt mốc phiên bản ngày ${formatDateVi(dateStr)} thành công!`);
     } catch (err) {
@@ -1645,8 +1747,9 @@ const App: React.FC = () => {
       newAppointments.forEach(a => recentlyUpdatedApptsRef.current.set(a.id, { appt: a, timestamp: now }));
 
       console.log(`Saving ${newAppointments.length} new appointments...`);
-      const savePromises = newAppointments.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
-      await Promise.all(savePromises);
+      const saveBatch = writeBatch(db);
+      newAppointments.forEach(appt => saveBatch.set(doc(db, "appointments", appt.id), appt));
+      await saveBatch.commit();
 
       // Cập nhật React state ngay lập tức
       setAppointments(prev => {
@@ -1667,6 +1770,7 @@ const App: React.FC = () => {
         createdBy: currentUser?.fullName || 'Tải ngày mẫu',
         appointments: JSON.parse(JSON.stringify(finalApptsOnActiveDate))
       };
+      recentlySavedSnapshotsRef.current.set(snapshotId, { snapshot: snapObj, timestamp: now });
       setSessionBaseline(currentDept.id, activeDate, finalApptsOnActiveDate);
       clearDeletedSessionAppointments(currentDept.id, activeDate);
       setScheduleSnapshots(prev => {
@@ -1674,18 +1778,14 @@ const App: React.FC = () => {
         const updated = [...filtered, snapObj];
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(updated));
-            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(updated));
+            const trimmed = updated.slice(-30);
+            localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(trimmed));
+            localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(trimmed));
           } catch (e) {}
         }
         return updated;
       });
-      if (db) {
-        setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(e => console.warn(e));
-      }
-      if (isSupabaseConfigured()) {
-        saveScheduleSnapshotToSupabase(snapObj).catch(e => console.warn(e));
-      }
+      setDoc(doc(db, 'scheduleSnapshots', snapshotId), snapObj).catch(e => console.warn(e));
 
       alert(`Đã load thành công ${newAppointments.length} chỉ định từ ngày ${options.sourceDate}.`);
     } catch (e) {
@@ -1697,14 +1797,12 @@ const App: React.FC = () => {
   const handleUndoBatchLoad = async () => {
     if (!db || !currentDept || !undoData) return;
     try {
-      // 1. Xóa các chỉ định hiện tại của khoa trong ngày
+      // 1. Xóa các chỉ định hiện tại của khoa trong ngày & khôi phục từ undoData
       const currentDeptAppts = appointments.filter(a => a.date === activeDate && a.deptId === currentDept.id);
-      const deletePromises = currentDeptAppts.map(appt => deleteDoc(doc(db, "appointments", appt.id)));
-      await Promise.all(deletePromises);
-
-      // 2. Khôi phục từ undoData
-      const restorePromises = undoData.map(appt => setDoc(doc(db, "appointments", appt.id), appt));
-      await Promise.all(restorePromises);
+      const batch = writeBatch(db);
+      currentDeptAppts.forEach(appt => batch.delete(doc(db, "appointments", appt.id)));
+      undoData.forEach(appt => batch.set(doc(db, "appointments", appt.id), appt));
+      await batch.commit();
 
       setAppointments(prev => {
         const filtered = prev.filter(a => !(a.date === activeDate && a.deptId === currentDept.id));
@@ -1752,13 +1850,16 @@ const App: React.FC = () => {
           conflictDetails: conflictRes.conflictDetails,
           assignedMachineId: appt.assignedMachineId || conflictRes.assignedMachineId || null
         };
-        await setDoc(doc(db, "appointments", appt.id), updatedAppt);
         updatedApptList.push(updatedAppt as Appointment);
         updatedCount++;
       }
     }
 
     if (updatedApptList.length > 0) {
+      const batch = writeBatch(db);
+      updatedApptList.forEach(a => batch.set(doc(db, "appointments", a.id), a));
+      await batch.commit();
+
       setAppointments(prev => {
         const map = new Map(updatedApptList.map(a => [a.id, a]));
         return prev.map(a => map.get(a.id) || a);
@@ -2043,9 +2144,6 @@ const App: React.FC = () => {
     setEditingStaff(null);
 
     try {
-      if (isSupabaseConfigured()) {
-        await saveSupabaseItem('staff', newStaff.id, newStaff);
-      }
       if (db) {
         await setDoc(doc(db, "staff", newStaff.id), newStaff);
       }
@@ -2067,9 +2165,6 @@ const App: React.FC = () => {
     setStaff(prev => prev.filter(s => s.id !== staffId));
 
     try {
-      if (isSupabaseConfigured()) {
-        await deleteSupabaseItem('staff', staffId);
-      }
       if (db) {
         await deleteDoc(doc(db, "staff", staffId));
       }
@@ -2455,6 +2550,7 @@ const App: React.FC = () => {
     }
 
     // 1. Optimistic update: instantly update local React state so UI changes are immediate (0ms latency)!
+    lastUserActionTimeRef.current = Date.now();
     setProcedures(updatedProcs);
 
     try {
@@ -2470,29 +2566,15 @@ const App: React.FC = () => {
         return JSON.stringify(existing) !== JSON.stringify(p);
       });
 
-      // Supabase sync
-      if (isSupabaseConfigured()) {
-        for (const id of idsToDelete) {
-          await deleteSupabaseItem('procedures', id);
-        }
-        for (const p of changedOrNewProcs) {
-          await saveSupabaseItem('procedures', p.id, p);
-        }
-      }
-
-      // Firestore sync
-      if (db) {
-        const promises: Promise<void>[] = [];
-        for (const id of idsToDelete) {
-          promises.push(deleteDoc(doc(db, "procedures", id)));
-        }
-        for (const p of changedOrNewProcs) {
+      // 4. Unified batch persistence to Supabase + Firestore
+      if (db && (idsToDelete.length > 0 || changedOrNewProcs.length > 0)) {
+        const batch = writeBatch(db);
+        idsToDelete.forEach(id => batch.delete(doc(db, "procedures", id)));
+        changedOrNewProcs.forEach(p => {
           const procData: any = JSON.parse(JSON.stringify(p));
-          promises.push(setDoc(doc(db, "procedures", p.id), procData));
-        }
-        if (promises.length > 0) {
-          await Promise.all(promises);
-        }
+          batch.set(doc(db, "procedures", p.id), procData);
+        });
+        await batch.commit();
       }
     } catch (error) {
       console.error("Error updating procedures:", error);
@@ -2539,14 +2621,10 @@ const App: React.FC = () => {
       }
 
       await setDoc(doc(db, "patients", p.id), updatedPatient);
-      if (apptsToDelete.length > 0) {
-        const ids = apptsToDelete.map(a => a.id);
-        await deleteSupabaseBatch('appointments', ids);
-        if (db) {
-          for (const id of ids) {
-            deleteDoc(doc(db, "appointments", id)).catch(() => {});
-          }
-        }
+      if (apptsToDelete.length > 0 && db) {
+        const batch = writeBatch(db);
+        apptsToDelete.forEach(a => batch.delete(doc(db, "appointments", a.id)));
+        await batch.commit();
       }
       return true;
     } catch (e) { 
