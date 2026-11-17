@@ -70,3 +70,79 @@ export const parseCSV = (text: string): string[][] => {
     .filter(row => row.length > 0);
 };
 
+/**
+ * Copy tabular data to clipboard in Excel-compatible format (TSV plain text + HTML table).
+ */
+export const copyTableToClipboard = async (
+  data: any[],
+  headers: { label: string; key: string }[]
+): Promise<boolean> => {
+  const cleanCell = (val: unknown): string =>
+    String(val ?? '')
+      .replace(/[\r\n\t]+/g, ' ')
+      .trim();
+
+  const headerLine = headers.map(h => cleanCell(h.label)).join('\t');
+  const dataLines = data.map(row =>
+    headers.map(h => cleanCell(row[h.key])).join('\t')
+  );
+  const tsvText = [headerLine, ...dataLines].join('\n');
+
+  const escapeHtml = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const htmlHeader = `<tr>${headers.map(h => `<th>${escapeHtml(cleanCell(h.label))}</th>`).join('')}</tr>`;
+  const htmlRows = data
+    .map(
+      row =>
+        `<tr>${headers
+          .map(h => `<td>${escapeHtml(cleanCell(row[h.key]))}</td>`)
+          .join('')}</tr>`
+    )
+    .join('');
+  const htmlTable = `<table><thead>${htmlHeader}</thead><tbody>${htmlRows}</tbody></table>`;
+
+  try {
+    if (navigator.clipboard && typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': new Blob([tsvText], { type: 'text/plain' }),
+          'text/html': new Blob([htmlTable], { type: 'text/html' })
+        })
+      ]);
+      return true;
+    }
+  } catch {
+    // Fall through to writeText / textarea fallback
+  }
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(tsvText);
+      return true;
+    }
+  } catch {
+    // Fall through to execCommand fallback
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = tsvText;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+};
+

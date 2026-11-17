@@ -3,8 +3,8 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, DepartmentType, UserAccount, UserRole, ScheduleSnapshot, AttendanceRecord, ConflictDetail } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString, checkConflict, getLocalDateString, getPatientDischargeTag } from '../utils/timeUtils';
-import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X } from 'lucide-react';
-import { downloadCSV } from '../utils/csvUtils';
+import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, Link2, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X } from 'lucide-react';
+import { downloadCSV, copyTableToClipboard } from '../utils/csvUtils';
 import { getBaselineAppointments, getAllBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
 import { DateInput } from './DateInput';
@@ -299,6 +299,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [filterModifiedOnly, setFilterModifiedOnly] = useState<boolean>(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
   const [isSavingSnapshot, setIsSavingSnapshot] = useState<boolean>(false);
+  const [copiedCsv, setCopiedCsv] = useState<boolean>(false);
 
   const baselineInfo = useMemo(() => {
     if (!currentDept) return { baselineAppts: [], isExplicitSnapshot: false, snapshotInfo: undefined };
@@ -1113,9 +1114,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     printWindow.document.close();
   };
 
-  const handleExportCSVTimeline = () => {
-    const formattedDate = new Date(date).toLocaleDateString('vi-VN');
-    
+  const buildFilteredTimelineExportData = () => {
     const getFirstName = (fullName: string) => {
         const parts = fullName.trim().split(' ');
         return parts[parts.length - 1] || '';
@@ -1187,7 +1186,21 @@ export const Timeline: React.FC<TimelineProps> = ({
       { label: 'Ghi chú', key: 'note' }
     ];
 
+    return { csvData, headers };
+  };
+
+  const handleExportCSVTimeline = () => {
+    const { csvData, headers } = buildFilteredTimelineExportData();
     downloadCSV(csvData, `Timeline_Tong_${date}.csv`, headers);
+  };
+
+  const handleCopyCSVTimeline = async () => {
+    const { csvData, headers } = buildFilteredTimelineExportData();
+    const ok = await copyTableToClipboard(csvData, headers);
+    if (ok) {
+      setCopiedCsv(true);
+      setTimeout(() => setCopiedCsv(false), 2000);
+    }
   };
 
   if (viewMode === 'GENERAL') {
@@ -1235,6 +1248,20 @@ export const Timeline: React.FC<TimelineProps> = ({
               title="Xuất file CSV Timeline"
             >
               <FileText size={16} />
+            </button>
+
+            {/* Nút Copy bảng CSV (dạng bảng Excel/TSV) */}
+            <button 
+              type="button"
+              onClick={handleCopyCSVTimeline} 
+              className={`flex items-center justify-center w-9 h-9 border rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0 ${
+                copiedCsv
+                  ? 'bg-emerald-600 border-emerald-700 text-white'
+                  : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300'
+              }`}
+              title={copiedCsv ? 'Đã copy bảng CSV vào bộ nhớ tạm!' : 'Copy bảng đang lọc (dán trực tiếp vào Excel hoặc Extension)'}
+            >
+              {copiedCsv ? <Check size={16} /> : <Link2 size={16} />}
             </button>
 
             {/* Nút Kiểm tra lỗi */}
