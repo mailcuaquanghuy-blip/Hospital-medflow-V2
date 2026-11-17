@@ -19,7 +19,9 @@ import {
   deleteSupabaseItem, 
   saveSupabaseBatch, 
   deleteSupabaseBatch, 
-  fetchSupabaseTable 
+  fetchSupabaseTable,
+  fetchScheduleSnapshotsFromSupabase,
+  fetchBackupsFromSupabase
 } from './supabaseService';
 
 export { db };
@@ -33,7 +35,7 @@ export const normalizeCollectionName = (collectionName: string): string => {
 export const getSupabaseTableName = (collectionName: string): string => {
   const norm = normalizeCollectionName(collectionName);
   if (norm === 'machineShifts') return 'machine_shifts';
-  if (norm === 'scheduleSnapshots') return 'templates';
+  if (norm === 'scheduleSnapshots' || norm === 'backups') return 'templates';
   return norm;
 };
 
@@ -41,8 +43,13 @@ const resolveTargets = (collectionName: string, docId: string) => {
   const normColl = normalizeCollectionName(collectionName);
   const sbTable = getSupabaseTableName(normColl);
   const isSnapshot = normColl === 'scheduleSnapshots';
-  const cleanId = isSnapshot ? docId.replace(/^snap_/, '') : docId;
-  const sbId = isSnapshot ? `snap_${cleanId}` : cleanId;
+  const isBackup = normColl === 'backups';
+  const cleanId = isSnapshot
+    ? docId.replace(/^snap_/, '')
+    : (isBackup ? docId.replace(/^bkp_/, '') : docId);
+  const sbId = isSnapshot
+    ? `snap_${cleanId}`
+    : (isBackup ? `bkp_${cleanId}` : cleanId);
   return { normColl, sbTable, sbId, cleanId, isSnapshot };
 };
 
@@ -115,7 +122,9 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const hasPendingSync = (collectionName: string, docId: string): boolean => {
   const norm = normalizeCollectionName(collectionName);
-  const cleanId = norm === 'scheduleSnapshots' ? docId.replace(/^snap_/, '') : docId;
+  const cleanId = norm === 'scheduleSnapshots'
+    ? docId.replace(/^snap_/, '')
+    : (norm === 'backups' ? docId.replace(/^bkp_/, '') : docId);
   return pendingSyncOps.has(`${norm}:${cleanId}`);
 };
 
@@ -169,7 +178,7 @@ if (typeof window !== 'undefined') {
 }
 
 const updateLocalCollectionCache = (collectionName: string, docId: string, cleanData: any, action: 'set' | 'delete') => {
-  if (typeof window === 'undefined' || collectionName === 'appointments' || collectionName === 'scheduleSnapshots') return;
+  if (typeof window === 'undefined' || collectionName === 'appointments' || collectionName === 'scheduleSnapshots' || collectionName === 'backups') return;
   try {
     const localKey = `medflow_local_${collectionName}`;
     const existing = localStorage.getItem(localKey);
@@ -430,9 +439,17 @@ export const getDoc = async (docRef: any) => {
 
 export const getDocs = async (collRef: any) => {
   const collName = collRef?.id || collRef?.collectionName || (typeof collRef === 'string' ? collRef : '');
+  const normColl = normalizeCollectionName(collName);
   try {
-    const sbTable = getSupabaseTableName(collName);
-    const sbItems = await fetchSupabaseTable<any>(sbTable);
+    let sbItems: any[] | null = null;
+    if (normColl === 'backups') {
+      sbItems = await fetchBackupsFromSupabase<any>();
+    } else if (normColl === 'scheduleSnapshots') {
+      sbItems = await fetchScheduleSnapshotsFromSupabase();
+    } else {
+      const sbTable = getSupabaseTableName(normColl);
+      sbItems = await fetchSupabaseTable<any>(sbTable);
+    }
     if (sbItems && sbItems.length > 0) {
       const docs = sbItems.map(item => ({
         id: item.id,

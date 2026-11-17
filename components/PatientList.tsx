@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { DateTimePicker } from './DateTimePicker';
 import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
-import { Search, Plus, User, MapPin, Bed, LogOut, FileText, Edit3, Printer, Send, Activity, FlaskConical, HeartPulse, CheckCircle2, Clock, Building2, Filter, Calendar, CheckSquare, Trash2, AlertTriangle, Power, CheckCircle, RotateCcw, X, XCircle, Pill, ChevronDown, DoorOpen, Download, Shield, Upload, ArrowUpDown, ArrowUp, ArrowDown, ArrowUpAZ, ArrowDownZA, Check, Wrench } from 'lucide-react';
+import { Search, Plus, User, MapPin, Bed, LogOut, FileText, Edit3, Printer, Send, Activity, FlaskConical, HeartPulse, CheckCircle2, Clock, Building2, Filter, Calendar, CheckSquare, Trash2, AlertTriangle, Power, CheckCircle, RotateCcw, X, XCircle, Pill, ChevronDown, DoorOpen, Download, Shield, Upload, ArrowUpDown, ArrowUp, ArrowDown, ArrowUpAZ, ArrowDownZA, Check, Wrench, RefreshCw } from 'lucide-react';
 import { calculateAge, getAbbreviation, timeStringToMinutes, getPatientDischargeTag } from '../utils/timeUtils';
 import { DEPARTMENTS } from '../constants';
 import { Appointment, Procedure, Staff } from '../types';
@@ -49,6 +49,7 @@ interface PatientListProps {
   staff: Staff[];
   currentUser?: UserAccount;
   onAddPatient: () => void;
+  onOpenHisSync?: () => void;
   onEditPatient: (p: Patient) => void;
   onDeletePatient: (patientId: string) => void;
   onUpdateStatus: (patient: Patient, status: PatientStatus, dischargeDate?: string) => Promise<boolean> | void;
@@ -67,6 +68,7 @@ export const PatientList: React.FC<PatientListProps> = ({
   staff,
   currentUser,
   onAddPatient,
+  onOpenHisSync,
   onEditPatient,
   onDeletePatient,
   onUpdateStatus,
@@ -1247,17 +1249,29 @@ export const PatientList: React.FC<PatientListProps> = ({
         </div>
 
         {!isSupportDept && (
-          <div className="relative shrink-0" ref={addMenuRef}>
-            <div className="flex items-center shadow-md shadow-primary/10 rounded-xl overflow-hidden border border-primary/20 bg-primary">
-              <button 
+          <div className="flex items-center gap-2 shrink-0">
+            {onOpenHisSync && (
+              <button
                 type="button"
-                onClick={onAddPatient}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white hover:bg-primary/90 transition-all active:scale-95 cursor-pointer"
-                title="BN vào khoa mới"
+                onClick={onOpenHisSync}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition-all active:scale-95 cursor-pointer shadow-xs"
+                title="Đồng bộ & đối chiếu danh sách bệnh nhân từ VNPT-HIS / Extension"
               >
-                <Plus size={16} />
-                <span>Thêm</span>
+                <RefreshCw size={14} />
+                <span>Đồng bộ HIS</span>
               </button>
+            )}
+            <div className="relative shrink-0" ref={addMenuRef}>
+              <div className="flex items-center shadow-md shadow-primary/10 rounded-xl overflow-hidden border border-primary/20 bg-primary">
+                <button 
+                  type="button"
+                  onClick={onAddPatient}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white hover:bg-primary/90 transition-all active:scale-95 cursor-pointer"
+                  title="BN vào khoa mới"
+                >
+                  <Plus size={16} />
+                  <span>Thêm</span>
+                </button>
               <button 
                 type="button"
                 onClick={() => setIsAddMenuOpen(prev => !prev)}
@@ -1306,6 +1320,7 @@ export const PatientList: React.FC<PatientListProps> = ({
                 </button>
               </div>
             )}
+            </div>
           </div>
         )}
       </div>

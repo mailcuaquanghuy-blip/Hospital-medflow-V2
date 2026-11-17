@@ -23,7 +23,11 @@ export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | nu
     let from = 0;
     const step = 1000;
     while (true) {
-      const res = await supabase.from(tableName).select('*').range(from, from + step - 1);
+      let queryBuilder = supabase.from(tableName).select('*');
+      if (tableName === 'templates') {
+        queryBuilder = queryBuilder.not('id', 'like', 'snap_%').not('id', 'like', 'bkp_%');
+      }
+      const res = await queryBuilder.range(from, from + step - 1);
       if (res.error) {
         console.warn(`[Supabase fetch] Error on ${tableName}:`, res.error.message);
         return null;
@@ -56,12 +60,14 @@ export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | nu
 }
 
 export async function saveSupabaseItem(tableName: string, id: string, itemData: any): Promise<boolean> {
-  // Save to local storage as continuous fallback (skip appointments to prevent UI freeze)
-  updateLocalTableCache(tableName, list => {
-    const filtered = list.filter(item => item.id !== id);
-    filtered.push({ ...itemData, id });
-    return filtered;
-  });
+  // Save to local storage as continuous fallback (skip appointments and prefixed backup/snapshot rows in templates)
+  if (!(tableName === 'templates' && (id.startsWith('snap_') || id.startsWith('bkp_')))) {
+    updateLocalTableCache(tableName, list => {
+      const filtered = list.filter(item => item.id !== id);
+      filtered.push({ ...itemData, id });
+      return filtered;
+    });
+  }
 
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -124,7 +130,9 @@ export async function saveSupabaseBatch(tableName: string, items: Array<{ id: st
 }
 
 export async function deleteSupabaseItem(tableName: string, id: string): Promise<boolean> {
-  updateLocalTableCache(tableName, list => list.filter(item => item.id !== id));
+  if (!(tableName === 'templates' && (id.startsWith('snap_') || id.startsWith('bkp_')))) {
+    updateLocalTableCache(tableName, list => list.filter(item => item.id !== id));
+  }
 
   const maxAttempts = 2;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -174,7 +182,7 @@ export async function deleteSupabaseBatch(tableName: string, ids: string[]): Pro
 
 export async function resetSupabaseDatabase(): Promise<boolean> {
   try {
-    const tables = ['patients', 'staff', 'appointments', 'machine_shifts', 'attendance', 'procedures', 'users', 'schedule_snapshots', 'scheduleSnapshots', 'backups'];
+    const tables = ['patients', 'staff', 'appointments', 'machine_shifts', 'attendance', 'procedures', 'users', 'templates'];
     for (const tableName of tables) {
       const { error } = await supabase.from(tableName).delete().neq('id', 'dummy_nonexistent_id');
       if (error) {
@@ -281,4 +289,32 @@ export async function deleteScheduleSnapshotFromSupabase(snapshotId: string): Pr
   }
 }
 
+export async function fetchBackupsFromSupabase<T>(): Promise<T[] | null> {
+  try {
+    const { data: bkpRows, error } = await supabase
+      .from('templates')
+      .select('*')
+      .like('id', 'bkp_%');
+
+    if (error) {
+      console.warn('Error fetching backups from Supabase:', error.message);
+      return null;
+    }
+
+    if (bkpRows && bkpRows.length > 0) {
+      return bkpRows.map(row => {
+        const rawId = row.id.replace(/^bkp_/, '');
+        if (row.data && typeof row.data === 'object') {
+          return { ...row.data, id: rawId };
+        }
+        return { ...row, id: rawId };
+      }) as T[];
+    }
+
+    return [];
+  } catch (e) {
+    console.warn('Error fetching backups from Supabase:', e);
+    return null;
+  }
+}
 

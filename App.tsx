@@ -6,7 +6,7 @@ import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN,
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation, getLocalDateString } from './utils/timeUtils';
 import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments, clearAllSessionBaselines, getDeletedSessionAppointments, formatDateVi } from './utils/scheduleHistoryUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
-import { isSupabaseConfigured, fetchSupabaseTable, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase } from './utils/supabaseService';
+import { isSupabaseConfigured, fetchSupabaseTable, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase, fetchBackupsFromSupabase } from './utils/supabaseService';
 import { supabase } from './supabaseClient';
 import { Timeline } from './components/Timeline';
 import { DailyReport } from './components/DailyReport';
@@ -23,6 +23,8 @@ import { LoginLoader } from './components/LoginLoader';
 import { AccountManager } from './components/AccountManager';
 import { BackupManager } from './components/BackupManager';
 import { DepartmentBackupModal } from './components/DepartmentBackupModal';
+import { HisSyncModal } from './components/HisSyncModal';
+import { HisIncomingPatient } from './utils/hisSyncUtils';
 import { BatchLoadOptions } from './components/BatchLoadModal';
 import { Button } from './components/Button';
 import { DateTimePicker } from './components/DateTimePicker';
@@ -76,6 +78,7 @@ const App: React.FC = () => {
     machineShifts: false,
     procedures: false,
     scheduleSnapshots: false,
+    backups: false,
   });
   
   const [currentDept, setCurrentDept] = useState<Department | null>(null);
@@ -158,6 +161,13 @@ const App: React.FC = () => {
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Partial<Staff> | null>(null);
   const [isDeptBackupModalOpen, setIsDeptBackupModalOpen] = useState(false);
+  const [isHisSyncModalOpen, setIsHisSyncModalOpen] = useState(false);
+  const [hisSyncIncomingBatch, setHisSyncIncomingBatch] = useState<{
+    patients: HisIncomingPatient[];
+    deptId?: string;
+    deptName?: string;
+    receivedAt: number;
+  } | null>(null);
 
   // Department quick switcher dropdown in header
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
@@ -172,6 +182,61 @@ const App: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Bridge lắng nghe dữ liệu đồng bộ từ Chrome Extension VNPT-HIS
+  useEffect(() => {
+    const processIncomingSync = (payload: any, replyTarget?: Window | null) => {
+      if (!payload || !Array.isArray(payload.patients)) return;
+      setHisSyncIncomingBatch({
+        patients: payload.patients,
+        deptId: payload.deptId,
+        deptName: payload.deptName,
+        receivedAt: Date.now()
+      });
+      setIsHisSyncModalOpen(true);
+      try {
+        (replyTarget || window).postMessage({
+          type: 'MEDFLOW_SYNC_ACK',
+          receivedCount: payload.patients.length,
+          currentDeptId: currentDept?.id || null,
+          currentDeptName: currentDept?.name || null
+        }, '*');
+      } catch (e) {}
+    };
+
+    const handleWindowMessage = (event: MessageEvent) => {
+      const msg = event.data;
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.type === 'MEDFLOW_SYNC_PING') {
+        try {
+          (event.source as Window | null)?.postMessage?.({
+            type: 'MEDFLOW_SYNC_PONG',
+            version: '1.0',
+            loggedIn: Boolean(currentUser),
+            currentDeptId: currentDept?.id || null,
+            currentDeptName: currentDept?.name || null,
+            activeDate
+          }, '*');
+        } catch (e) {}
+      } else if (msg.type === 'MEDFLOW_SYNC_PATIENTS') {
+        processIncomingSync(msg, event.source as Window | null);
+      }
+    };
+
+    const handleCustomSyncEvent = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      processIncomingSync(detail);
+    };
+
+    (window as any).medflowSyncPatients = (payload: any) => processIncomingSync(payload);
+    window.addEventListener('message', handleWindowMessage);
+    window.addEventListener('medflow-sync-patients', handleCustomSyncEvent);
+    return () => {
+      window.removeEventListener('message', handleWindowMessage);
+      window.removeEventListener('medflow-sync-patients', handleCustomSyncEvent);
+      delete (window as any).medflowSyncPatients;
+    };
+  }, [currentUser, currentDept?.id, currentDept?.name, activeDate]);
 
   const authorizedDepartments = useMemo(() => {
     if (!currentUser) return [];
@@ -200,15 +265,17 @@ const App: React.FC = () => {
       const source: 'local' | 'broadcast' | 'realtime' = detail.source || 'local';
 
       if (!collectionName || !docId) return;
-      if (collectionName === 'templates' && docId.startsWith('snap_')) {
+      if (collectionName === 'templates' && (docId.startsWith('snap_') || docId.startsWith('bkp_'))) {
         return;
       }
-      if (collectionName === 'templates' && action === 'set' && data && Array.isArray(data.appointments) && !Array.isArray(data.procedures)) {
+      if (collectionName === 'templates' && action === 'set' && data && ((Array.isArray(data.appointments) && !Array.isArray(data.procedures)) || data.backupDate || data.snapshot)) {
         return;
       }
 
       const now = Date.now();
-      const normalizedDocId = collectionName === 'scheduleSnapshots' ? docId.replace(/^snap_/, '') : docId;
+      const normalizedDocId = collectionName === 'scheduleSnapshots'
+        ? docId.replace(/^snap_/, '')
+        : (collectionName === 'backups' ? docId.replace(/^bkp_/, '') : docId);
       const docKey = `${collectionName}:${normalizedDocId}`;
 
       if (source === 'local') {
@@ -604,7 +671,7 @@ const App: React.FC = () => {
           fetchSupabaseTable<AppointmentTemplate>('templates'),
           fetchSupabaseTable<UserAccount>('users'),
           fetchScheduleSnapshotsFromSupabase(),
-          fetchSupabaseTable<Backup>('backups')
+          fetchBackupsFromSupabase<Backup>()
         ]);
 
         // Discard stale background response if user edited anything while the network request was in-flight
@@ -615,7 +682,7 @@ const App: React.FC = () => {
 
         // Fallback to Firestore for failed (null) collections or if Supabase returned completely empty
         const supabaseActive = (pats && pats.length > 0) || (appts && appts.length > 0) || (stf && stf.length > 0);
-        if (!supabaseActive || pats === null || appts === null || stf === null || procs === null || att === null || shifts === null || tpls === null || usrs === null || snapshots === null || bkps === null) {
+        if (!supabaseActive || pats === null || appts === null || stf === null || procs === null || att === null || shifts === null || tpls === null || usrs === null || snapshots === null || bkps === null || bkps.length === 0) {
           await ensureAuthReady();
           if (pats === null || (!supabaseActive && pats.length === 0)) pats = await fetchCollectionFromFirestore<Patient>('patients');
           if (appts === null || (!supabaseActive && appts.length === 0)) appts = await fetchCollectionFromFirestore<Appointment>('appointments');
@@ -626,7 +693,7 @@ const App: React.FC = () => {
           if (tpls === null || (!supabaseActive && tpls.length === 0)) tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
           if (usrs === null || (!supabaseActive && usrs.length === 0)) usrs = await fetchCollectionFromFirestore<UserAccount>('users');
           if (snapshots === null || (!supabaseActive && snapshots.length === 0)) snapshots = await fetchScheduleSnapshotsFromFirestore();
-          if (bkps === null || (!supabaseActive && bkps.length === 0)) bkps = await fetchCollectionFromFirestore<Backup>('backups');
+          if (bkps === null || bkps.length === 0) bkps = await fetchCollectionFromFirestore<Backup>('backups');
 
           if (!force && lastUserActionTimeRef.current > fetchStartTime) {
             return;
@@ -659,7 +726,7 @@ const App: React.FC = () => {
         }
         if (tpls) {
           const sanitizedTpls = tpls
-            .filter(t => !t.id?.startsWith('snap_') && !(Array.isArray((t as any).appointments) && !Array.isArray(t.procedures)))
+            .filter(t => !t.id?.startsWith('snap_') && !t.id?.startsWith('bkp_') && !(t as any).backupDate && !(t as any).snapshot && !(Array.isArray((t as any).appointments) && !Array.isArray(t.procedures)))
             .map(t => ({
               ...t,
               procedures: t.procedures || []
@@ -715,6 +782,7 @@ const App: React.FC = () => {
           machineShifts: true,
           procedures: true,
           scheduleSnapshots: true,
+          backups: true,
         });
       } catch (err) {
         console.warn("Failed to fetch application data:", err);
@@ -738,14 +806,20 @@ const App: React.FC = () => {
           const newId = (payload.new as any)?.id;
           const isSnapshotRow = (newId && typeof newId === 'string' && newId.startsWith('snap_')) ||
                                 (oldId && typeof oldId === 'string' && oldId.startsWith('snap_'));
+          const isBackupRow = (newId && typeof newId === 'string' && newId.startsWith('bkp_')) ||
+                              (oldId && typeof oldId === 'string' && oldId.startsWith('bkp_'));
 
           if (tableName === 'templates' && isSnapshotRow) {
             collectionName = 'scheduleSnapshots';
+          } else if (tableName === 'templates' && isBackupRow) {
+            collectionName = 'backups';
           }
 
           if (payload.eventType === 'DELETE') {
             const rawDocId = oldId || '';
-            const docId = isSnapshotRow ? rawDocId.replace(/^snap_/, '') : rawDocId;
+            const docId = isSnapshotRow
+              ? rawDocId.replace(/^snap_/, '')
+              : (isBackupRow ? rawDocId.replace(/^bkp_/, '') : rawDocId);
             if (docId) {
               const event = new CustomEvent('db-change', {
                 detail: { collectionName, docId, data: null, action: 'delete', source: 'realtime' }
@@ -755,7 +829,9 @@ const App: React.FC = () => {
           } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const row = payload.new;
             if (row && row.id) {
-              const cleanDocId = isSnapshotRow ? row.id.replace(/^snap_/, '') : row.id;
+              const cleanDocId = isSnapshotRow
+                ? row.id.replace(/^snap_/, '')
+                : (isBackupRow ? row.id.replace(/^bkp_/, '') : row.id);
               const itemData = row.data && typeof row.data === 'object' ? { ...row.data, id: cleanDocId } : { ...row, id: cleanDocId };
               const event = new CustomEvent('db-change', {
                 detail: { collectionName, docId: cleanDocId, data: itemData, action: 'set', source: 'realtime' }
@@ -947,6 +1023,47 @@ const App: React.FC = () => {
       }
     } catch (error) { 
       console.error("Error saving patient:", error);
+    }
+  };
+
+  const handleBatchSavePatients = async (patientsToSave: Patient[]): Promise<boolean> => {
+    if (!patientsToSave || patientsToSave.length === 0) return true;
+    const canEditTarget = currentUser?.role === UserRole.ADMIN || patientsToSave.every(
+      p => currentUser?.editableDeptIds?.includes(p.admittedByDeptId)
+    );
+    if (!canEditTarget && !canEditCurrentDept) {
+      alert("Bạn không có quyền chỉnh sửa hoặc thêm bệnh nhân ở khoa này.");
+      return false;
+    }
+    try {
+      const now = Date.now();
+      lastUserActionTimeRef.current = now;
+      const cleanList = patientsToSave.map(p => {
+        const clean = JSON.parse(JSON.stringify(p, (key, value) => value === undefined ? null : value)) as Patient;
+        recentlyUpdatedPatientsRef.current.set(clean.id, { patient: clean, timestamp: now });
+        return clean;
+      });
+
+      const cleanMap = new Map(cleanList.map(p => [p.id, p]));
+      setPatients(prev => {
+        const updated = prev.map(oldP => cleanMap.has(oldP.id) ? cleanMap.get(oldP.id)! : oldP);
+        const existingIds = new Set(prev.map(oldP => oldP.id));
+        const newlyAdded = cleanList.filter(p => !existingIds.has(p.id));
+        return newlyAdded.length > 0 ? [...newlyAdded, ...updated] : updated;
+      });
+
+      if (db) {
+        const batch = writeBatch(db);
+        cleanList.forEach(p => {
+          batch.set(doc(db, "patients", p.id), p);
+        });
+        await batch.commit();
+      }
+      return true;
+    } catch (error) {
+      console.error("Error batch saving patients:", error);
+      alert("Có lỗi xảy ra khi đồng bộ bệnh nhân. Vui lòng thử lại!");
+      return false;
     }
   };
 
@@ -2265,9 +2382,10 @@ const App: React.FC = () => {
     await setDoc(doc(db, "backups", backup.id), backup);
   };
 
-  // Auto-backup logic: Run when Admin is logged in
+  // Auto-backup logic: Run when Admin is logged in AND core data has finished loading
   useEffect(() => {
     if (!db || !currentUser || currentUser.role !== UserRole.ADMIN) return;
+    if (!loadedCollections.patients || !loadedCollections.appointments || !loadedCollections.backups) return;
 
     const checkAndAutoBackup = async () => {
       const now = new Date();
@@ -2297,13 +2415,13 @@ const App: React.FC = () => {
       }
     };
 
-    // Delay a bit to ensure all data is loaded
+    // Delay a bit to ensure all data is settled
     const timer = setTimeout(() => {
       checkAndAutoBackup();
-    }, 5000);
+    }, 3000);
 
     return () => clearTimeout(timer);
-  }, [currentUser, backups.length]);
+  }, [currentUser, backups.length, loadedCollections.patients, loadedCollections.appointments, loadedCollections.backups]);
 
   const handleImportData = async (snapshot: any) => {
     if (!db || !currentUser || currentUser.role !== UserRole.ADMIN) {
@@ -2634,7 +2752,7 @@ const App: React.FC = () => {
     }
   };
 
-  const isAnyModalOpen = isModalOpen || isPatientEditModalOpen || isStaffModalOpen || isDeptBackupModalOpen || isVerificationModalOpen || !!referralModal;
+  const isAnyModalOpen = isModalOpen || isPatientEditModalOpen || isStaffModalOpen || isDeptBackupModalOpen || isHisSyncModalOpen || isVerificationModalOpen || !!referralModal;
 
   return (
     <div className="h-screen bg-slate-50 flex flex-col font-sans overflow-hidden">
@@ -2925,7 +3043,7 @@ const App: React.FC = () => {
          {activeTab === 'ACCOUNT_MANAGER' && <AccountManager users={users} onSaveUser={handleSaveUser} onDeleteUser={handleDeleteUser} />}
          {activeTab === 'ACCOUNT_BACKUP' && <BackupManager backups={backups} departments={DEPARTMENTS} currentUser={currentUser} onCreateBackup={handleCreateBackup} onRestoreBackup={handleRestoreBackup} onDeleteBackup={handleDeleteBackup} onImportData={handleImportData} />}
          
-         {activeTab === 'PATIENT_RECORDS' && currentDept && <PatientList patients={patients} activeDate={activeDate} currentDept={currentDept} appointments={appointments} procedures={procedures} staff={staff} currentUser={currentUser || undefined} onAddPatient={() => { setEditingPatient(null); setIsPatientEditModalOpen(true); }} onEditPatient={p => { setEditingPatient(p); setIsPatientEditModalOpen(true); }} onDeletePatient={handleDeletePatient} onUpdateStatus={handleUpdateStatus} onReferral={(pid, s) => { setReferralModal({ patientId: pid, specialty: s, procedureIds: [], referralTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) }); }} onFinishReferral={handleFinishReferral} onCancelFinishReferral={handleCancelFinishReferral} onCancelReferral={handleCancelReferral} />}
+         {activeTab === 'PATIENT_RECORDS' && currentDept && <PatientList patients={patients} activeDate={activeDate} currentDept={currentDept} appointments={appointments} procedures={procedures} staff={staff} currentUser={currentUser || undefined} onAddPatient={() => { setEditingPatient(null); setIsPatientEditModalOpen(true); }} onOpenHisSync={() => { setHisSyncIncomingBatch(null); setIsHisSyncModalOpen(true); }} onEditPatient={p => { setEditingPatient(p); setIsPatientEditModalOpen(true); }} onDeletePatient={handleDeletePatient} onUpdateStatus={handleUpdateStatus} onReferral={(pid, s) => { setReferralModal({ patientId: pid, specialty: s, procedureIds: [], referralTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) }); }} onFinishReferral={handleFinishReferral} onCancelFinishReferral={handleCancelFinishReferral} onCancelReferral={handleCancelReferral} />}
 
          {activeTab === 'SCHEDULING' && currentDept && (
           <PatientScheduling 
@@ -3096,6 +3214,22 @@ const App: React.FC = () => {
 
       {isPatientEditModalOpen && currentDept && (
           <PatientModal isOpen={isPatientEditModalOpen} onClose={() => { setIsPatientEditModalOpen(false); setEditingPatient(null); }} onSave={handleSavePatient} initialData={editingPatient} currentDept={currentDept} patients={patients} />
+      )}
+
+      {isHisSyncModalOpen && (
+        <HisSyncModal
+          isOpen={isHisSyncModalOpen}
+          onClose={() => setIsHisSyncModalOpen(false)}
+          patients={patients}
+          currentDept={currentDept}
+          incomingBatch={hisSyncIncomingBatch}
+          onApplyBatchPatients={handleBatchSavePatients}
+          onSyncCompleted={(summary) => {
+            try {
+              window.postMessage({ type: 'MEDFLOW_SYNC_DONE', ...summary }, '*');
+            } catch (e) {}
+          }}
+        />
       )}
 
       {isStaffModalOpen && editingStaff && (
