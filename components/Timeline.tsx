@@ -706,6 +706,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         const pr = procMap.get(a.procedureId);
         return (
           (p?.name?.toLowerCase().includes(lower)) ||
+          (p?.code?.toLowerCase().includes(lower)) ||
           (s?.name?.toLowerCase().includes(lower)) ||
           (pr?.name?.toLowerCase().includes(lower))
         );
@@ -1153,6 +1154,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
       return {
         stt: idx + 1,
+        patientCode: patient?.code || '',
         patientName: patient?.name || 'Không yêu cầu BN',
         patientInfo: patient ? `${patient.gender} • ${calculateAge(patient.dob)}t • ${patient.bedType || 'Nội trú'}` : '-',
         bedRoom: patient ? `${patient.bedNumber} - P:${patient.roomNumber || '?'}` : '-',
@@ -1170,6 +1172,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
     const headers = [
       { label: 'STT', key: 'stt' },
+      { label: 'Mã bệnh án', key: 'patientCode' },
       { label: 'Bệnh nhân', key: 'patientName' },
       { label: 'Thông tin BN', key: 'patientInfo' },
       { label: 'Giường/Phòng', key: 'bedRoom' },

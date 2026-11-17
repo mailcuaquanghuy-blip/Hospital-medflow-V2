@@ -6,7 +6,7 @@ import { DateTimePicker } from './DateTimePicker';
 import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
 import { Search, Plus, User, MapPin, Bed, LogOut, FileText, Edit3, Printer, Send, Activity, FlaskConical, HeartPulse, CheckCircle2, Clock, Building2, Filter, Calendar, CheckSquare, Trash2, AlertTriangle, Power, CheckCircle, RotateCcw, X, XCircle, Pill, ChevronDown, DoorOpen, Download, Shield, Upload, ArrowUpDown, ArrowUp, ArrowDown, ArrowUpAZ, ArrowDownZA, Check, Wrench } from 'lucide-react';
-import { calculateAge, getAbbreviation, timeStringToMinutes, generatePatientCode, getPatientDischargeTag } from '../utils/timeUtils';
+import { calculateAge, getAbbreviation, timeStringToMinutes, getPatientDischargeTag } from '../utils/timeUtils';
 import { DEPARTMENTS } from '../constants';
 import { Appointment, Procedure, Staff } from '../types';
 import { downloadCSV, parseCSV } from '../utils/csvUtils';
@@ -36,7 +36,7 @@ const getLocalDateString = (isoStr: string | null | undefined): string => {
   return trimmed.split('T')[0] || trimmed.split(' ')[0] || '';
 };
 
-type SortField = 'NAME' | 'GENDER' | 'AGE' | 'DEPT' | 'BHYT' | 'ROOM' | 'BED' | 'BED_TYPE' | 'ADMISSION' | 'DISCHARGE';
+type SortField = 'CODE' | 'NAME' | 'GENDER' | 'AGE' | 'DEPT' | 'BHYT' | 'ROOM' | 'BED' | 'BED_TYPE' | 'ADMISSION' | 'DISCHARGE';
 type SortDirection = 'ASC' | 'DESC';
 interface SortConfig { field: SortField; direction: SortDirection }
 
@@ -215,6 +215,7 @@ export const PatientList: React.FC<PatientListProps> = ({
     const headers = [
       { label: 'Ngày vào viện', key: 'admissionDate' },
       { label: 'Giờ vào viện', key: 'admissionTime' },
+      { label: 'Mã bệnh án', key: 'code' },
       { label: 'Họ tên bệnh nhân', key: 'name' },
       { label: 'Giới tính', key: 'gender' },
       { label: 'Năm sinh', key: 'yob' },
@@ -224,9 +225,9 @@ export const PatientList: React.FC<PatientListProps> = ({
       { label: 'Ghi chú', key: 'note' }
     ];
     const sampleData = [
-      { admissionDate: '14/07/2026', admissionTime: '10:27', name: 'Phan Thị Hằng', gender: 'Nữ', yob: '1979', bedNumber: '477', bedType: 'Nội trú ban ngày', insurance: '80%', note: 'Theo dõi tăng huyết áp' },
-      { admissionDate: '14/07/2026', admissionTime: '09:24', name: 'Vì Văn Ne', gender: 'Nam', yob: '1957', bedNumber: '452B', bedType: 'Nội trú', insurance: '100%', note: '' },
-      { admissionDate: '14/07/2026', admissionTime: '09:19', name: 'Nguyễn Văn Vẽ', gender: 'Nam', yob: '1964', bedNumber: '475', bedType: 'Nội trú ban ngày', insurance: '95%', note: '' }
+      { admissionDate: '14/07/2026', admissionTime: '10:27', code: 'BA26009970', name: 'Phan Thị Hằng', gender: 'Nữ', yob: '1979', bedNumber: '477', bedType: 'Nội trú ban ngày', insurance: '80%', note: 'Theo dõi tăng huyết áp' },
+      { admissionDate: '14/07/2026', admissionTime: '09:24', code: 'BA26009971', name: 'Vì Văn Ne', gender: 'Nam', yob: '1957', bedNumber: '452B', bedType: 'Nội trú', insurance: '100%', note: '' },
+      { admissionDate: '14/07/2026', admissionTime: '09:19', code: 'BA26009972', name: 'Nguyễn Văn Vẽ', gender: 'Nam', yob: '1964', bedNumber: '475', bedType: 'Nội trú ban ngày', insurance: '95%', note: '' }
     ];
     downloadCSV(sampleData, 'mau_danh_sach_benh_nhan.csv', headers);
   };
@@ -239,15 +240,73 @@ export const PatientList: React.FC<PatientListProps> = ({
         return;
       }
       
-      const firstRowStr = rows[0].join(',');
-      if (
-        firstRowStr.includes('Ngày') || 
-        firstRowStr.includes('Giờ') || 
-        firstRowStr.includes('Họ tên') || 
-        firstRowStr.includes('Giường') ||
-        firstRowStr.includes('Mức hưởng')
-      ) {
+      const firstRowNorm = rows[0].map(c => (c || '').trim().toLowerCase());
+      const firstRowStr = rows[0].join(',').toLowerCase();
+      const hasHeaderRow = (
+        firstRowStr.includes('ngày') || 
+        firstRowStr.includes('giờ') || 
+        firstRowStr.includes('mã bệnh án') ||
+        firstRowStr.includes('mã ba') ||
+        firstRowStr.includes('họ tên') || 
+        firstRowStr.includes('giường') ||
+        firstRowStr.includes('mức hưởng')
+      );
+
+      let colMap = {
+        date: 0,
+        time: 1,
+        code: 2,
+        name: 3,
+        gender: 4,
+        yob: 5,
+        bed: 6,
+        bedType: 7,
+        ins: 8,
+        note: 9
+      };
+
+      if (hasHeaderRow) {
+        const findCol = (keywords: string[]) => firstRowNorm.findIndex(h => keywords.some(k => h.includes(k)));
+        const idxCode = findCol(['mã bệnh án', 'mã ba', 'mã bn', 'mã hồ sơ']);
+        const idxDate = findCol(['ngày vào', 'ngày']);
+        const idxTime = findCol(['giờ vào', 'giờ']);
+        const idxName = findCol(['họ tên', 'họ và tên', 'tên bệnh nhân']);
+        const idxGender = findCol(['giới tính']);
+        const idxYob = findCol(['năm sinh', 'ns']);
+        const idxBed = findCol(['số giường', 'giường']);
+        const idxBedType = findCol(['loại giường']);
+        const idxIns = findCol(['mức hưởng', 'bhyt', 'tỷ lệ']);
+        const idxNote = findCol(['ghi chú']);
+
+        if (idxCode !== -1 || idxName !== -1) {
+          colMap = {
+            date: idxDate !== -1 ? idxDate : 0,
+            time: idxTime !== -1 ? idxTime : 1,
+            code: idxCode,
+            name: idxName !== -1 ? idxName : (idxCode !== -1 ? 3 : 2),
+            gender: idxGender !== -1 ? idxGender : (idxCode !== -1 ? 4 : 3),
+            yob: idxYob !== -1 ? idxYob : (idxCode !== -1 ? 5 : 4),
+            bed: idxBed !== -1 ? idxBed : (idxCode !== -1 ? 6 : 5),
+            bedType: idxBedType !== -1 ? idxBedType : (idxCode !== -1 ? 7 : 6),
+            ins: idxIns !== -1 ? idxIns : (idxCode !== -1 ? 8 : 7),
+            note: idxNote !== -1 ? idxNote : (idxCode !== -1 ? 9 : 8)
+          };
+        }
         rows = rows.slice(1);
+      } else if (rows[0].length === 9) {
+        // Hỗ trợ file CSV cũ 9 cột chưa có cột Mã bệnh án (để trống để người dùng bổ sung)
+        colMap = {
+          date: 0,
+          time: 1,
+          code: -1,
+          name: 2,
+          gender: 3,
+          yob: 4,
+          bed: 5,
+          bedType: 6,
+          ins: 7,
+          note: 8
+        };
       }
 
       if (rows.length === 0) {
@@ -256,18 +315,20 @@ export const PatientList: React.FC<PatientListProps> = ({
       }
 
       const parsedPatients = rows.map((row, idx) => {
-        const dateRaw = row[0] || '';
-        const timeRaw = row[1] || '';
-        const nameRaw = row[2] || '';
-        const genderRaw = row[3] || '';
-        const yobRaw = row[4] || '';
-        const bedRaw = row[5] || '';
-        const bedTypeRaw = row[6] || '';
-        const insRaw = row[7] || '';
-        const noteRaw = row[8] || '';
+        const dateRaw = colMap.date >= 0 ? (row[colMap.date] || '') : '';
+        const timeRaw = colMap.time >= 0 ? (row[colMap.time] || '') : '';
+        const codeRaw = colMap.code >= 0 ? (row[colMap.code] || '') : '';
+        const nameRaw = colMap.name >= 0 ? (row[colMap.name] || '') : '';
+        const genderRaw = colMap.gender >= 0 ? (row[colMap.gender] || '') : '';
+        const yobRaw = colMap.yob >= 0 ? (row[colMap.yob] || '') : '';
+        const bedRaw = colMap.bed >= 0 ? (row[colMap.bed] || '') : '';
+        const bedTypeRaw = colMap.bedType >= 0 ? (row[colMap.bedType] || '') : '';
+        const insRaw = colMap.ins >= 0 ? (row[colMap.ins] || '') : '';
+        const noteRaw = colMap.note >= 0 ? (row[colMap.note] || '') : '';
 
         const admissionDate = normalizeDate(dateRaw);
         const admissionTime = normalizeTime(timeRaw);
+        const code = codeRaw.trim();
         const name = nameRaw.trim();
         const gender = genderRaw.trim().toLowerCase() === 'nam' ? 'Nam' : 'Nữ';
         const yob = yobRaw.trim().replace(/\D/g, '') || '1960';
@@ -292,6 +353,7 @@ export const PatientList: React.FC<PatientListProps> = ({
           tempId: `temp_${idx}_${Date.now()}_${Math.random()}`,
           admissionDate,
           admissionTime,
+          code,
           name,
           gender,
           yob,
@@ -364,8 +426,19 @@ export const PatientList: React.FC<PatientListProps> = ({
       p => p.admittedByDeptId === currentDept.id && p.status === PatientStatus.TREATING
     );
     const activeBedsInDept = new Set(activePatientsInDept.map(p => p.bedNumber));
+    const activeCodesInDept = new Set(
+      activePatientsInDept.map(p => (p.code || '').trim().toLowerCase()).filter(Boolean)
+    );
 
     return csvPatients.map((item, index) => {
+      const trimmedCode = (item.code || '').trim();
+      const isCodeMissing = !trimmedCode;
+      const isCodeDuplicateInDb = trimmedCode ? activeCodesInDept.has(trimmedCode.toLowerCase()) : false;
+      const isCodeDuplicateInCsv = trimmedCode
+        ? csvPatients.some((x, idx) => idx !== index && (x.code || '').trim().toLowerCase() === trimmedCode.toLowerCase())
+        : false;
+      const hasCodeError = isCodeMissing || isCodeDuplicateInDb || isCodeDuplicateInCsv;
+
       const isBedOccupied = item.bedNumber ? activeBedsInDept.has(item.bedNumber) : false;
       const isBedDuplicateInCsv = item.bedNumber 
         ? csvPatients.some((x, idx) => idx !== index && x.bedNumber === item.bedNumber) 
@@ -383,6 +456,10 @@ export const PatientList: React.FC<PatientListProps> = ({
 
       return {
         ...item,
+        isCodeMissing,
+        isCodeDuplicateInDb,
+        isCodeDuplicateInCsv,
+        hasCodeError,
         isBedOccupied,
         isBedDuplicateInCsv,
         hasBedConflict,
@@ -391,6 +468,10 @@ export const PatientList: React.FC<PatientListProps> = ({
       };
     });
   }, [csvPatients, patients, currentDept.id]);
+
+  const hasAnyCodeError = useMemo(() => {
+    return validatedCsvPatients.some(p => p.hasCodeError);
+  }, [validatedCsvPatients]);
 
   const hasAnyBedConflict = useMemo(() => {
     return validatedCsvPatients.some(p => p.hasBedConflict);
@@ -401,7 +482,7 @@ export const PatientList: React.FC<PatientListProps> = ({
   }, [validatedCsvPatients]);
 
   const handleConfirmImport = async () => {
-    if (!db || hasAnyBedConflict || hasAnyInvalidDate || validatedCsvPatients.length === 0) return;
+    if (!db || hasAnyCodeError || hasAnyBedConflict || hasAnyInvalidDate || validatedCsvPatients.length === 0) return;
     try {
       const promises = validatedCsvPatients.map(async (item) => {
         const patientId = `p_${Math.random().toString(36).substr(2, 9)}`;
@@ -409,7 +490,7 @@ export const PatientList: React.FC<PatientListProps> = ({
         const localDtStr = `${yyyyMmDd}T${item.admissionTime || '08:00'}:00`;
         const admissionDateIso = new Date(localDtStr).toISOString();
         const dob = `${item.yob}-01-01`;
-        const code = generatePatientCode(item.name, admissionDateIso, currentDept.id);
+        const code = (item.code || '').trim();
 
         const newPatient: Patient = {
           id: patientId,
@@ -707,7 +788,9 @@ export const PatientList: React.FC<PatientListProps> = ({
       const { field, direction } = sortConfig;
       let cmp = 0;
 
-      if (field === 'NAME') {
+      if (field === 'CODE') {
+        cmp = (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' });
+      } else if (field === 'NAME') {
         const getFirstName = (fullName: string) => {
           const parts = (fullName || '').trim().split(/\s+/);
           return parts[parts.length - 1] || '';
@@ -849,7 +932,7 @@ export const PatientList: React.FC<PatientListProps> = ({
           <div class="info">
             <p><strong>Họ và tên người bệnh:</strong> ${printingPatient.name} - <strong>Tuổi:</strong> ${calculateAge(printingPatient.dob)} - <strong>Giới tính:</strong> ${printingPatient.gender}</p>
             <p><strong>Loại giường:</strong> ${printingPatient.bedType || 'Nội trú'}</p>
-            <p><strong>Mã BN:</strong> ${printingPatient.code}</p>
+            <p><strong>Mã bệnh án:</strong> ${printingPatient.code}</p>
             <p><strong>Phòng/Giường:</strong> P${printingPatient.roomNumber || '?'} - G${printingPatient.bedNumber}</p>
             <p><strong>Ngày vào viện:</strong> ${new Date(printingPatient.admissionDate).toLocaleDateString('vi-VN')}</p>
             <p><strong>Từ ngày:</strong> ${printFromDate ? new Date(printFromDate).toLocaleDateString('vi-VN') : '...'} - <strong>Đến ngày:</strong> ${printToDate ? new Date(printToDate).toLocaleDateString('vi-VN') : '...'}</p>
@@ -1160,7 +1243,7 @@ export const PatientList: React.FC<PatientListProps> = ({
 
         <div className="flex-1 max-md:hidden max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-slate-100 focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all" placeholder="Tìm tên, mã BN..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-slate-100 focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all" placeholder="Tìm mã bệnh án, tên BN, số giường..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
 
         {!isSupportDept && (
@@ -1294,7 +1377,7 @@ export const PatientList: React.FC<PatientListProps> = ({
             {/* Hàng 1: Phân nhóm các khối cột thông tin */}
             <tr className="border-b border-slate-200/80 bg-slate-100/70">
               <th rowSpan={2} className="p-3 w-12 text-center border-r border-slate-200 text-slate-600 font-black text-xs">STT</th>
-              <th colSpan={3} className="py-2.5 px-3 text-center font-black tracking-wider text-[11px] text-slate-700 border-r border-slate-200 bg-slate-100/90">
+              <th colSpan={4} className="py-2.5 px-3 text-center font-black tracking-wider text-[11px] text-slate-700 border-r border-slate-200 bg-slate-100/90">
                 THÔNG TIN BỆNH NHÂN
               </th>
               <th colSpan={5} className="py-2.5 px-3 text-center font-black tracking-wider text-[11px] text-slate-700 border-r border-slate-200 bg-slate-100/90">
@@ -1308,6 +1391,7 @@ export const PatientList: React.FC<PatientListProps> = ({
 
             {/* Hàng 2: Các cột chi tiết có chức năng sắp xếp và bộ lọc */}
             <tr>
+              {renderSortHeader('CODE', 'MÃ BỆNH ÁN', 'center', true, 'w-32 text-center')}
               {renderSortHeader('NAME', 'HỌ VÀ TÊN', 'left', true, 'min-w-[210px]')}
               {renderSortHeader('GENDER', 'GIỚI TÍNH', 'center', false, 'w-24 text-center')}
               {renderSortHeader('AGE', 'TUỔI', 'center', false, 'w-20 text-center border-r border-slate-200')}
@@ -1556,6 +1640,18 @@ export const PatientList: React.FC<PatientListProps> = ({
                   <td className="p-3 text-slate-500 text-center font-mono text-xs font-bold border-r border-slate-100">{idx + 1}</td>
                   
                   {/* Nhóm 1: Thông tin bệnh nhân */}
+                  <td className="p-3 text-center">
+                    <span
+                      className={`inline-flex items-center justify-center font-mono text-xs font-bold px-2.5 py-1 rounded-lg border whitespace-nowrap ${
+                        (p.code || '').startsWith('TAM-')
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-200'
+                      }`}
+                      title={(p.code || '').startsWith('TAM-') ? 'Mã bệnh án tạm - Vui lòng sửa thông tin để cập nhật mã bệnh án chính thức' : `Mã bệnh án: ${p.code || 'Chưa có'}`}
+                    >
+                      {p.code || '—'}
+                    </span>
+                  </td>
                   <td className="p-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-sm font-black shadow-sm shrink-0 ${p.gender === 'Nam' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}`}>
@@ -2323,6 +2419,11 @@ export const PatientList: React.FC<PatientListProps> = ({
                       <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm self-start">
                         Đã tải lên: <strong className="text-slate-800">{csvPatients.length} bệnh nhân</strong>
                       </span>
+                      {hasAnyCodeError && (
+                        <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-xl flex items-center gap-1.5 animate-bounce">
+                          <AlertTriangle size={14} /> Thiếu hoặc trùng mã bệnh án! Vui lòng nhập mã bệnh án hợp lệ cho các dòng bị đỏ.
+                        </span>
+                      )}
                       {hasAnyBedConflict && (
                         <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-xl flex items-center gap-1.5 animate-bounce">
                           <AlertTriangle size={14} /> Trùng số giường! Vui lòng chỉnh sửa giường bị đỏ trước khi nhập.
@@ -2343,12 +2444,13 @@ export const PatientList: React.FC<PatientListProps> = ({
                   </div>
 
                   <div className="border border-slate-100 rounded-2xl overflow-auto max-h-[55vh] shadow-inner scrollbar-thin">
-                    <table className="min-w-[1350px] w-full text-sm text-left border-collapse table-fixed">
+                    <table className="min-w-[1490px] w-full text-sm text-left border-collapse table-fixed">
                       <thead className="bg-slate-50 text-slate-500 font-bold sticky top-0 z-20 text-[11px] uppercase tracking-wider border-b border-slate-100">
                         <tr>
                           <th className="p-3 w-[50px] text-center">STT</th>
                           <th className="p-3 w-[150px]">Ngày vào viện</th>
                           <th className="p-3 w-[100px]">Giờ vào</th>
+                          <th className="p-3 w-[150px]">Mã bệnh án <span className="text-rose-500">*</span></th>
                           <th className="p-3 w-[220px]">Họ tên bệnh nhân</th>
                           <th className="p-3 w-[110px]">Giới tính</th>
                           <th className="p-3 w-[100px]">Năm sinh</th>
@@ -2356,7 +2458,7 @@ export const PatientList: React.FC<PatientListProps> = ({
                           <th className="p-3 w-[160px]">Loại giường</th>
                           <th className="p-3 w-[110px]">Mức BHYT</th>
                           <th className="p-3 min-w-[180px]">Ghi chú</th>
-                          <th className="p-3 w-[140px] text-center">Trạng thái</th>
+                          <th className="p-3 w-[150px] text-center">Trạng thái</th>
                           <th className="p-3 w-[60px] text-center"></th>
                         </tr>
                       </thead>
@@ -2380,6 +2482,15 @@ export const PatientList: React.FC<PatientListProps> = ({
                                 value={item.admissionTime} 
                                 onChange={e => updateCsvField(index, 'admissionTime', e.target.value)}
                                 className="w-full text-sm p-2 border border-slate-200 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none font-mono text-center text-slate-800 font-bold"
+                              />
+                            </td>
+                            <td className="p-3">
+                              <input 
+                                type="text" 
+                                placeholder="BA26..."
+                                value={item.code || ''} 
+                                onChange={e => updateCsvField(index, 'code', e.target.value)}
+                                className={`w-full text-sm p-2 border rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none font-mono font-bold text-center ${item.hasCodeError ? 'border-rose-400 bg-rose-50 text-rose-700 font-extrabold shadow-sm' : 'border-slate-200 bg-white text-slate-800'}`}
                               />
                             </td>
                             <td className="p-3">
@@ -2449,22 +2560,27 @@ export const PatientList: React.FC<PatientListProps> = ({
                               />
                             </td>
                             <td className="p-3 text-center">
-                              {!item.isDateValid && (
+                              {item.hasCodeError && (
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-rose-50 border border-rose-200 text-rose-700 font-bold px-2 py-1 rounded-lg shadow-sm cursor-help" title={item.isCodeMissing ? "Mã bệnh án là bắt buộc" : (item.isCodeDuplicateInDb ? "Mã bệnh án đã tồn tại ở bệnh nhân đang điều trị trong khoa" : "Trùng mã bệnh án trong file tải lên")}>
+                                  <AlertTriangle size={10} className="shrink-0 text-rose-500" /> {item.isCodeMissing ? 'THIẾU MÃ BA' : 'TRÙNG MÃ BA'}
+                                </span>
+                              )}
+                              {!item.hasCodeError && !item.isDateValid && (
                                 <span className="inline-flex items-center gap-1 text-[10px] bg-rose-50 border border-rose-200 text-rose-700 font-bold px-2 py-1 rounded-lg shadow-sm cursor-help" title="Sai định dạng ngày, vui lòng dùng dd/mm/yyyy (ví dụ: 14/07/2026)">
                                   <AlertTriangle size={10} className="shrink-0 text-rose-500" /> SAI ĐỊNH DẠNG NGÀY
                                 </span>
                               )}
-                              {item.isDateValid && item.hasBedConflict && (
+                              {!item.hasCodeError && item.isDateValid && item.hasBedConflict && (
                                 <span className="inline-flex items-center gap-1 text-[10px] bg-rose-50 border border-rose-200 text-rose-700 font-bold px-2 py-1 rounded-lg shadow-sm cursor-help" title={item.isBedOccupied ? "Giường đang có bệnh nhân điều trị trong khoa" : "Trùng số giường trong danh sách tải lên"}>
                                   <AlertTriangle size={10} className="shrink-0 text-rose-500" /> TRÙNG GIƯỜNG
                                 </span>
                               )}
-                              {item.isDateValid && !item.hasBedConflict && item.hasNameWarning && (
+                              {!item.hasCodeError && item.isDateValid && !item.hasBedConflict && item.hasNameWarning && (
                                 <span className="inline-flex items-center gap-1 text-[10px] bg-amber-50 border border-amber-200 text-amber-700 font-bold px-2 py-1 rounded-lg shadow-sm cursor-help" title="Có bệnh nhân trùng cả Họ tên, Giới tính & Năm sinh đang điều trị tại khoa">
                                   <AlertTriangle size={10} className="shrink-0 text-amber-500" /> TRÙNG TÊN/TUỔI
                                 </span>
                               )}
-                              {item.isDateValid && !item.hasBedConflict && !item.hasNameWarning && (
+                              {!item.hasCodeError && item.isDateValid && !item.hasBedConflict && !item.hasNameWarning && (
                                 <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded-lg shadow-sm">
                                   HỢP LỆ
                                 </span>
@@ -2513,8 +2629,8 @@ export const PatientList: React.FC<PatientListProps> = ({
                 {csvPatients.length > 0 && (
                   <Button 
                     onClick={handleConfirmImport} 
-                    disabled={hasAnyBedConflict || hasAnyInvalidDate || validatedCsvPatients.length === 0}
-                    className={`px-8 font-black ${hasAnyBedConflict || hasAnyInvalidDate ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none' : 'bg-primary text-white shadow-lg shadow-primary/20'}`}
+                    disabled={hasAnyCodeError || hasAnyBedConflict || hasAnyInvalidDate || validatedCsvPatients.length === 0}
+                    className={`px-8 font-black ${hasAnyCodeError || hasAnyBedConflict || hasAnyInvalidDate ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none' : 'bg-primary text-white shadow-lg shadow-primary/20'}`}
                   >
                     XÁC NHẬN NHẬP
                   </Button>

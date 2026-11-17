@@ -189,6 +189,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     assistant2Id: '',
   });
   const [newPatientData, setNewPatientData] = useState({ 
+    code: '',
     name: '', 
     dob: '', 
     bedNumber: '', 
@@ -1019,8 +1020,27 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const handleCreatePatient = () => {
-    const { name, dob, bedNumber, roomNumber, bedType, insuranceLevel, note } = newPatientData;
-    if (!name) return;
+    const { code, name, dob, bedNumber, roomNumber, bedType, insuranceLevel, note } = newPatientData;
+    const trimmedCode = (code || '').trim();
+    const trimmedName = (name || '').trim();
+    if (!trimmedCode) {
+      alert("Vui lòng nhập mã bệnh án!");
+      return;
+    }
+    if (!trimmedName) {
+      alert("Vui lòng nhập họ tên bệnh nhân!");
+      return;
+    }
+
+    const duplicateCode = patients.find(p =>
+      (p.code || '').trim().toLowerCase() === trimmedCode.toLowerCase() &&
+      p.status === 'TREATING' &&
+      p.admittedByDeptId === currentDept.id
+    );
+    if (duplicateCode) {
+      alert(`Mã bệnh án "${trimmedCode}" đã tồn tại ở bệnh nhân ${duplicateCode.name} đang điều trị trong khoa. Vui lòng kiểm tra lại!`);
+      return;
+    }
 
     if (bedNumber) {
         const duplicate = patients.find(p => 
@@ -1039,9 +1059,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     const admissionDate = new Date().toISOString();
     const p: Patient = { 
       id: newId, 
-      name, 
+      name: trimmedName, 
       dob: dob || '1990-01-01', 
-      code: 'N/A', 
+      code: trimmedCode, 
       gender: 'Nam', 
       bedNumber: bedNumber || '', 
       roomNumber, 
@@ -1054,6 +1074,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     };
     onAddPatient(p);
     setFormData({ ...formData, patientId: newId });
+    setNewPatientData({
+      code: '',
+      name: '',
+      dob: '',
+      bedNumber: '',
+      roomNumber: '',
+      bedType: 'Nội trú',
+      insuranceLevel: '100%',
+      note: ''
+    });
     setIsAddingNewPatient(false);
   };
 
@@ -1186,8 +1216,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       className="p-6 border border-blue-500 bg-white rounded-2xl space-y-4 shadow-sm shadow-blue-100"
                     >
                       <div className="space-y-2">
-                         <label className="text-xs font-semibold text-slate-600">Họ tên bệnh nhân</label>
+                         <label className="text-xs font-semibold text-slate-600">Mã bệnh án <span className="text-rose-500">*</span></label>
                          <input 
+                           required
+                           placeholder="VD: BA26009970" 
+                           className="w-full p-3.5 text-sm border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono font-bold transition-all bg-slate-50/50 placeholder:font-sans placeholder:font-normal" 
+                           value={newPatientData.code} 
+                           onChange={e => setNewPatientData({...newPatientData, code: e.target.value})} 
+                         />
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-xs font-semibold text-slate-600">Họ tên bệnh nhân <span className="text-rose-500">*</span></label>
+                         <input 
+                           required
                            placeholder="Nhập họ và tên..." 
                            className="w-full p-3.5 text-sm border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium transition-all bg-slate-50/50" 
                            value={newPatientData.name} 

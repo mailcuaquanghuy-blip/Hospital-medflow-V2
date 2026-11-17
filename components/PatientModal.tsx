@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { DateInput } from './DateInput';
 import { TimeInput } from './TimeInput';
 import { X, User, Calendar, Bed, Building2, Save, Users, Clock, Info, LogOut, Shield, StickyNote } from 'lucide-react';
-import { generatePatientCode, calculateAge } from '../utils/timeUtils';
+import { calculateAge } from '../utils/timeUtils';
 
 interface PatientModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ export const PatientModal: React.FC<PatientModalProps> = ({
 }) => {
   const isEditing = Boolean(initialData?.id);
   const [formData, setFormData] = useState<Partial<Patient>>({
+    code: '',
     name: '',
     dob: '',
     gender: 'Nam',
@@ -39,11 +40,13 @@ export const PatientModal: React.FC<PatientModalProps> = ({
     if (initialData) {
         setFormData({
             ...initialData,
+            code: initialData.code && initialData.code !== 'N/A' ? initialData.code : '',
             admissionDate: initialData.admissionDate ? new Date(new Date(initialData.admissionDate).getTime() - new Date(initialData.admissionDate).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
             dischargeDate: initialData.dischargeDate ? new Date(new Date(initialData.dischargeDate).getTime() - new Date(initialData.dischargeDate).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : undefined
         });
     } else {
         setFormData({
+            code: '',
             name: '',
             dob: '',
             gender: 'Nam',
@@ -60,6 +63,12 @@ export const PatientModal: React.FC<PatientModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedCode = (formData.code || '').trim();
+    if (!trimmedCode) {
+      alert("Vui lòng nhập mã bệnh án!");
+      return;
+    }
+
     if (!formData.name || !formData.name.trim()) {
       alert("Vui lòng nhập họ và tên bệnh nhân!");
       return;
@@ -70,7 +79,22 @@ export const PatientModal: React.FC<PatientModalProps> = ({
       dob = "1974-01-01";
     }
 
-    if (formData.bedNumber && formData.status === PatientStatus.TREATING) {
+    const patientStatus = isEditing ? ((formData.status as PatientStatus) || PatientStatus.TREATING) : PatientStatus.TREATING;
+
+    if (patientStatus === PatientStatus.TREATING) {
+      const duplicateCode = patients.find(p =>
+        (p.code || '').trim().toLowerCase() === trimmedCode.toLowerCase() &&
+        p.id !== formData.id &&
+        p.status === PatientStatus.TREATING &&
+        p.admittedByDeptId === (formData.admittedByDeptId || currentDept.id)
+      );
+      if (duplicateCode) {
+        alert(`Mã bệnh án "${trimmedCode}" đã tồn tại ở bệnh nhân ${duplicateCode.name} đang điều trị trong khoa. Vui lòng kiểm tra lại!`);
+        return;
+      }
+    }
+
+    if (formData.bedNumber && patientStatus === PatientStatus.TREATING) {
         const duplicate = patients.find(p => 
             p.bedNumber === formData.bedNumber && 
             p.roomNumber === formData.roomNumber && 
@@ -87,11 +111,9 @@ export const PatientModal: React.FC<PatientModalProps> = ({
     // Giữ nguyên ID cũ nếu sửa, hoặc tạo ID mới nếu thêm
     const patientId = formData.id || `p_${Math.random().toString(36).substr(2, 9)}`;
     const admissionDateIso = new Date(formData.admissionDate || new Date()).toISOString();
-    const patientStatus = isEditing ? ((formData.status as PatientStatus) || PatientStatus.TREATING) : PatientStatus.TREATING;
     const dischargeDateIso = patientStatus === PatientStatus.TREATING ? null : (formData.dischargeDate ? new Date(formData.dischargeDate).toISOString() : null);
     
-    // Mã bệnh nhân vẫn sinh ra để lưu trữ hệ thống
-    const code = formData.code || generatePatientCode(formData.name, admissionDateIso, currentDept.id);
+    const code = trimmedCode;
 
     const newPatient: Patient = {
       id: patientId,
@@ -132,10 +154,26 @@ export const PatientModal: React.FC<PatientModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto max-h-[80vh]">
             <div className="space-y-4">
+                {/* Mã bệnh án (Bắt buộc) */}
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                      Mã bệnh án <span className="text-rose-500 font-black">*</span>
+                    </label>
+                    <input 
+                        required
+                        className="w-full p-3 border-2 border-slate-100 rounded-xl font-mono font-bold text-slate-800 focus:border-primary outline-none transition-colors placeholder:font-sans placeholder:font-normal placeholder:text-slate-300"
+                        placeholder="VD: BA26009970"
+                        value={formData.code || ''}
+                        onChange={e => setFormData({...formData, code: e.target.value})}
+                    />
+                </div>
+
                 {/* Họ tên & Giới tính */}
                 <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-2 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Họ và tên</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                          Họ và tên <span className="text-rose-500 font-black">*</span>
+                        </label>
                         <input 
                             required
                             className="w-full p-3 border-2 border-slate-100 rounded-xl font-bold text-slate-800 focus:border-primary outline-none transition-colors"
@@ -339,11 +377,6 @@ export const PatientModal: React.FC<PatientModalProps> = ({
                     </div>
                 </div>
 
-                {initialData?.code && (
-                    <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-50 p-2 rounded-lg justify-center">
-                        <Info size={14} /> Mã hồ sơ hệ thống: <span className="font-mono font-bold text-slate-500">{initialData.code}</span>
-                    </div>
-                )}
             </div>
 
             <div className="pt-4 flex gap-3">
