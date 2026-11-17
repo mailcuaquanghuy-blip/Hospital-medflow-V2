@@ -214,15 +214,13 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
       name: row.name.trim() || row.existingPatient.name,
       dob: nextDob,
       bedNumber: (row.bedNumber || '').trim(),
-      roomNumber: (row.roomNumber || '').trim() || row.existingPatient.roomNumber || '',
-      bedType: row.bedType || row.existingPatient.bedType || 'Nội trú',
       insuranceLevel: row.insuranceLevel || row.existingPatient.insuranceLevel || '100%',
       admissionDate: ddMmYyyyAndTimeToIso(
         row.admissionDate,
         row.admissionTime,
         row.existingPatient.admissionDate
       )
-      // gender intentionally preserved untouched from existingPatient
+      // gender, roomNumber, and bedType intentionally preserved untouched from existingPatient
     };
   };
 
@@ -235,7 +233,7 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
       gender: row.gender || 'Nam',
       code: row.code.trim(),
       bedNumber: (row.bedNumber || '').trim(),
-      roomNumber: (row.roomNumber || '').trim(),
+      roomNumber: '',
       admissionDate: ddMmYyyyAndTimeToIso(row.admissionDate, row.admissionTime),
       dischargeDate: null,
       bedType: row.bedType || 'Nội trú',
@@ -480,7 +478,7 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
               </div>
 
               <div className="text-[11px] text-slate-500 font-semibold">
-                Tổng HIS gửi: <strong className="text-slate-800">{rawIncoming.length} BN</strong> • Không kiểm tra giới tính
+                Tổng HIS gửi: <strong className="text-slate-800">{rawIncoming.length} BN</strong> • Bỏ qua Giới tính &amp; Loại giường
               </div>
             </div>
 
@@ -531,7 +529,7 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
                   </div>
                 ) : (
                   <div className="flex-1 border border-slate-200 rounded-2xl overflow-auto shadow-inner scrollbar-thin">
-                    <table className="min-w-[1520px] w-full text-sm text-left border-collapse table-fixed">
+                    <table className="min-w-[1380px] w-full text-sm text-left border-collapse table-fixed">
                       <thead className="bg-slate-50 text-slate-500 font-bold sticky top-0 z-20 text-[11px] uppercase tracking-wider border-b border-slate-200">
                         <tr>
                           <th className="p-3 w-[44px] text-center">
@@ -556,7 +554,6 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
                           <th className="p-3 w-[125px] text-center">Ngày vào</th>
                           <th className="p-3 w-[85px] text-center">Giờ vào</th>
                           <th className="p-3 w-[100px] text-center">Mức BHYT</th>
-                          <th className="p-3 w-[145px]">Loại giường</th>
                           <th className="p-3 min-w-[230px]">Chi tiết sai lệch (MedFlow → HIS)</th>
                           <th className="p-3 w-[140px] text-center">Thao tác</th>
                         </tr>
@@ -710,21 +707,6 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
                                 )}
                               </td>
                               <td className="p-2.5">
-                                <select
-                                  disabled={item.synced}
-                                  value={item.bedType}
-                                  onChange={e => updateMismatchField(item.syncId, 'bedType', e.target.value as BedType)}
-                                  className={`w-full text-xs p-2 border rounded-xl font-bold outline-none ${
-                                    hasDiff('bedType') ? 'border-amber-400 bg-amber-50 text-amber-900' : 'border-slate-200 bg-white text-slate-800'
-                                  }`}
-                                >
-                                  <option value="Nội trú">Nội trú</option>
-                                  <option value="Nội trú ban ngày">Nội trú ban ngày</option>
-                                  <option value="Ngoại trú">Ngoại trú</option>
-                                  <option value="Khác">Khác</option>
-                                </select>
-                              </td>
-                              <td className="p-2.5">
                                 <div className="flex flex-col gap-1">
                                   {item.matchedBy === 'TEMP_CODE_NAME_YOB' && (
                                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md w-fit">
@@ -784,7 +766,7 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
                     <UserPlus size={16} className="text-sky-600 shrink-0" />
                     {pendingNewCount > 0 ? (
                       <span>
-                        Phát hiện <strong>{pendingNewCount}</strong> bệnh nhân mới trên VNPT-HIS chưa có trong MedFlow. Bạn có muốn đồng bộ thêm vào khoa không? <em className="text-sky-700">(Vui lòng tự kiểm tra/chỉnh cột Giới tính)</em>
+                        Phát hiện <strong>{pendingNewCount}</strong> bệnh nhân mới trên VNPT-HIS chưa có trong MedFlow. Bạn có muốn đồng bộ thêm vào khoa không? <em className="text-sky-700">(Vui lòng tự kiểm tra/điền Giới tính &amp; Loại giường)</em>
                       </span>
                     ) : (
                       <span className="text-emerald-700 font-bold">Đã thêm xong tất cả bệnh nhân mới!</span>
@@ -846,7 +828,7 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
                           <th className="p-3 w-[105px]">Giới tính <span className="text-amber-500 text-[9px]">(Tự k.tra)</span></th>
                           <th className="p-3 w-[95px] text-center">Năm sinh</th>
                           <th className="p-3 w-[95px] text-center">Số giường</th>
-                          <th className="p-3 w-[145px]">Loại giường</th>
+                          <th className="p-3 w-[155px]">Loại giường <span className="text-amber-500 text-[9px]">(Tự điền)</span></th>
                           <th className="p-3 w-[95px] text-center">Mức BHYT</th>
                           <th className="p-3 w-[125px] text-center">Ngày vào</th>
                           <th className="p-3 w-[85px] text-center">Giờ vào</th>
@@ -932,7 +914,8 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
                                 disabled={item.added}
                                 value={item.bedType}
                                 onChange={e => updateNewField(item.syncId, 'bedType', e.target.value as BedType)}
-                                className="w-full text-xs p-2 border border-slate-200 rounded-xl font-bold bg-white text-slate-800 outline-none"
+                                className="w-full text-xs p-2 border border-amber-300 bg-amber-50/40 rounded-xl font-bold text-slate-800 outline-none"
+                                title="Vui lòng tự chọn loại giường phù hợp"
                               >
                                 <option value="Nội trú">Nội trú</option>
                                 <option value="Nội trú ban ngày">Nội trú ban ngày</option>

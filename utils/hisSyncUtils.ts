@@ -17,7 +17,7 @@ export interface HisIncomingPatient {
 }
 
 export interface HisSyncFieldDiff {
-  field: 'code' | 'name' | 'yob' | 'bedNumber' | 'roomNumber' | 'admissionDate' | 'admissionTime' | 'insuranceLevel' | 'bedType';
+  field: 'code' | 'name' | 'yob' | 'bedNumber' | 'admissionDate' | 'admissionTime' | 'insuranceLevel';
   label: string;
   oldValue: string;
   newValue: string;
@@ -33,8 +33,6 @@ export interface HisMismatchItem {
   name: string;
   yob: string;
   bedNumber: string;
-  roomNumber: string;
-  bedType: BedType;
   admissionDate: string; // dd/mm/yyyy
   admissionTime: string; // HH:mm
   insuranceLevel: InsuranceLevel;
@@ -49,7 +47,6 @@ export interface HisNewPatientItem {
   gender: 'Nam' | 'Nữ';
   yob: string;
   bedNumber: string;
-  roomNumber: string;
   bedType: BedType;
   admissionDate: string; // dd/mm/yyyy
   admissionTime: string; // HH:mm
@@ -83,7 +80,7 @@ export const normalizeText = (s: string | null | undefined): string => {
 
 export const normalizeHisBed = (raw: string | null | undefined): string => {
   const s = (raw || '').trim().replace(/\s+/g, ' ');
-  return s.replace(/^(giường|g\.|g)\s*/i, '').trim();
+  return s.replace(/^(giường|giuong|g\.|g)\s*[:\-]?\s*/i, '').trim();
 };
 
 export const normalizeHisRoom = (raw: string | null | undefined): string => {
@@ -263,36 +260,49 @@ export function compareHisPatientsWithMedFlow(
     hisCode: string;
     hisName: string;
     hisYob: string;
+    hasBedField: boolean;
     hisBed: string;
-    hisRoom: string;
     hisDate: string;
     hisTime: string;
     hisIns: InsuranceLevel | '';
-    hisBedType: BedType | '';
+    hisNote: string;
     existing?: Patient;
     matchedBy: 'CODE' | 'TEMP_CODE_NAME_YOB' | 'NAME_YOB_CODE_MISMATCH';
   }
 
   const parsedRows: ParsedIncoming[] = [];
-  incomingList.forEach((raw, idx) => {
-    const hisCode = (raw.code || '').trim();
-    const hisName = (raw.name || '').trim().replace(/\s+/g, ' ');
+  incomingList.forEach((rawAny, idx) => {
+    const raw = rawAny as any;
+    const hisCode = String(raw.code ?? raw.maBenhAn ?? raw.maBA ?? raw.ma_ba ?? '').trim();
+    const hisName = String(raw.name ?? raw.hoTen ?? raw.tenBenhNhan ?? '').trim().replace(/\s+/g, ' ');
     if (!hisCode && !hisName) {
       invalidRowsCount++;
       return;
     }
+
+    // VNPT-HIS table has "Giường" (e.g. "Giường 460"), never "Số phòng".
+    // Read bed strictly into bedNumber, and rescue accidental roomNumber mapping back into bedNumber.
+    const rawBedCandidate = raw.bedNumber ?? raw.giuong ?? raw.soGiuong ?? raw.bed;
+    const rawRoomFallback = raw.roomNumber ?? raw.phong ?? raw.buong ?? raw.soPhong ?? raw.room;
+    const normalizedPrimaryBed = normalizeHisBed(rawBedCandidate);
+    const normalizedFallbackBed = normalizeHisBed(rawRoomFallback);
+    const effectiveBed = normalizedPrimaryBed || normalizedFallbackBed;
+    const hasBedField =
+      rawBedCandidate !== undefined ||
+      (rawRoomFallback !== undefined && normalizedFallbackBed !== '');
+
     parsedRows.push({
-      raw,
+      raw: rawAny,
       idx,
       hisCode,
       hisName,
-      hisYob: extractYob(raw.yob, raw.dob),
-      hisBed: normalizeHisBed(raw.bedNumber),
-      hisRoom: normalizeHisRoom(raw.roomNumber),
-      hisDate: normalizeIncomingDate(raw.admissionDate),
-      hisTime: normalizeIncomingTime(raw.admissionTime),
-      hisIns: normalizeHisInsurance(raw.insuranceLevel),
-      hisBedType: normalizeHisBedType(raw.bedType),
+      hisYob: extractYob(raw.yob ?? raw.namSinh ?? raw.ns, raw.dob),
+      hasBedField,
+      hisBed: effectiveBed,
+      hisDate: normalizeIncomingDate(raw.admissionDate ?? raw.ngayVao ?? raw.vaoKhoa),
+      hisTime: normalizeIncomingTime(raw.admissionTime ?? raw.gioVao ?? raw.gio),
+      hisIns: normalizeHisInsurance(raw.insuranceLevel ?? raw.tyLe ?? raw.mucHuong ?? raw.bhyt),
+      hisNote: String(raw.note ?? raw.ghiChu ?? raw.maICD ?? raw.icd ?? '').trim(),
       matchedBy: 'CODE'
     });
   });
@@ -374,7 +384,7 @@ export function compareHisPatientsWithMedFlow(
   }
 
   for (const item of parsedRows) {
-    const { raw, idx, hisCode, hisName, hisYob, hisBed, hisRoom, hisDate, hisTime, hisIns, hisBedType, existing, matchedBy } = item;
+    const { raw, idx, hisCode, hisName, hisYob, hasBedField, hisBed, hisDate, hisTime, hisIns, hisNote, existing, matchedBy } = item;
 
     if (existing) {
 
@@ -382,11 +392,9 @@ export function compareHisPatientsWithMedFlow(
       const mfName = (existing.name || '').trim().replace(/\s+/g, ' ');
       const mfYob = extractYob(undefined, existing.dob);
       const mfBed = normalizeHisBed(existing.bedNumber);
-      const mfRoom = normalizeHisRoom(existing.roomNumber);
       const mfDate = formatPatientDateDdMmYyyy(existing.admissionDate);
       const mfTime = formatPatientTimeHHmm(existing.admissionDate);
       const mfIns: InsuranceLevel = existing.insuranceLevel || '100%';
-      const mfBedType: BedType = existing.bedType || 'Nội trú';
 
       const diffs: HisSyncFieldDiff[] = [];
 
@@ -417,21 +425,12 @@ export function compareHisPatientsWithMedFlow(
         });
       }
 
-      if (raw.bedNumber !== undefined && hisBed !== mfBed) {
+      if (hasBedField && hisBed !== mfBed) {
         diffs.push({
           field: 'bedNumber',
           label: 'Số giường',
           oldValue: mfBed || '(Trống)',
           newValue: hisBed || '(Trống)'
-        });
-      }
-
-      if (raw.roomNumber !== undefined && hisRoom && hisRoom !== mfRoom) {
-        diffs.push({
-          field: 'roomNumber',
-          label: 'Số phòng',
-          oldValue: mfRoom || '(Trống)',
-          newValue: hisRoom
         });
       }
 
@@ -462,16 +461,7 @@ export function compareHisPatientsWithMedFlow(
         });
       }
 
-      if (hisBedType && hisBedType !== mfBedType) {
-        diffs.push({
-          field: 'bedType',
-          label: 'Loại giường',
-          oldValue: mfBedType,
-          newValue: hisBedType
-        });
-      }
-
-      // NOTE: Gender is intentionally NOT checked/compared per user requirement.
+      // NOTE: Gender, roomNumber, and bedType are intentionally NOT checked/compared per user requirement.
 
       if (diffs.length > 0) {
         mismatched.push({
@@ -482,9 +472,7 @@ export function compareHisPatientsWithMedFlow(
           code: hisCode || mfCode,
           name: hisName ? (normalizeText(hisName) !== normalizeText(mfName) ? hisName : existing.name) : existing.name,
           yob: hisYob || mfYob,
-          bedNumber: raw.bedNumber !== undefined ? hisBed : mfBed,
-          roomNumber: hisRoom || mfRoom,
-          bedType: (hisBedType || mfBedType) as BedType,
+          bedNumber: hasBedField ? hisBed : mfBed,
           admissionDate: hisDate || mfDate || todayDdMmYyyy,
           admissionTime: hisTime || mfTime || '08:00',
           insuranceLevel: (hisIns || mfIns) as InsuranceLevel,
@@ -512,12 +500,11 @@ export function compareHisPatientsWithMedFlow(
         gender: genderGuess,
         yob: hisYob || '1960',
         bedNumber: hisBed,
-        roomNumber: hisRoom,
-        bedType: (hisBedType || 'Nội trú') as BedType,
+        bedType: 'Nội trú',
         admissionDate: hisDate || todayDdMmYyyy,
         admissionTime: hisTime || '08:00',
         insuranceLevel: (hisIns || '100%') as InsuranceLevel,
-        note: (raw.note || '').trim(),
+        note: hisNote,
         previouslyDischarged: hisCode ? dischargedCodesInDept.has(normalizeText(hisCode)) : false
       });
     }
