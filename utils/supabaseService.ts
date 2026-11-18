@@ -17,25 +17,131 @@ const updateLocalTableCache = (tableName: string, updater: (list: any[]) => any[
   } catch (e) {}
 };
 
-export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | null> {
+const CACHE_DAY_PREFIX = 'medflow_local_appts_';
+
+export const cacheActiveDateAppointments = (dateStr: string, appts: any[]) => {
+  if (typeof window === 'undefined' || !dateStr || !Array.isArray(appts)) return;
+  try {
+    // Keep only the active date cached to stay well within localStorage quota
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(CACHE_DAY_PREFIX) && k !== `${CACHE_DAY_PREFIX}${dateStr}`) {
+        localStorage.removeItem(k);
+      }
+    }
+    localStorage.setItem(`${CACHE_DAY_PREFIX}${dateStr}`, JSON.stringify(appts));
+  } catch (e) {}
+};
+
+export async function fetchSupabaseAppointmentsByDate<T>(dateStr: string): Promise<T[] | null> {
+  if (!dateStr) return null;
   try {
     let all: any[] = [];
     let from = 0;
     const step = 1000;
     while (true) {
-      let queryBuilder = supabase.from(tableName).select('*');
-      if (tableName === 'templates') {
-        queryBuilder = queryBuilder.not('id', 'like', 'snap_%').not('id', 'like', 'bkp_%');
-      }
-      const res = await queryBuilder.range(from, from + step - 1);
+      const res = await supabase
+        .from('appointments')
+        .select('*')
+        .filter('data->>date', 'eq', dateStr)
+        .range(from, from + step - 1);
+
       if (res.error) {
-        console.warn(`[Supabase fetch] Error on ${tableName}:`, res.error.message);
+        console.warn(`[Supabase fetch] Date query error on appointments (${dateStr}):`, res.error.message);
         return null;
       }
       if (!res.data || res.data.length === 0) break;
       all = all.concat(res.data);
       if (res.data.length < step) break;
       from += step;
+    }
+
+    const mapped = all.map(row => {
+      if (row.data && typeof row.data === 'object') {
+        return { ...row.data, id: row.id };
+      }
+      return row;
+    }) as T[];
+
+    cacheActiveDateAppointments(dateStr, mapped);
+    return mapped;
+  } catch (err: any) {
+    console.warn(`[Supabase fetch] Date query exception on appointments (${dateStr}):`, err?.message || err);
+    return null;
+  }
+}
+
+export async function fetchSupabaseTable<T>(tableName: string): Promise<T[] | null> {
+  try {
+    const step = 1000;
+    const buildQuery = () => {
+      let qb = supabase.from(tableName).select('*', { count: 'exact' });
+      if (tableName === 'templates') {
+        qb = qb.not('id', 'like', 'snap_%').not('id', 'like', 'bkp_%');
+      }
+      return qb;
+    };
+
+    // Fetch first page + exact total row count in a single round-trip
+    const firstRes = await buildQuery().range(0, step - 1);
+    if (firstRes.error) {
+      console.warn(`[Supabase fetch] Error on ${tableName}:`, firstRes.error.message);
+      return null;
+    }
+
+    let all: any[] = firstRes.data ? [...firstRes.data] : [];
+    const totalCount = typeof firstRes.count === 'number' ? firstRes.count : null;
+
+    if (firstRes.data && firstRes.data.length === step) {
+      if (totalCount !== null && totalCount > step) {
+        // Fetch remaining pages concurrently in parallel batches (6x faster for large tables like appointments)
+        const offsets: number[] = [];
+        for (let offset = step; offset < totalCount; offset += step) {
+          offsets.push(offset);
+        }
+
+        const CONCURRENCY = 6;
+        for (let i = 0; i < offsets.length; i += CONCURRENCY) {
+          const batchOffsets = offsets.slice(i, i + CONCURRENCY);
+          const batchResults = await Promise.all(
+            batchOffsets.map(offset => {
+              let qb = supabase.from(tableName).select('*');
+              if (tableName === 'templates') {
+                qb = qb.not('id', 'like', 'snap_%').not('id', 'like', 'bkp_%');
+              }
+              return qb.range(offset, offset + step - 1);
+            })
+          );
+
+          for (const res of batchResults) {
+            if (res.error) {
+              console.warn(`[Supabase fetch] Parallel page error on ${tableName}:`, res.error.message);
+              return null;
+            }
+            if (res.data && res.data.length > 0) {
+              all = all.concat(res.data);
+            }
+          }
+        }
+      } else {
+        // Fallback sequential pagination if count was unavailable
+        let from = step;
+        while (true) {
+          let qb = supabase.from(tableName).select('*');
+          if (tableName === 'templates') {
+            qb = qb.not('id', 'like', 'snap_%').not('id', 'like', 'bkp_%');
+          }
+          const res = await qb.range(from, from + step - 1);
+          if (res.error) {
+            console.warn(`[Supabase fetch] Error on ${tableName}:`, res.error.message);
+            return null;
+          }
+          if (!res.data || res.data.length === 0) break;
+          all = all.concat(res.data);
+          if (res.data.length < step) break;
+          from += step;
+        }
+      }
     }
 
     const mapped = all.map(row => {

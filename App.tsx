@@ -6,7 +6,7 @@ import { MOCK_STAFF, MOCK_PATIENTS, MOCK_PROCEDURES, DEPARTMENTS, DEFAULT_ADMIN,
 import { checkConflict, findAvailableStaffForSlot, calculateAge, timeStringToMinutes, minutesToTimeString, getRoleLabel, formatDate, getAbbreviation, getLocalDateString } from './utils/timeUtils';
 import { setSessionBaseline, saveDeletedSessionAppointment, removeDeletedSessionAppointment, clearDeletedSessionAppointments, clearAllSessionBaselines, getDeletedSessionAppointments, formatDateVi } from './utils/scheduleHistoryUtils';
 import { handleFirestoreError, OperationType, subscribeQuotaExceeded, isQuotaExceededState } from './utils/firestoreUtils';
-import { isSupabaseConfigured, fetchSupabaseTable, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase, fetchBackupsFromSupabase } from './utils/supabaseService';
+import { isSupabaseConfigured, fetchSupabaseTable, fetchSupabaseAppointmentsByDate, cacheActiveDateAppointments, resetSupabaseDatabase, fetchScheduleSnapshotsFromSupabase, fetchBackupsFromSupabase } from './utils/supabaseService';
 import { supabase } from './supabaseClient';
 import { Timeline } from './components/Timeline';
 import { DailyReport } from './components/DailyReport';
@@ -58,19 +58,64 @@ import {
 export type MainTab = 'PATIENT_RECORDS' | 'SCHEDULING' | 'GENERAL_TIMELINE' | 'DAILY_REPORT' | 'DEPT_MANAGER' | 'ATTENDANCE' | 'ACCOUNT_MANAGER' | 'ACCOUNT_BACKUP';
 export type ManagerTab = 'PERSONNEL' | 'ATTENDANCE' | 'PROCEDURES';
 
+const getLocalTodayISO = (): string => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().split('T')[0];
+};
+
+const readLocalCache = <T,>(keys: string[]): T[] => {
+  if (typeof window === 'undefined') return [];
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed as T[];
+        }
+      }
+    } catch (e) {}
+  }
+  return [];
+};
+
+const sanitizeTemplatesList = (tpls: AppointmentTemplate[]): AppointmentTemplate[] =>
+  tpls
+    .filter(
+      t =>
+        t &&
+        t.id &&
+        !t.id.startsWith('snap_') &&
+        !t.id.startsWith('bkp_') &&
+        !(t as any).backupDate &&
+        !(t as any).snapshot &&
+        !(Array.isArray((t as any).appointments) && !Array.isArray(t.procedures))
+    )
+    .map(t => ({
+      ...t,
+      procedures: t.procedures || []
+    }));
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     const saved = sessionStorage.getItem('medflow_user');
     return saved ? JSON.parse(saved) : null;
   });
 
+  // Skip blocking LoginLoader on F5 reload if core tables are already hydrated from localStorage
   const [showLoginLoading, setShowLoginLoading] = useState(() => {
     const saved = sessionStorage.getItem('medflow_user');
-    return !!saved;
+    if (!saved) return false;
+    const hasCachedPatients = readLocalCache<Patient>(['medflow_local_patients']).length > 0;
+    const hasCachedStaff = readLocalCache<Staff>(['medflow_local_staff']).length > 0;
+    const hasCachedProcs = readLocalCache<Procedure>(['medflow_local_procedures']).length > 0;
+    return !(hasCachedPatients && hasCachedStaff && hasCachedProcs);
   });
 
   const [loadedCollections, setLoadedCollections] = useState<Record<string, boolean>>({
     patients: false,
+    appointmentsActiveDate: false,
     appointments: false,
     templates: false,
     attendance: false,
@@ -85,16 +130,20 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MainTab>('PATIENT_RECORDS');
   const previousTabRef = useRef<MainTab>('DEPT_MANAGER');
   const [managerSubTab, setManagerSubTab] = useState<ManagerTab>('PERSONNEL');
-  const [activeDate, setActiveDate] = useState<string>(() => {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const localISO = new Date(now.getTime() - offset).toISOString().split('T')[0];
-    return localISO;
-  });
+  const [activeDate, setActiveDate] = useState<string>(getLocalTodayISO);
+  const activeDateRef = useRef<string>(activeDate);
+  useEffect(() => {
+    activeDateRef.current = activeDate;
+  }, [activeDate]);
+
+  const loadedAppointmentsFullRef = useRef<boolean>(false);
+  const loadedBackupsRef = useRef<boolean>(false);
   
-  const [users, setUsers] = useState<UserAccount[]>([]);
+  const [users, setUsers] = useState<UserAccount[]>(() => readLocalCache<UserAccount>(['medflow_local_users']));
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>(() =>
+    readLocalCache<Appointment>([`medflow_local_appts_${getLocalTodayISO()}`])
+  );
   
   // Safe updater that prevents duplicate appointments in state
   const handleUpdateAppointmentsSafely: React.Dispatch<React.SetStateAction<Appointment[]>> = (value) => {
@@ -115,22 +164,48 @@ const App: React.FC = () => {
     });
   };
 
-  const [machineShifts, setMachineShifts] = useState<MachineShift[]>([]);
-  const [templates, setTemplates] = useState<AppointmentTemplate[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [staff, setStaff] = useState<Staff[]>([]);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
-  const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [machineShifts, setMachineShifts] = useState<MachineShift[]>(() =>
+    readLocalCache<MachineShift>(['medflow_local_machine_shifts', 'medflow_local_machineShifts'])
+  );
+  const [templates, setTemplates] = useState<AppointmentTemplate[]>(() =>
+    sanitizeTemplatesList(readLocalCache<AppointmentTemplate>(['medflow_local_templates']))
+  );
+  const [patients, setPatients] = useState<Patient[]>(() => readLocalCache<Patient>(['medflow_local_patients']));
+  const [staff, setStaff] = useState<Staff[]>(() => readLocalCache<Staff>(['medflow_local_staff']));
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() =>
+    readLocalCache<AttendanceRecord>(['medflow_local_attendance'])
+  );
+  const [procedures, setProcedures] = useState<Procedure[]>(() => readLocalCache<Procedure>(['medflow_local_procedures']));
   const [backups, setBackups] = useState<Backup[]>([]);
-  const [scheduleSnapshots, setScheduleSnapshots] = useState<ScheduleSnapshot[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('medflow_schedule_snapshots') || localStorage.getItem('medflow_local_schedule_snapshots');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return [];
-  });
+  const [scheduleSnapshots, setScheduleSnapshots] = useState<ScheduleSnapshot[]>(() =>
+    readLocalCache<ScheduleSnapshot>(['medflow_schedule_snapshots', 'medflow_local_schedule_snapshots'])
+  );
+
+  // Seed in-memory doc cache immediately from hydrated localStorage state
+  useEffect(() => {
+    if (users.length > 0) seedDocCache('users', users);
+    if (patients.length > 0) seedDocCache('patients', patients);
+    if (staff.length > 0) seedDocCache('staff', staff);
+    if (procedures.length > 0) seedDocCache('procedures', procedures);
+    if (attendanceRecords.length > 0) seedDocCache('attendance', attendanceRecords);
+    if (machineShifts.length > 0) seedDocCache('machineShifts', machineShifts);
+    if (templates.length > 0) seedDocCache('templates', templates);
+    if (appointments.length > 0) seedDocCache('appointments', appointments);
+    if (scheduleSnapshots.length > 0) seedDocCache('scheduleSnapshots', scheduleSnapshots);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep active-date appointments cached locally so next reload renders Timeline instantaneously
+  useEffect(() => {
+    if (!activeDate || appointments.length === 0) return;
+    const timer = setTimeout(() => {
+      const dayAppts = appointments.filter(a => a.date === activeDate);
+      if (dayAppts.length > 0) {
+        cacheActiveDateAppointments(activeDate, dayAppts);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [appointments, activeDate]);
   const [undoData, setUndoData] = useState<Appointment[] | null>(null);
   
   // Ref to throttle rapid database reloads (preventing lag & state overwrites during focus events)
@@ -488,6 +563,7 @@ const App: React.FC = () => {
       if (templates.length === 0) setTemplates(MOCK_TEMPLATES);
       setLoadedCollections({
         patients: true,
+        appointmentsActiveDate: true,
         appointments: true,
         templates: true,
         attendance: true,
@@ -495,6 +571,7 @@ const App: React.FC = () => {
         machineShifts: true,
         procedures: true,
         scheduleSnapshots: true,
+        backups: true,
       });
     }
   }, [isQuotaExceeded, users.length, staff.length, procedures.length, patients.length, templates.length]);
@@ -504,292 +581,376 @@ const App: React.FC = () => {
     ensureAuthReady().then(() => setIsAuthReady(true)).catch(() => setIsAuthReady(true));
   }, []);
 
-  // Load users from database on startup and perform basic seeding if empty
+  // Load users for the Login screen only when not yet logged in (avoids duplicate fetches when already authenticated)
   useEffect(() => {
-    const initData = async () => {
+    if (currentUser) return;
+    const initLoginUsers = async () => {
       try {
         let usrs = await fetchSupabaseTable<UserAccount>('users');
         if (!usrs || usrs.length === 0) {
           await ensureAuthReady();
           usrs = await fetchCollectionFromFirestore<UserAccount>('users');
         }
-        let currentUsrs = usrs || [];
-        
-        // Seed DEFAULT_ADMIN if not present
+        const currentUsrs = usrs || [];
         if (!currentUsrs.some(u => u.id === DEFAULT_ADMIN.id)) {
-          console.log("Seeding DEFAULT_ADMIN...");
           await setDoc(doc(db, 'users', DEFAULT_ADMIN.id), DEFAULT_ADMIN);
           currentUsrs.push(DEFAULT_ADMIN);
         }
-        
-        setUsers(currentUsrs);
-
-        // Seed procedures if empty
-        let procs = await fetchSupabaseTable<Procedure>('procedures');
-        if (!procs || procs.length === 0) {
-          procs = await fetchCollectionFromFirestore<Procedure>('procedures');
-        }
-        if (!procs || procs.length === 0) {
-          console.log("Seeding MOCK_PROCEDURES...");
-          for (const p of MOCK_PROCEDURES) {
-            await setDoc(doc(db, 'procedures', p.id), p);
-          }
-          setProcedures(MOCK_PROCEDURES);
-        } else {
-          setProcedures(procs);
-        }
-
-        // Seed templates if empty
-        let tpls = await fetchSupabaseTable<AppointmentTemplate>('templates');
-        if (!tpls || tpls.length === 0) {
-          tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
-        }
-        if (!tpls || tpls.length === 0) {
-          console.log("Seeding MOCK_TEMPLATES...");
-          for (const t of MOCK_TEMPLATES) {
-            await setDoc(doc(db, 'templates', t.id), t);
-          }
-          setTemplates(MOCK_TEMPLATES);
-        } else {
-          const sanitizedTpls = tpls
-            .filter(t => !t.id?.startsWith('snap_') && !(Array.isArray((t as any).appointments) && !Array.isArray(t.procedures)))
-            .map(t => ({
-              ...t,
-              procedures: t.procedures || []
-            }));
-          seedDocCache('templates', sanitizedTpls);
-          setTemplates(sanitizedTpls);
-        }
         seedDocCache('users', currentUsrs);
-        if (procs && procs.length > 0) seedDocCache('procedures', procs);
+        setUsers(currentUsrs);
       } catch (err) {
-        console.warn("Failed to initialize or fetch users on startup:", err);
+        console.warn("Failed to initialize users for login:", err);
       }
     };
-    initData();
-  }, []);
+    initLoginUsers();
+  }, [currentUser]);
+
+  const mergeWithLocalProtection = <T extends { id: string }>(
+    collName: string,
+    prev: T[],
+    serverItems: T[] | null,
+    prependNew = false
+  ): T[] => {
+    if (serverItems === null) return prev;
+    const currentTime = Date.now();
+
+    const validServerItems = serverItems.filter(item => {
+      const key = `${collName}:${item.id}`;
+      const delTime = recentlyDeletedByCollRef.current.get(key);
+      if (delTime && currentTime - delTime < 60000) return false;
+      if (collName === 'appointments') {
+        const apptDel = recentlyDeletedApptIdsRef.current.get(item.id);
+        if (apptDel && currentTime - apptDel < 60000) return false;
+      }
+      if (collName === 'patients') {
+        const patDel = recentlyDeletedPatientIdsRef.current.get(item.id);
+        if (patDel && currentTime - patDel < 60000) return false;
+      }
+      return true;
+    });
+
+    const mergedServerItems = validServerItems.map(serverItem => {
+      const key = `${collName}:${serverItem.id}`;
+      const recent = recentlyUpdatedByCollRef.current.get(key);
+      if ((recent && currentTime - recent.timestamp < 60000) || hasPendingSync(collName, serverItem.id)) {
+        if (recent?.data) return recent.data as T;
+      }
+      if (collName === 'appointments') {
+        const rAppt = recentlyUpdatedApptsRef.current.get(serverItem.id);
+        if (rAppt && currentTime - rAppt.timestamp < 60000) return rAppt.appt as unknown as T;
+      }
+      if (collName === 'patients') {
+        const rPat = recentlyUpdatedPatientsRef.current.get(serverItem.id);
+        if (rPat && currentTime - rPat.timestamp < 60000) return rPat.patient as unknown as T;
+      }
+      if (collName === 'scheduleSnapshots') {
+        const rSnap = recentlySavedSnapshotsRef.current.get(serverItem.id);
+        if (rSnap && currentTime - rSnap.timestamp < 60000) return rSnap.snapshot as unknown as T;
+      }
+      return serverItem;
+    });
+
+    const serverIdSet = new Set(mergedServerItems.map(i => i.id));
+    const newLocalItems = prev.filter(localItem => {
+      if (serverIdSet.has(localItem.id)) return false;
+      const key = `${collName}:${localItem.id}`;
+      const delTime = recentlyDeletedByCollRef.current.get(key);
+      if (delTime && currentTime - delTime < 60000) return false;
+      if (hasPendingSync(collName, localItem.id)) return true;
+      const upd = recentlyUpdatedByCollRef.current.get(key);
+      if (upd && currentTime - upd.timestamp < 90000) return true;
+      if (collName === 'appointments') {
+        const rAppt = recentlyUpdatedApptsRef.current.get(localItem.id);
+        if (rAppt && currentTime - rAppt.timestamp < 90000) return true;
+      }
+      if (collName === 'patients') {
+        const rPat = recentlyUpdatedPatientsRef.current.get(localItem.id);
+        if (rPat && currentTime - rPat.timestamp < 90000) return true;
+      }
+      if (collName === 'scheduleSnapshots') {
+        const rSnap = recentlySavedSnapshotsRef.current.get(localItem.id);
+        if (rSnap && currentTime - rSnap.timestamp < 90000) return true;
+      }
+      return false;
+    });
+
+    return prependNew ? [...newLocalItems, ...mergedServerItems] : [...mergedServerItems, ...newLocalItems];
+  };
+
+  // Safely merge appointments for a single date without discarding appointments from other dates
+  const mergeDateScopedAppointments = (
+    prev: Appointment[],
+    dateStr: string,
+    serverItems: Appointment[] | null
+  ): Appointment[] => {
+    if (serverItems === null) return prev;
+    const serverDateItems = serverItems.filter(a => a && a.date === dateStr);
+    const mergedForDate = mergeWithLocalProtection('appointments', prev.filter(a => a.date === dateStr), serverDateItems, false);
+    const otherDates = prev.filter(a => a.date !== dateStr);
+    return [...otherDates, ...mergedForDate];
+  };
+
+  // If user switches to another date before full historical backfill finishes, fetch that date immediately (~200ms)
+  useEffect(() => {
+    if (!currentUser || !activeDate || loadedCollections.appointments) return;
+    let cancelled = false;
+    fetchSupabaseAppointmentsByDate<Appointment>(activeDate).then(dayAppts => {
+      if (cancelled || dayAppts === null) return;
+      seedDocCache('appointments', dayAppts);
+      setAppointments(prev => mergeDateScopedAppointments(prev, activeDate, dayAppts));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDate, currentUser, loadedCollections.appointments]);
 
   useEffect(() => {
     if (!currentUser) return;
-    console.log("Loading and synchronizing real-time data from Supabase & Firestore...");
+    let isCancelled = false;
+    console.log("Loading and synchronizing real-time data (progressive 3-tier mode)...");
 
-    const mergeWithLocalProtection = <T extends { id: string }>(
-      collName: string,
-      prev: T[],
-      serverItems: T[] | null,
-      prependNew = false
-    ): T[] => {
-      if (serverItems === null) return prev;
-      const currentTime = Date.now();
-
-      const validServerItems = serverItems.filter(item => {
-        const key = `${collName}:${item.id}`;
-        const delTime = recentlyDeletedByCollRef.current.get(key);
-        if (delTime && currentTime - delTime < 60000) return false;
-        if (collName === 'appointments') {
-          const apptDel = recentlyDeletedApptIdsRef.current.get(item.id);
-          if (apptDel && currentTime - apptDel < 60000) return false;
-        }
-        if (collName === 'patients') {
-          const patDel = recentlyDeletedPatientIdsRef.current.get(item.id);
-          if (patDel && currentTime - patDel < 60000) return false;
-        }
-        return true;
-      });
-
-      const mergedServerItems = validServerItems.map(serverItem => {
-        const key = `${collName}:${serverItem.id}`;
-        const recent = recentlyUpdatedByCollRef.current.get(key);
-        if ((recent && currentTime - recent.timestamp < 60000) || hasPendingSync(collName, serverItem.id)) {
-          if (recent?.data) return recent.data as T;
-        }
-        if (collName === 'appointments') {
-          const rAppt = recentlyUpdatedApptsRef.current.get(serverItem.id);
-          if (rAppt && currentTime - rAppt.timestamp < 60000) return rAppt.appt as unknown as T;
-        }
-        if (collName === 'patients') {
-          const rPat = recentlyUpdatedPatientsRef.current.get(serverItem.id);
-          if (rPat && currentTime - rPat.timestamp < 60000) return rPat.patient as unknown as T;
-        }
-        if (collName === 'scheduleSnapshots') {
-          const rSnap = recentlySavedSnapshotsRef.current.get(serverItem.id);
-          if (rSnap && currentTime - rSnap.timestamp < 60000) return rSnap.snapshot as unknown as T;
-        }
-        return serverItem;
-      });
-
-      const serverIdSet = new Set(mergedServerItems.map(i => i.id));
-      const newLocalItems = prev.filter(localItem => {
-        if (serverIdSet.has(localItem.id)) return false;
-        const key = `${collName}:${localItem.id}`;
-        const delTime = recentlyDeletedByCollRef.current.get(key);
-        if (delTime && currentTime - delTime < 60000) return false;
-        if (hasPendingSync(collName, localItem.id)) return true;
-        const upd = recentlyUpdatedByCollRef.current.get(key);
-        if (upd && currentTime - upd.timestamp < 90000) return true;
-        if (collName === 'appointments') {
-          const rAppt = recentlyUpdatedApptsRef.current.get(localItem.id);
-          if (rAppt && currentTime - rAppt.timestamp < 90000) return true;
-        }
-        if (collName === 'patients') {
-          const rPat = recentlyUpdatedPatientsRef.current.get(localItem.id);
-          if (rPat && currentTime - rPat.timestamp < 90000) return true;
-        }
-        if (collName === 'scheduleSnapshots') {
-          const rSnap = recentlySavedSnapshotsRef.current.get(localItem.id);
-          if (rSnap && currentTime - rSnap.timestamp < 90000) return true;
-        }
-        return false;
-      });
-
-      return prependNew ? [...newLocalItems, ...mergedServerItems] : [...mergedServerItems, ...newLocalItems];
-    };
-    
     const loadAppData = async (force = false) => {
       const fetchStartTime = Date.now();
       // If user performed an action recently (< 45s ago), skip background reload to prevent race conditions
       if (!force && fetchStartTime - lastUserActionTimeRef.current < 45000) {
-        console.log("[loadAppData] User action recently in progress (< 45s ago). Skipping fetch to protect local state.");
         return;
       }
       // Throttle reloads to maximum once every 20 seconds, unless forced
       if (!force && fetchStartTime - lastFetchTimeRef.current < 20000) {
-        console.log("[loadAppData] Throttled (last sync was < 20s ago). Skipping fetch to preserve UI state.");
         return;
       }
       lastFetchTimeRef.current = fetchStartTime;
 
+      const shouldCommit = () => !isCancelled && (force || lastUserActionTimeRef.current <= fetchStartTime);
+      const targetDate = activeDateRef.current;
+
       try {
-        // Fetch from Supabase (Pro) first with automatic Firestore fallback on failure/empty boot
-        let [pats, appts, stf, procs, att, shifts, tpls, usrs, snapshots, bkps] = await Promise.all([
-          fetchSupabaseTable<Patient>('patients'),
-          fetchSupabaseTable<Appointment>('appointments'),
-          fetchSupabaseTable<Staff>('staff'),
-          fetchSupabaseTable<Procedure>('procedures'),
-          fetchSupabaseTable<AttendanceRecord>('attendance'),
-          fetchSupabaseTable<MachineShift>('machine_shifts'),
-          fetchSupabaseTable<AppointmentTemplate>('templates'),
-          fetchSupabaseTable<UserAccount>('users'),
-          fetchScheduleSnapshotsFromSupabase(),
-          fetchBackupsFromSupabase<Backup>()
+        // ============================================================
+        // TIER 1: Core small tables + Active Date appointments in parallel
+        // Each table renders immediately upon arrival without waiting for others.
+        // ============================================================
+        const tPatients = (async () => {
+          let pats = await fetchSupabaseTable<Patient>('patients');
+          if (pats === null) {
+            await ensureAuthReady();
+            pats = await fetchCollectionFromFirestore<Patient>('patients');
+          }
+          if (!shouldCommit()) return;
+          if (pats) {
+            seedDocCache('patients', pats);
+            setPatients(prev => mergeWithLocalProtection('patients', prev, pats, true));
+          }
+          setLoadedCollections(prev => ({ ...prev, patients: true }));
+        })();
+
+        const tApptsDay = (async () => {
+          let dayAppts = await fetchSupabaseAppointmentsByDate<Appointment>(targetDate);
+          if (dayAppts === null) {
+            await ensureAuthReady();
+            const fsAppts = await fetchCollectionFromFirestore<Appointment>('appointments');
+            dayAppts = fsAppts ? fsAppts.filter(a => a.date === targetDate) : null;
+          }
+          if (!shouldCommit()) return;
+          if (dayAppts) {
+            seedDocCache('appointments', dayAppts);
+            setAppointments(prev => mergeDateScopedAppointments(prev, targetDate, dayAppts));
+          }
+          setLoadedCollections(prev => ({ ...prev, appointmentsActiveDate: true }));
+        })();
+
+        const tStaff = (async () => {
+          let stf = await fetchSupabaseTable<Staff>('staff');
+          if (stf === null) {
+            await ensureAuthReady();
+            stf = await fetchCollectionFromFirestore<Staff>('staff');
+          }
+          if (!shouldCommit()) return;
+          if (stf) {
+            seedDocCache('staff', stf);
+            setStaff(prev => mergeWithLocalProtection('staff', prev, stf, false));
+          }
+          setLoadedCollections(prev => ({ ...prev, staff: true }));
+        })();
+
+        const tProcs = (async () => {
+          let procs = await fetchSupabaseTable<Procedure>('procedures');
+          if (procs === null) {
+            await ensureAuthReady();
+            procs = await fetchCollectionFromFirestore<Procedure>('procedures');
+          }
+          if (!shouldCommit()) return;
+          if (procs && procs.length === 0) {
+            for (const p of MOCK_PROCEDURES) {
+              await setDoc(doc(db, 'procedures', p.id), p);
+            }
+            procs = MOCK_PROCEDURES;
+          }
+          if (procs) {
+            seedDocCache('procedures', procs);
+            setProcedures(prev => mergeWithLocalProtection('procedures', prev, procs, false));
+          }
+          setLoadedCollections(prev => ({ ...prev, procedures: true }));
+        })();
+
+        const tAtt = (async () => {
+          let att = await fetchSupabaseTable<AttendanceRecord>('attendance');
+          if (att === null) {
+            await ensureAuthReady();
+            att = await fetchCollectionFromFirestore<AttendanceRecord>('attendance');
+          }
+          if (!shouldCommit()) return;
+          if (att) {
+            seedDocCache('attendance', att);
+            setAttendanceRecords(prev => mergeWithLocalProtection('attendance', prev, att, false));
+          }
+          setLoadedCollections(prev => ({ ...prev, attendance: true }));
+        })();
+
+        const tShifts = (async () => {
+          let shifts = await fetchSupabaseTable<MachineShift>('machine_shifts');
+          if (shifts === null) {
+            await ensureAuthReady();
+            shifts = await fetchCollectionFromFirestore<MachineShift>('machineShifts');
+          }
+          if (!shouldCommit()) return;
+          if (shifts) {
+            seedDocCache('machineShifts', shifts);
+            setMachineShifts(prev => mergeWithLocalProtection('machineShifts', prev, shifts, false));
+          }
+          setLoadedCollections(prev => ({ ...prev, machineShifts: true }));
+        })();
+
+        const tTpls = (async () => {
+          let tpls = await fetchSupabaseTable<AppointmentTemplate>('templates');
+          if (tpls === null) {
+            await ensureAuthReady();
+            tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
+          }
+          if (!shouldCommit()) return;
+          if (tpls) {
+            const sanitizedTpls = sanitizeTemplatesList(tpls);
+            seedDocCache('templates', sanitizedTpls);
+            setTemplates(prev => mergeWithLocalProtection('templates', prev, sanitizedTpls, false));
+          }
+          setLoadedCollections(prev => ({ ...prev, templates: true }));
+        })();
+
+        const tUsers = (async () => {
+          let usrs = await fetchSupabaseTable<UserAccount>('users');
+          if (usrs === null || usrs.length === 0) {
+            await ensureAuthReady();
+            usrs = await fetchCollectionFromFirestore<UserAccount>('users');
+          }
+          if (!shouldCommit()) return;
+          if (usrs && usrs.length > 0) {
+            if (!usrs.some(u => u.id === DEFAULT_ADMIN.id)) {
+              setDoc(doc(db, 'users', DEFAULT_ADMIN.id), DEFAULT_ADMIN).catch(() => {});
+              usrs = [...usrs, DEFAULT_ADMIN];
+            }
+            seedDocCache('users', usrs);
+            setUsers(prev => mergeWithLocalProtection('users', prev, usrs, false));
+          }
+        })();
+
+        const tSnapshots = (async () => {
+          let snapshots = await fetchScheduleSnapshotsFromSupabase();
+          if (snapshots === null) {
+            await ensureAuthReady();
+            snapshots = await fetchScheduleSnapshotsFromFirestore();
+          }
+          if (!shouldCommit()) return;
+          if (snapshots && snapshots.length > 0) {
+            seedDocCache('scheduleSnapshots', snapshots);
+            setScheduleSnapshots(prev => {
+              const finalSnapshots = mergeWithLocalProtection('scheduleSnapshots', prev, snapshots, false);
+              if (typeof window !== 'undefined') {
+                try {
+                  const trimmed = finalSnapshots.slice(-30);
+                  localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(trimmed));
+                  localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(trimmed));
+                } catch (e) {}
+              }
+              return finalSnapshots;
+            });
+          } else if (snapshots !== null) {
+            setScheduleSnapshots(prev => {
+              if (prev.length > 0) {
+                return mergeWithLocalProtection('scheduleSnapshots', prev, snapshots, false);
+              }
+              return prev;
+            });
+          }
+          setLoadedCollections(prev => ({ ...prev, scheduleSnapshots: true }));
+        })();
+
+        // Wait only for Tier 1 so Tier 2/3 never contend for bandwidth during initial render
+        await Promise.allSettled([
+          tPatients,
+          tApptsDay,
+          tStaff,
+          tProcs,
+          tAtt,
+          tShifts,
+          tTpls,
+          tUsers,
+          tSnapshots
         ]);
 
-        // Discard stale background response if user edited anything while the network request was in-flight
-        if (!force && lastUserActionTimeRef.current > fetchStartTime) {
-          console.log("[loadAppData] Local change happened while fetch was in-flight. Discarding stale response.");
-          return;
-        }
+        if (isCancelled) return;
 
-        // Fallback to Firestore for failed (null) collections or if Supabase returned completely empty
-        const supabaseActive = (pats && pats.length > 0) || (appts && appts.length > 0) || (stf && stf.length > 0);
-        if (!supabaseActive || pats === null || appts === null || stf === null || procs === null || att === null || shifts === null || tpls === null || usrs === null || snapshots === null || bkps === null || bkps.length === 0) {
-          await ensureAuthReady();
-          if (pats === null || (!supabaseActive && pats.length === 0)) pats = await fetchCollectionFromFirestore<Patient>('patients');
-          if (appts === null || (!supabaseActive && appts.length === 0)) appts = await fetchCollectionFromFirestore<Appointment>('appointments');
-          if (stf === null || (!supabaseActive && stf.length === 0)) stf = await fetchCollectionFromFirestore<Staff>('staff');
-          if (procs === null || (!supabaseActive && procs.length === 0)) procs = await fetchCollectionFromFirestore<Procedure>('procedures');
-          if (att === null || (!supabaseActive && att.length === 0)) att = await fetchCollectionFromFirestore<AttendanceRecord>('attendance');
-          if (shifts === null || (!supabaseActive && shifts.length === 0)) shifts = await fetchCollectionFromFirestore<MachineShift>('machineShifts');
-          if (tpls === null || (!supabaseActive && tpls.length === 0)) tpls = await fetchCollectionFromFirestore<AppointmentTemplate>('templates');
-          if (usrs === null || (!supabaseActive && usrs.length === 0)) usrs = await fetchCollectionFromFirestore<UserAccount>('users');
-          if (snapshots === null || (!supabaseActive && snapshots.length === 0)) snapshots = await fetchScheduleSnapshotsFromFirestore();
-          if (bkps === null || bkps.length === 0) bkps = await fetchCollectionFromFirestore<Backup>('backups');
-
-          if (!force && lastUserActionTimeRef.current > fetchStartTime) {
-            return;
-          }
-        }
-
-        if (pats) {
-          seedDocCache('patients', pats);
-          setPatients(prev => mergeWithLocalProtection('patients', prev, pats, true));
-        }
-        if (appts) {
-          seedDocCache('appointments', appts);
-          setAppointments(prev => mergeWithLocalProtection('appointments', prev, appts, false));
-        }
-        if (stf) {
-          seedDocCache('staff', stf);
-          setStaff(prev => mergeWithLocalProtection('staff', prev, stf, false));
-        }
-        if (procs) {
-          seedDocCache('procedures', procs);
-          setProcedures(prev => mergeWithLocalProtection('procedures', prev, procs, false));
-        }
-        if (att) {
-          seedDocCache('attendance', att);
-          setAttendanceRecords(prev => mergeWithLocalProtection('attendance', prev, att, false));
-        }
-        if (shifts) {
-          seedDocCache('machineShifts', shifts);
-          setMachineShifts(prev => mergeWithLocalProtection('machineShifts', prev, shifts, false));
-        }
-        if (tpls) {
-          const sanitizedTpls = tpls
-            .filter(t => !t.id?.startsWith('snap_') && !t.id?.startsWith('bkp_') && !(t as any).backupDate && !(t as any).snapshot && !(Array.isArray((t as any).appointments) && !Array.isArray(t.procedures)))
-            .map(t => ({
-              ...t,
-              procedures: t.procedures || []
-            }));
-          seedDocCache('templates', sanitizedTpls);
-          setTemplates(prev => mergeWithLocalProtection('templates', prev, sanitizedTpls, false));
-        }
-        if (usrs && usrs.length > 0) {
-          seedDocCache('users', usrs);
-          setUsers(prev => mergeWithLocalProtection('users', prev, usrs, false));
-        }
-        if (snapshots && snapshots.length > 0) {
-          seedDocCache('scheduleSnapshots', snapshots);
-          setScheduleSnapshots(prev => {
-            const finalSnapshots = mergeWithLocalProtection('scheduleSnapshots', prev, snapshots, false);
-            if (typeof window !== 'undefined') {
-              try {
-                const trimmed = finalSnapshots.slice(-30);
-                localStorage.setItem('medflow_schedule_snapshots', JSON.stringify(trimmed));
-                localStorage.setItem('medflow_local_schedule_snapshots', JSON.stringify(trimmed));
-              } catch (e) {}
+        // ============================================================
+        // TIER 2 & TIER 3: Non-blocking background backfill
+        // Full 30k+ appointments and backups only load when forced or not yet loaded,
+        // avoiding costly full downloads when switching back from VNPT-HIS tabs.
+        // ============================================================
+        if (force || !loadedAppointmentsFullRef.current) {
+          (async () => {
+            try {
+              let allAppts = await fetchSupabaseTable<Appointment>('appointments');
+              if (allAppts === null) {
+                await ensureAuthReady();
+                allAppts = await fetchCollectionFromFirestore<Appointment>('appointments');
+              }
+              if (isCancelled) return;
+              if (allAppts) {
+                seedDocCache('appointments', allAppts);
+                setAppointments(prev => mergeWithLocalProtection('appointments', prev, allAppts, false));
+                loadedAppointmentsFullRef.current = true;
+                setLoadedCollections(prev => ({ ...prev, appointments: true }));
+              }
+            } catch (err) {
+              console.warn("Background full appointments backfill error:", err);
             }
-            return finalSnapshots;
-          });
-        } else if (snapshots !== null) {
-          setScheduleSnapshots(prev => {
-            if (prev.length > 0) {
-              return mergeWithLocalProtection('scheduleSnapshots', prev, snapshots, false);
-            }
-            if (typeof window !== 'undefined') {
-              try {
-                const local = localStorage.getItem('medflow_schedule_snapshots') || localStorage.getItem('medflow_local_schedule_snapshots');
-                if (local) {
-                  const parsed = JSON.parse(local);
-                  if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-                }
-              } catch (e) {}
-            }
-            return prev;
-          });
-        }
-        if (bkps) {
-          seedDocCache('backups', bkps);
-          setBackups(prev => mergeWithLocalProtection('backups', prev, bkps, false));
+          })();
         }
 
-        setLoadedCollections({
-          patients: true,
-          appointments: true,
-          templates: true,
-          attendance: true,
-          staff: true,
-          machineShifts: true,
-          procedures: true,
-          scheduleSnapshots: true,
-          backups: true,
-        });
+        if (force || !loadedBackupsRef.current) {
+          (async () => {
+            try {
+              let bkps = await fetchBackupsFromSupabase<Backup>();
+              if (bkps === null || bkps.length === 0) {
+                await ensureAuthReady();
+                const fsBkps = await fetchCollectionFromFirestore<Backup>('backups');
+                if (fsBkps && fsBkps.length > 0) bkps = fsBkps;
+              }
+              if (isCancelled) return;
+              if (bkps) {
+                seedDocCache('backups', bkps);
+                setBackups(prev => mergeWithLocalProtection('backups', prev, bkps, false));
+                loadedBackupsRef.current = true;
+              }
+              setLoadedCollections(prev => ({ ...prev, backups: true }));
+            } catch (err) {
+              console.warn("Background backups load error:", err);
+            }
+          })();
+        }
       } catch (err) {
         console.warn("Failed to fetch application data:", err);
       }
     };
 
-    // Force initial load of data on mount
+    // Force initial progressive load of data on mount
     loadAppData(true);
 
     // Supabase Realtime Subscription for instant cross-tab & cross-device updates
@@ -843,14 +1004,14 @@ const App: React.FC = () => {
       )
       .subscribe();
 
-    // Background periodic sync (every 60s) when page is visible as a fallback
+    // Background periodic sync (every 60s) when page is visible — refreshes Tier 1 deltas only
     const pollInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         loadAppData(false);
       }
     }, 60000);
 
-    // Throttled re-sync on tab visibility change (tab switches, locks, etc.)
+    // Throttled re-sync on tab visibility change (tab switches from HIS, locks, etc.)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadAppData(false);
@@ -860,6 +1021,7 @@ const App: React.FC = () => {
     window.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      isCancelled = true;
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
       window.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -869,9 +1031,12 @@ const App: React.FC = () => {
 
 
   const handleLogin = (user: UserAccount) => {
+    loadedAppointmentsFullRef.current = false;
+    loadedBackupsRef.current = false;
     setShowLoginLoading(true);
     setLoadedCollections({
       patients: false,
+      appointmentsActiveDate: false,
       appointments: false,
       templates: false,
       attendance: false,
@@ -879,6 +1044,7 @@ const App: React.FC = () => {
       machineShifts: false,
       procedures: false,
       scheduleSnapshots: false,
+      backups: false,
     });
     setCurrentUser(user);
     sessionStorage.setItem('medflow_user', JSON.stringify(user));

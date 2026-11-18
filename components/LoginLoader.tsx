@@ -10,19 +10,24 @@ interface LoginLoaderProps {
 export const LoginLoader: React.FC<LoginLoaderProps> = ({ loadedCollections, onComplete }) => {
   const [dots, setDots] = useState('');
   
-  // Staged loading status text matching the firebase collection keys
+  // Staged loading status text matching the collection keys
   const stages = [
-    { key: 'procedures', label: 'Cập nhật danh mục 47 lịch trình lâm sàng', progress: 15 },
+    { key: 'procedures', label: 'Cập nhật danh mục lịch trình lâm sàng', progress: 15 },
     { key: 'staff', label: 'Đồng bộ thông tin nhân sự & phân quyền khoa', progress: 30 },
     { key: 'patients', label: 'Đồng bộ hồ sơ bệnh án & tiến trình điều trị', progress: 50 },
     { key: 'attendance', label: 'Tải sơ đồ lịch trực & timeline rảnh bận nhân sự', progress: 65 },
     { key: 'machineShifts', label: 'Khởi tạo sơ đồ vận hành ca máy kỹ thuật', progress: 80 },
-    { key: 'appointments', label: 'Nạp danh sách chỉ định & giải quyết xung đột lịch', progress: 95 },
+    { key: 'appointmentsActiveDate', label: 'Nạp lịch trình ngày làm việc & kiểm tra xung đột', progress: 95 },
   ];
+
+  const isStageDone = (key: string) =>
+    key === 'appointmentsActiveDate'
+      ? Boolean(loadedCollections.appointmentsActiveDate || loadedCollections.appointments)
+      : Boolean(loadedCollections[key]);
 
   // Calculate actual progress based on loaded collections
   const totalItems = stages.length;
-  const loadedCount = stages.filter(s => loadedCollections[s.key]).length;
+  const loadedCount = stages.filter(s => isStageDone(s.key)).length;
   const rawProgress = Math.round((loadedCount / totalItems) * 100);
   
   // Smooth progressive animation for the loading bar
@@ -42,18 +47,18 @@ export const LoginLoader: React.FC<LoginLoaderProps> = ({ loadedCollections, onC
     const interval = setInterval(() => {
       setProgress(prev => {
         if (prev < target) {
-          const next = prev + 5;
+          const next = prev + 8;
           return next > target ? target : next;
         }
         clearInterval(interval);
         return prev;
       });
-    }, 30);
+    }, 20);
     
     return () => clearInterval(interval);
   }, [rawProgress]);
 
-  // Handle completion check with a resilient timeout of 3.5s max
+  // Handle completion check with a resilient timeout of 2.2s max
   useEffect(() => {
     let completedTimer: NodeJS.Timeout;
     let fallbackTimer: NodeJS.Timeout;
@@ -62,18 +67,17 @@ export const LoginLoader: React.FC<LoginLoaderProps> = ({ loadedCollections, onC
       setProgress(100);
       completedTimer = setTimeout(() => {
         onComplete();
-      }, 500); // short delay for visual completion
+      }, 150);
     };
 
     if (loadedCount === totalItems) {
       finish();
     }
 
-    // Safety fallback: dismiss loading screen after 3.2 seconds max to never lock user out
+    // Safety fallback: dismiss loading screen after 2.2 seconds max to never lock user out
     fallbackTimer = setTimeout(() => {
-      console.log("Loading completed via safety timeout");
       finish();
-    }, 3200);
+    }, 2200);
 
     return () => {
       clearTimeout(completedTimer);
@@ -82,7 +86,7 @@ export const LoginLoader: React.FC<LoginLoaderProps> = ({ loadedCollections, onC
   }, [loadedCount, totalItems, onComplete]);
 
   // Determine current active loading text
-  const currentLoadingStage = stages.find(s => !loadedCollections[s.key]) || stages[stages.length - 1];
+  const currentLoadingStage = stages.find(s => !isStageDone(s.key)) || stages[stages.length - 1];
 
   return (
     <AnimatePresence>
@@ -160,7 +164,7 @@ export const LoginLoader: React.FC<LoginLoaderProps> = ({ loadedCollections, onC
             
             <div className="space-y-3">
               {stages.map((stage) => {
-                const isLoaded = loadedCollections[stage.key];
+                const isLoaded = isStageDone(stage.key);
                 return (
                   <div key={stage.key} className="flex items-center justify-between text-xs gap-3">
                     <span className={`font-semibold truncate flex-1 ${isLoaded ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
