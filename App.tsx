@@ -243,6 +243,12 @@ const App: React.FC = () => {
     deptName?: string;
     receivedAt: number;
   } | null>(null);
+  const [hisSyncBridgeStatus, setHisSyncBridgeStatus] = useState<{
+    status: 'idle' | 'requesting' | 'progress' | 'error' | 'received';
+    message?: string;
+    extensionDetected?: boolean;
+    updatedAt?: number;
+  }>({ status: 'idle', extensionDetected: false });
 
   // Department quick switcher dropdown in header
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
@@ -262,6 +268,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const processIncomingSync = (payload: any, replyTarget?: Window | null) => {
       if (!payload || !Array.isArray(payload.patients)) return;
+      setHisSyncBridgeStatus({
+        status: 'received',
+        extensionDetected: true,
+        updatedAt: Date.now()
+      });
       setHisSyncIncomingBatch({
         patients: payload.patients,
         deptId: payload.deptId,
@@ -282,17 +293,35 @@ const App: React.FC = () => {
     const handleWindowMessage = (event: MessageEvent) => {
       const msg = event.data;
       if (!msg || typeof msg !== 'object') return;
-      if (msg.type === 'MEDFLOW_SYNC_PING') {
+      if (msg.type === 'MEDFLOW_SYNC_PING' || msg.type === 'MEDFLOW_EXTENSION_READY') {
+        setHisSyncBridgeStatus(prev => ({
+          ...prev,
+          extensionDetected: true
+        }));
         try {
           (event.source as Window | null)?.postMessage?.({
             type: 'MEDFLOW_SYNC_PONG',
-            version: '1.0',
+            version: '1.1',
             loggedIn: Boolean(currentUser),
             currentDeptId: currentDept?.id || null,
             currentDeptName: currentDept?.name || null,
             activeDate
           }, '*');
         } catch (e) {}
+      } else if (msg.type === 'MEDFLOW_SYNC_PROGRESS') {
+        setHisSyncBridgeStatus({
+          status: 'progress',
+          message: msg.message || 'Đang lấy danh sách bệnh nhân từ tab VNPT-HIS...',
+          extensionDetected: true,
+          updatedAt: Date.now()
+        });
+      } else if (msg.type === 'MEDFLOW_SYNC_ERROR') {
+        setHisSyncBridgeStatus({
+          status: 'error',
+          message: msg.error || msg.message || 'Không thể lấy dữ liệu từ VNPT-HIS.',
+          extensionDetected: true,
+          updatedAt: Date.now()
+        });
       } else if (msg.type === 'MEDFLOW_SYNC_PATIENTS') {
         processIncomingSync(msg, event.source as Window | null);
       }
@@ -3209,7 +3238,7 @@ const App: React.FC = () => {
          {activeTab === 'ACCOUNT_MANAGER' && <AccountManager users={users} onSaveUser={handleSaveUser} onDeleteUser={handleDeleteUser} />}
          {activeTab === 'ACCOUNT_BACKUP' && <BackupManager backups={backups} departments={DEPARTMENTS} currentUser={currentUser} onCreateBackup={handleCreateBackup} onRestoreBackup={handleRestoreBackup} onDeleteBackup={handleDeleteBackup} onImportData={handleImportData} />}
          
-         {activeTab === 'PATIENT_RECORDS' && currentDept && <PatientList patients={patients} activeDate={activeDate} currentDept={currentDept} appointments={appointments} procedures={procedures} staff={staff} currentUser={currentUser || undefined} onAddPatient={() => { setEditingPatient(null); setIsPatientEditModalOpen(true); }} onOpenHisSync={() => { setHisSyncIncomingBatch(null); setIsHisSyncModalOpen(true); }} onEditPatient={p => { setEditingPatient(p); setIsPatientEditModalOpen(true); }} onDeletePatient={handleDeletePatient} onUpdateStatus={handleUpdateStatus} onReferral={(pid, s) => { setReferralModal({ patientId: pid, specialty: s, procedureIds: [], referralTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) }); }} onFinishReferral={handleFinishReferral} onCancelFinishReferral={handleCancelFinishReferral} onCancelReferral={handleCancelReferral} />}
+         {activeTab === 'PATIENT_RECORDS' && currentDept && <PatientList patients={patients} activeDate={activeDate} currentDept={currentDept} appointments={appointments} procedures={procedures} staff={staff} currentUser={currentUser || undefined} onAddPatient={() => { setEditingPatient(null); setIsPatientEditModalOpen(true); }} onOpenHisSync={() => { setHisSyncIncomingBatch(null); setHisSyncBridgeStatus(prev => ({ ...prev, status: 'requesting', message: undefined, updatedAt: Date.now() })); setIsHisSyncModalOpen(true); }} onEditPatient={p => { setEditingPatient(p); setIsPatientEditModalOpen(true); }} onDeletePatient={handleDeletePatient} onUpdateStatus={handleUpdateStatus} onReferral={(pid, s) => { setReferralModal({ patientId: pid, specialty: s, procedureIds: [], referralTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }) }); }} onFinishReferral={handleFinishReferral} onCancelFinishReferral={handleCancelFinishReferral} onCancelReferral={handleCancelReferral} />}
 
          {activeTab === 'SCHEDULING' && currentDept && (
           <PatientScheduling 
@@ -3388,7 +3417,18 @@ const App: React.FC = () => {
           onClose={() => setIsHisSyncModalOpen(false)}
           patients={patients}
           currentDept={currentDept}
+          activeDate={activeDate}
           incomingBatch={hisSyncIncomingBatch}
+          bridgeStatus={hisSyncBridgeStatus}
+          onRequestSyncReset={() => {
+            setHisSyncIncomingBatch(null);
+            setHisSyncBridgeStatus(prev => ({
+              ...prev,
+              status: 'requesting',
+              message: undefined,
+              updatedAt: Date.now()
+            }));
+          }}
           onApplyBatchPatients={handleBatchSavePatients}
           onSyncCompleted={(summary) => {
             try {

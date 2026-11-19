@@ -11,32 +11,72 @@ import {
   normalizeText
 } from '../utils/hisSyncUtils';
 import {
-  RefreshCw, X, AlertTriangle, CheckCircle2, UserPlus, Info, ArrowRight, Users
+  RefreshCw, X, AlertTriangle, CheckCircle2, UserPlus, Info, ArrowRight, Users, Code2, Copy, Check
 } from 'lucide-react';
+
+export interface HisBridgeStatus {
+  status: 'idle' | 'requesting' | 'progress' | 'error' | 'received';
+  message?: string;
+  extensionDetected?: boolean;
+  updatedAt?: number;
+}
 
 interface HisSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
   patients: Patient[];
   currentDept: Department | null;
+  activeDate?: string;
   incomingBatch: {
     patients: HisIncomingPatient[];
     deptId?: string;
     deptName?: string;
     receivedAt: number;
   } | null;
+  bridgeStatus?: HisBridgeStatus;
+  onRequestSyncReset?: () => void;
   onApplyBatchPatients: (patientsToSave: Patient[]) => Promise<boolean>;
   onSyncCompleted?: (summary: { updatedCount: number; addedCount: number; deptId: string }) => void;
 }
 
 type SyncSubTab = 'MISMATCHED' | 'NEW' | 'MATCHED' | 'MISSING_IN_HIS';
 
+const EXTENSION_SNIPPET = `// Thêm vào content script chạy trên trang MedFlow (manifest.json matches URL MedFlow)
+window.addEventListener('message', (event) => {
+  if (event.source !== window || !event.data) return;
+  if (event.data.type === 'MEDFLOW_REQUEST_HIS_SYNC') {
+    const { requestId, deptId, deptName } = event.data;
+    window.postMessage({ type: 'MEDFLOW_SYNC_PROGRESS', message: 'Đang lấy dữ liệu từ tab VNPT-HIS...' }, '*');
+    chrome.runtime.sendMessage({ action: 'SCRAPE_HIS_PATIENTS', deptId, deptName, requestId }, (res) => {
+      if (chrome.runtime.lastError || !res?.ok) {
+        window.postMessage({
+          type: 'MEDFLOW_SYNC_ERROR',
+          error: res?.error || 'Không tìm thấy tab VNPT-HIS đang mở hoặc phiên đăng nhập đã hết hạn.'
+        }, '*');
+        return;
+      }
+      window.postMessage({
+        type: 'MEDFLOW_SYNC_PATIENTS',
+        requestId,
+        deptId,
+        deptName,
+        patients: res.patients
+      }, '*');
+    });
+  }
+});
+// Gợi ý: báo cho MedFlow biết Extension đã sẵn sàng
+window.postMessage({ type: 'MEDFLOW_EXTENSION_READY', version: '1.1' }, '*');`;
+
 export const HisSyncModal: React.FC<HisSyncModalProps> = ({
   isOpen,
   onClose,
   patients,
   currentDept,
+  activeDate,
   incomingBatch,
+  bridgeStatus,
+  onRequestSyncReset,
   onApplyBatchPatients,
   onSyncCompleted
 }) => {
@@ -68,19 +108,49 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<SyncSubTab>('MISMATCHED');
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isWaitingTimedOut, setIsWaitingTimedOut] = useState(false);
+  const [showBridgeGuide, setShowBridgeGuide] = useState(false);
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
 
-  const requestSyncFromExtension = (deptIdToRequest: string) => {
+  const requestSyncFromExtension = (deptIdToRequest: string, resetCurrentData = false) => {
+    if (resetCurrentData) {
+      setRawIncoming(null);
+      onRequestSyncReset?.();
+    }
+    setIsWaitingTimedOut(false);
     const deptObj = DEPARTMENTS.find(d => d.id === deptIdToRequest);
     const payload = {
       type: 'MEDFLOW_REQUEST_HIS_SYNC',
+      requestId: `sync_${Date.now()}`,
       deptId: deptIdToRequest,
-      deptName: deptObj?.name || ''
+      deptName: deptObj?.name || '',
+      activeDate: activeDate || '',
+      source: 'MEDFLOW_BUTTON'
     };
     try {
       window.postMessage(payload, '*');
       window.dispatchEvent(new CustomEvent('medflow-request-his-sync', { detail: payload }));
     } catch (e) {}
   };
+
+  // Detect if extension didn't reply within 4 seconds while waiting
+  useEffect(() => {
+    if (!isOpen || rawIncoming) {
+      setIsWaitingTimedOut(false);
+      return;
+    }
+    if (bridgeStatus?.status === 'error') {
+      setIsWaitingTimedOut(false);
+      return;
+    }
+    setIsWaitingTimedOut(false);
+    const timer = setTimeout(() => {
+      if (!rawIncoming) {
+        setIsWaitingTimedOut(true);
+      }
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [isOpen, rawIncoming, bridgeStatus?.status, bridgeStatus?.updatedAt]);
 
   // Sync targetDeptId & request data from Extension if opened directly
   useEffect(() => {
@@ -89,6 +159,8 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
       const resolvedId = resolveDeptId(incomingBatch.deptId, incomingBatch.deptName);
       setTargetDeptId(resolvedId);
       setRawIncoming(incomingBatch.patients);
+      setIsWaitingTimedOut(false);
+      setShowBridgeGuide(false);
     } else {
       const resolvedId = currentDept && currentDept.type === DepartmentType.CLINICAL
         ? currentDept.id
@@ -347,7 +419,13 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
                 <span>Khoa đối chiếu:</span>
                 <select
                   value={targetDeptId}
-                  onChange={e => setTargetDeptId(e.target.value)}
+                  onChange={e => {
+                    const nextDeptId = e.target.value;
+                    setTargetDeptId(nextDeptId);
+                    if (!rawIncoming) {
+                      requestSyncFromExtension(nextDeptId);
+                    }
+                  }}
                   className="bg-slate-100 hover:bg-slate-200/70 text-slate-800 font-black px-2.5 py-0.5 rounded-lg border border-slate-200 outline-none cursor-pointer text-xs"
                 >
                   {clinicalDepts.map(d => (
@@ -364,6 +442,17 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {rawIncoming && (
+              <button
+                type="button"
+                onClick={() => requestSyncFromExtension(targetDeptId, true)}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                title="Yêu cầu Extension tải lại danh sách mới nhất từ VNPT-HIS"
+              >
+                <RefreshCw size={13} />
+                <span>Tải lại từ HIS</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -376,26 +465,101 @@ export const HisSyncModal: React.FC<HisSyncModalProps> = ({
 
         {/* Body */}
         {!rawIncoming ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-10 px-4 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center shadow-xs">
-              <RefreshCw size={26} className="animate-spin" style={{ animationDuration: '3s' }} />
+          <div className="flex-1 flex flex-col items-center justify-center py-8 px-4 text-center space-y-4 overflow-y-auto">
+            {bridgeStatus?.status === 'error' ? (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shadow-xs">
+                  <AlertTriangle size={26} />
+                </div>
+                <div className="space-y-1.5 max-w-md">
+                  <h4 className="text-sm font-black text-rose-700 uppercase tracking-tight">
+                    Extension VNPT-HIS báo lỗi đồng bộ
+                  </h4>
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    {bridgeStatus.message}
+                  </p>
+                </div>
+              </>
+            ) : isWaitingTimedOut ? (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shadow-xs">
+                  <AlertTriangle size={26} />
+                </div>
+                <div className="space-y-1.5 max-w-lg">
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    Chưa nhận được phản hồi từ Extension VNPT-HIS
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    MedFlow đã gửi lệnh lấy dữ liệu trực tiếp (<code className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-700 font-mono text-[11px]">MEDFLOW_REQUEST_HIS_SYNC</code>). Hãy đảm bảo tab <strong>VNPT-HIS</strong> đang mở và Extension của bạn đã gắn script lắng nghe trên trang MedFlow.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-14 h-14 rounded-2xl bg-sky-50 border border-sky-100 text-sky-600 flex items-center justify-center shadow-xs">
+                  <RefreshCw size={26} className="animate-spin" style={{ animationDuration: '1.8s' }} />
+                </div>
+                <div className="space-y-1.5 max-w-md">
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                    {bridgeStatus?.status === 'progress'
+                      ? 'Đang lấy dữ liệu từ VNPT-HIS...'
+                      : 'Đang gửi yêu cầu đồng bộ tới Extension VNPT-HIS'}
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {bridgeStatus?.status === 'progress' && bridgeStatus.message
+                      ? bridgeStatus.message
+                      : `Đang kết nối tới tab VNPT-HIS để đọc danh sách bệnh nhân ${targetDept?.name || ''}...`}
+                  </p>
+                </div>
+              </>
+            )}
+
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => requestSyncFromExtension(targetDeptId, true)}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-sky-600 hover:bg-sky-700 text-white shadow-sm flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+              >
+                <RefreshCw size={14} />
+                <span>{isWaitingTimedOut || bridgeStatus?.status === 'error' ? 'Thử đồng bộ lại' : 'Gửi lại yêu cầu đồng bộ'}</span>
+              </button>
+
+              {(isWaitingTimedOut || bridgeStatus?.status === 'error') && (
+                <button
+                  type="button"
+                  onClick={() => setShowBridgeGuide(prev => !prev)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Code2 size={14} />
+                  <span>{showBridgeGuide ? 'Ẩn cấu trúc Extension' : 'Xem code gắn vào Extension'}</span>
+                </button>
+              )}
             </div>
-            <div className="space-y-1.5 max-w-md">
-              <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                Đang chờ dữ liệu từ Extension VNPT-HIS
-              </h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Hãy bấm nút đồng bộ trên Extension của bạn (hoặc tại danh sách bệnh nhân VNPT-HIS), bảng đối chiếu sai lệch &amp; bệnh nhân mới sẽ tự động hiển thị ngay tại đây.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => requestSyncFromExtension(targetDeptId)}
-              className="px-4 py-2 rounded-xl text-xs font-black bg-sky-600 hover:bg-sky-700 text-white shadow-sm flex items-center gap-2 transition-all cursor-pointer active:scale-95"
-            >
-              <RefreshCw size={14} />
-              <span>Gửi lại yêu cầu đồng bộ</span>
-            </button>
+
+            {showBridgeGuide && (
+              <div className="w-full max-w-2xl text-left bg-slate-900 text-slate-100 rounded-2xl p-4 border border-slate-800 shadow-lg space-y-2 mt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-sky-400">
+                    Lắng nghe MEDFLOW_REQUEST_HIS_SYNC ngay trên tab MedFlow
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(EXTENSION_SNIPPET);
+                      setCopiedSnippet(true);
+                      setTimeout(() => setCopiedSnippet(false), 2000);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedSnippet ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    <span>{copiedSnippet ? 'Đã copy' : 'Copy mẫu code'}</span>
+                  </button>
+                </div>
+                <pre className="text-[11px] font-mono text-slate-200 overflow-x-auto leading-relaxed whitespace-pre-wrap">
+                  {EXTENSION_SNIPPET}
+                </pre>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 flex flex-col min-h-0 space-y-4">
