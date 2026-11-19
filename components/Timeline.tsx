@@ -3,10 +3,11 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Staff, Appointment, AppointmentStatus, Procedure, Patient, TimelineViewMode, Department, DepartmentType, UserAccount, UserRole, ScheduleSnapshot, AttendanceRecord, ConflictDetail } from '../types';
 import { BUSINESS_HOURS, DEPARTMENTS } from '../constants';
 import { timeStringToMinutes, minutesToPixels, calculateAge, isInsideOfficeHours, getRoleLabel, minutesToTimeString, checkConflict, getLocalDateString, getPatientDischargeTag } from '../utils/timeUtils';
-import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, Link2, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X } from 'lucide-react';
+import { Zap, User, UserCog, Monitor, Filter, FilterX, Calendar, Bed, Clock, Search, Check, ChevronDown, ChevronUp, Printer, Building2, AlertTriangle, Info, Plus, RefreshCw, FileText, Link2, ArrowUpDown, History, CheckCircle2, BookmarkCheck, Loader2, X, FileCheck2 } from 'lucide-react';
 import { downloadCSV, copyTableToClipboard } from '../utils/csvUtils';
 import { getBaselineAppointments, getAllBaselineAppointments, setSessionBaseline, calculateDeviations, DeviationItem } from '../utils/scheduleHistoryUtils';
 import { ScheduleHistoryModal } from './ScheduleHistoryModal';
+import { HisProcedureAuditModal } from './HisProcedureAuditModal';
 import { DateInput } from './DateInput';
 
 const compareNamesByFirstName = (aName: string, bName: string) => {
@@ -300,6 +301,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
   const [isSavingSnapshot, setIsSavingSnapshot] = useState<boolean>(false);
   const [copiedCsv, setCopiedCsv] = useState<boolean>(false);
+  const [isHisAuditModalOpen, setIsHisAuditModalOpen] = useState<boolean>(false);
 
   const baselineInfo = useMemo(() => {
     if (!currentDept) return { baselineAppts: [], isExplicitSnapshot: false, snapshotInfo: undefined };
@@ -1264,6 +1266,18 @@ export const Timeline: React.FC<TimelineProps> = ({
               {copiedCsv ? <Check size={16} /> : <Link2 size={16} />}
             </button>
 
+            {/* Nút Đối chiếu file CSV thủ thuật VNPT-HIS */}
+            {currentDept && (
+              <button 
+                type="button"
+                onClick={() => setIsHisAuditModalOpen(true)} 
+                className="flex items-center justify-center w-9 h-9 bg-white border border-slate-200 rounded-xl text-sky-600 hover:bg-sky-50 hover:border-sky-300 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+                title="Đối chiếu file CSV thủ thuật VNPT-HIS với Timeline Khoa"
+              >
+                <FileCheck2 size={16} />
+              </button>
+            )}
+
             {/* Nút Kiểm tra lỗi */}
             {onRecheckConflicts && (
               <button 
@@ -1979,6 +1993,20 @@ export const Timeline: React.FC<TimelineProps> = ({
             } : undefined}
             isSavingSnapshot={isSavingSnapshot}
             onUndoChange={onUndoAppointmentChange}
+          />
+        )}
+
+        {currentDept && (
+          <HisProcedureAuditModal
+            isOpen={isHisAuditModalOpen}
+            onClose={() => setIsHisAuditModalOpen(false)}
+            currentDept={currentDept}
+            currentDate={date}
+            onChangeDate={onChangeDate}
+            appointments={allAppointments || appointments}
+            patients={patients}
+            staff={staff}
+            procedures={procedures}
           />
         )}
       </div>
